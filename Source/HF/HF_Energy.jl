@@ -1,4 +1,4 @@
-function HF_Energy(Params::Parameters,Rho::pnMatrix,Orb::Vector{NOrb},Orb_NN::NNOrb, Orb_NNN::NNNOrb, T::Matrix{Float64}, VNN::NNInt, VNNN::Array{Vector{Vector{Float32}},4})
+function HF_Energy(Params::Parameters,Rho::pnMatrix,Orb::Vector{NOrb},Orb_NN::NNOrb,Orb_NNN::NNNOrb,T::Matrix{Float64},VNN::NNInt,VNNN::Array{Vector{Vector{Float32}},4})
     # Read parameters ...
     A = Params.Calc.A
     N_max = Params.Calc.Nmax

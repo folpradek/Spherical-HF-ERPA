@@ -18,9 +18,9 @@ function HF_Summary(Params::Parameters,E_HF::Float64,T_HF::Float64,Epsilon::Floa
                 string(div((N_max+1)*(N_max+2),2)) * ", M-basis size = " * string(div((N_max+1)*(N_max+2)*(N_max+3),6)))
         println(Summary_File, "                     Center of mass correction option is set to:    " * string(CMS))
         if CMS == "CMS1+2B"
-            println(Summary_File, "\nCombined 1-body + 2-body center of mass motion correction is included ...")
+            println(Summary_File, "\nCombined 1-body + 2-body center-of-mass motion correction is included ...")
         elseif CMS == "CMS2B"
-            println(Summary_File, "\nOnly pure 2-body center of mass motion correction is included ...")
+            println(Summary_File, "\nOnly pure 2-body center-of-mass motion correction is included ...")
         else
             println(Summary_File, "\nNo center of mass motion correction is included ...")
         end

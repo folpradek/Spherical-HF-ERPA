@@ -7,8 +7,6 @@ function V2B_Res_Density(Params::Parameters,Orb::Vector{NOrb},Orb_NN::NNOrb,Orb_
     J_max = N_2max + 1
 
     c = Params.Calc.cV_res
-
-
     JP = JP_Ini(J_max)
 
     pRho, nRho = Rho.p, Rho.n
@@ -29,7 +27,7 @@ function V2B_Res_Density(Params::Parameters,Orb::Vector{NOrb},Orb_NN::NNOrb,Orb_
             end
             @views N_t0 = Orb_NN.N[1,P,J+1]
             @views N_t1 = Orb_NN.N[2,P,J+1]
-            @inbounds Threads.@threads  for Bra in 1:max(N_t0, N_t1)
+            @inbounds Threads.@threads for Bra in 1:max(N_t0, N_t1)
 
                 if Bra <= N_t0
                     @views a = Orb_NN.Ind[1,P,J+1][Bra][1]
@@ -340,7 +338,7 @@ function Orb_PreComp(a_max::Int64,j::Int64,l::Int64,Orb::Vector{NOrb})
     return Orb_x
 end
 
-function V2B_Res_Ind1(Params::Parameters,Orb::Vector{NOrb},Orb_NN::NNOrb,VNN::NNInt,U::pnMatrix)
+function V2B_Res_Ind1(Params::Parameters,JP::Vector{Vector{Int64}},Orb::Vector{NOrb},Orb_NN::NNOrb,VNN::NNInt,U::pnMatrix)
     # Parameter initialization...
     N_max = Params.Calc.Nmax
     N_2max = 2*N_max
@@ -394,7 +392,7 @@ function V2B_Res_Ind1(Params::Parameters,Orb::Vector{NOrb},Orb_NN::NNOrb,VNN::NN
     return VNN_Res_I, Orb_NN_Res
 end
 
-function V2B_Res_Ind2(Params::Parameters,Orb::Vector{NOrb},Orb_NN_Res::NNOrb_Res,VNN_Res_I::NNInt_Res,U::pnMatrix)
+function V2B_Res_Ind2(Params::Parameters,JP::Vector{Vector{Int64}},Orb::Vector{NOrb},Orb_NN_Res::NNOrb_Res,VNN_Res_I::NNInt_Res,U::pnMatrix)
     # Parameter initialization...
     N_max = Params.Calc.Nmax
     N_2max = 2*N_max
@@ -446,7 +444,7 @@ function V2B_Res_Ind2(Params::Parameters,Orb::Vector{NOrb},Orb_NN_Res::NNOrb_Res
     return VNN_Res_I, VNN_Res_II
 end
 
-function V2B_Res_Ind3(Params::Parameters,Orb::Vector{NOrb},Orb_NN_Res::NNOrb_Res,VNN_Res_I::NNInt_Res,VNN_Res_II::NNInt_Res,U::pnMatrix)
+function V2B_Res_Ind3(Params::Parameters,JP::Vector{Vector{Int64}},Orb::Vector{NOrb},Orb_NN_Res::NNOrb_Res,VNN_Res_I::NNInt_Res,VNN_Res_II::NNInt_Res,U::pnMatrix)
     # Parameter initialization...
     N_max = Params.Calc.Nmax
     N_2max = 2*N_max
@@ -495,7 +493,7 @@ function V2B_Res_Ind3(Params::Parameters,Orb::Vector{NOrb},Orb_NN_Res::NNOrb_Res
     return VNN_Res_II
 end
 
-function V2B_Res_Ind4(Params::Parameters,Orb::Vector{NOrb},Orb_NN_Res::NNOrb_Res,VNN_Res_II::NNInt_Res,U::pnMatrix)
+function V2B_Res_Ind4(Params::Parameters,JP::Vector{Vector{Int64}},Orb::Vector{NOrb},Orb_NN_Res::NNOrb_Res,VNN_Res_II::NNInt_Res,U::pnMatrix)
     # Parameter initialization...
     N_max = Params.Calc.Nmax
     N_2max = 2*N_max
@@ -576,22 +574,24 @@ function V2B_Res(Params::Parameters,Orb::Vector{NOrb},Orb_NN::NNOrb,VNN::NNInt,U
     # Transformation of VNN to the HF basis...
     println("\nTransforming residual 2-body interaction from the LHO to the target basis...")
 
+    # Preallocate arrays of allowed values of J & P ...
+    JP = JP_Ini(Params.Calc.N2max + 1)
+
     # Index 1
-    VNN_Res_I, Orb_NN_Res = V2B_Res_Ind1(Params,Orb,Orb_NN,VNN,U)
+    VNN_Res_I, Orb_NN_Res = V2B_Res_Ind1(Params,JP,Orb,Orb_NN,VNN,U)
 
     # Index 2
-    VNN_Res_I, VNN_Res_II = V2B_Res_Ind2(Params,Orb,Orb_NN_Res,VNN_Res_I,U)
+    VNN_Res_I, VNN_Res_II = V2B_Res_Ind2(Params,JP,Orb,Orb_NN_Res,VNN_Res_I,U)
 
     # Index 3
-    VNN_Res_II = V2B_Res_Ind3(Params,Orb,Orb_NN_Res,VNN_Res_I,VNN_Res_II,U)
+    VNN_Res_II = V2B_Res_Ind3(Params,JP,Orb,Orb_NN_Res,VNN_Res_I,VNN_Res_II,U)
 
     # Index 4
-    VNN, Orb_NN = V2B_Res_Ind4(Params,Orb,Orb_NN_Res,VNN_Res_II,U)
+    VNN, Orb_NN = V2B_Res_Ind4(Params,JP,Orb,Orb_NN_Res,VNN_Res_II,U)
     
     println("\nResidual 2-body interaction ready...\n")
 
     return VNN, Orb_NN
-
 end
 
 @inline function V2B_Res_Ind1_MEs(a::Int64,b::Int64,c::Int64,d::Int64,i::Int64,J::Int64,pU::Matrix{Float64},nU::Matrix{Float64},VNN::NNInt,Orb::Vector{NOrb},Orb_NN::NNOrb)

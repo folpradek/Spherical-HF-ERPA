@@ -14,8 +14,8 @@ module HF_RPA_Module
     include("MatrixElements/V2B_Res.jl")
 
     # HF + LO HF-MBPT solver ...
+    include("HF/HF.jl")
     include("HF/HF_Solver.jl")
-    include("HF/HF_NO2B.jl")
     include("HF/HF_Density_Operator.jl")
     include("HF/HF_Orbital_Ordering.jl")
     include("HF/HF_Radial_Density.jl")
@@ -55,6 +55,12 @@ module HF_RPA_Module
     include("HF_ERPA/HF_ERPA_Radial_Density.jl")
     include("HF_ERPA/HF_ERPA_Collectivity.jl")
     include("HF_ERPA/HF_ERPA_Export.jl")
+
+    # pHF-RPA ... for testing purposes !!!
+    include("pHF_RPA/pHF_RPA_Solver.jl")
+    include("pHF_RPA/pHF_RPA.jl")
+    include("pHF_RPA/pHF_RPA_Allocate.jl")
+    include("pHF_RPA/pHF_RPA_Diagonalize.jl")
 
     for n in names(@__MODULE__; all=true)
         if Base.isidentifier(n) && n ∉ (Symbol(@__MODULE__), :eval, :include)

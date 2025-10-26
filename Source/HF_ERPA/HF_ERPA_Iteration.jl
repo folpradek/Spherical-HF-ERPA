@@ -133,5 +133,12 @@ function HF_ERPA_Iteration(Params::Parameters,N_nu::Matrix{Int64},Orb_Phonon::Ma
     println("\nSolving the RPA Generalized-Eigenvalue Problem ...")
     @time E_RPA, X_RPA, Y_RPA = HF_ERPA_Diagonalize(Params,A,B,N_nu,Orb_Phonon,Phonon,Particle,Hole,TrOp,Rho,X_RPA,Y_RPA)
 
+    # Intermediate evaluation of ERPA correlation energy ... testing purposes!
+    HF_ERPA_Energy_Bosonic(Params,N_nu,N_Particle,Particle,N_Hole,Hole,E_RPA,Y_RPA)
+
+    HF_ERPA_Energy_Alt(Params,N_nu,N_Particle,Particle,N_Hole,Hole,Orb,H,Orb_NN_res,VNN_res,A,E_RPA,Y_RPA,Rho)
+
+    #E_HF = HF_Energy(Params,Rho_LHO,Orb,Orb_NN_bare,Orb_NNN_bare,T,VNN_bare,VNNN_bare)
+
     return E_RPA, X_RPA, Y_RPA, Rho, pnMatrix(U_LHO_HF.p * U_HF_ERPA.p, U_LHO_HF.n * U_HF_ERPA.n)
 end

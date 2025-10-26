@@ -66,6 +66,11 @@ struct pnInteger
     n::Int64
 end
 
+struct pnFloat
+    p::Float64
+    n::Float64
+end
+
 struct pnVector
     p::Vector{Float64}
     n::Vector{Float64}
