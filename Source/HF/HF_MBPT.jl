@@ -1,8 +1,11 @@
 function HF_MBPT(Params::Parameters,Orb::Vector{NOrb},Orb_NN::NNOrb,VNN_res::NNInt)
+    # Make Particle-Hole orbitals ...
     N_Particle, Particle, N_Hole, Hole = Make_ParticleHole_Orbitals(Params.Calc.Nmax,Params.Calc.Path,Orb)
 
+    # Evaluate the HF-MBPT(2) ground-state energy correction ...
     HFMBPT_Energy(Params,Orb,Orb_NN,N_Particle,Particle,N_Hole,Hole,VNN_res)
 
+    # Evaluate the HF-MBPT(3) ground-state OBDM correction & radial densities ...
     HFMBPT_Density(Params,Orb,Orb_NN,N_Particle,Particle,N_Hole,Hole,VNN_res)
 
     return
@@ -129,6 +132,13 @@ function HFMBPT_Density(Params::Parameters,Orb::Vector{NOrb},Orb_NN::NNOrb,N_Par
     # Read calculation params ...
     N_max = Params.Calc.Nmax
     a_max = div((N_max + 1)*(N_max + 2),2)
+
+    # Read the transformation matrix C ... LHO -> HF ...
+    C = pnMatrix(Read_Transformation_Matrix(Params,"IO/" * Params.Calc.Path * "/Bin/pU_HF.bin"),
+                 Read_Transformation_Matrix(Params,"IO/" * Params.Calc.Path * "/Bin/nU_HF.bin"))
+
+    # Allocate the HF OBDM Rho ...
+    Rho = HF_Density_Operator(Orb,a_max,C)
 
     # Initialize density matrices ...
     dpRho = zeros(Float64,a_max,a_max)
@@ -739,9 +749,24 @@ function HFMBPT_Density(Params::Parameters,Orb::Vector{NOrb},Orb_NN::NNOrb,N_Par
         end
     end
 
+    # Calculate & export HF-MBPT(3) occupation numbers ...
     HFMBPT_OBDM_Occupation(Params,Orb,pnMatrix(dpRho,dnRho))
 
-    @time HFMBPT_Radial_Density(Params,Orb,pnMatrix(dpRho,dnRho))
+    # (!!!) TO BE FIXED (!!!)
+
+    # Diagonalize new full Rho, determine new C & perform reordering ...
+
+    #=
+    # Include HF-MBPT(3) corrections to Rho ...
+    Rho = pnMatrix(Rho.p .+ C.p * dpRho * C.p', Rho.n .+ C.n * dnRho * C.n')
+
+    # Calculate & export radial HF-MBPT(3) densities & radii ...
+    Summary_File = "IO/" * Params.Calc.Path * "/HF/HF_Summary.dat"
+    Densities_File = "IO/" * Params.Calc.Path * "/HF/Densities/HFMBPT_Radial_Densities.dat"
+    OBDM_Export(Params,Summary_File,Densities_File,Rho,C,Orb)
+    =#
+
+    #@time HFMBPT_Radial_Density(Params,Orb,pnMatrix(dpRho,dnRho))
 
     return
 end
@@ -822,6 +847,10 @@ function HFMBPT_OBDM_Occupation(Params::Parameters,Orb::Vector{NOrb},dRho::pnMat
     return
 end
 
+# Also rewrite 
+#
+# First apply Hungarian with respect to the LHO basis, second
+# reorder to match l & j numbers ....
 function HFMBPT_OBDM_Reorder(a_max::Int64,N::Vector{Float64},U::Matrix{Float64})
     Ordering = zeros(Int64,a_max)
     V = diagm(ones(Float64,a_max))

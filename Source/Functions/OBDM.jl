@@ -1,0 +1,328 @@
+# Note the Radial_Density() function assumes Rho expressed in the LHO basis, C transformation matrix from LHO to reference basis ...
+    # Summary_File = String with direct access to the output summary file, e.g. Summary_File = "IO/Sample_Calculation/HF/HF_Summary.dat"
+    # Densities_File = String with direct access to the output folder for radial densities, e.g. Densities_File = "IO/Sample_Calculation/HF/Densities/HF_Radial_Densities.dat"
+
+function OBDM_Export(Params::Parameters,Summary_File::String,Densities_File::String,Rho::pnMatrix,C::pnMatrix,Orb::Vector{NOrb})
+    # Transform Rho from LHO to the reference basis ...
+    Rho = pnMatrix(C.p' * Rho.p * C.p, C.n' * Rho.n * C.n)
+
+    # Calculation of 1-body & 2-body CMS...
+    if Params.Calc.CMS == "CMS1+2B" || Params.Calc.CMS  == "CMS2B"
+        R_CMS = Radial_CMS(Params,Rho,C,Orb)
+    else
+        R_CMS = [0.0, 0.0, 0.0, 0.0]
+    end
+
+    # Evaluate nucleon densities on a grid ...
+    Rho_grid = Radial_Density_Grid(Params,Rho,C,Orb)
+
+    # Evaluate charge density on a grid & calculte anomalous magnetic moment correction ...
+    Rho_grid, kR2 = Radial_ChDensity_Grid(Params,Rho,C,Orb,R_CMS,Rho_grid[1],Rho_grid[2],Rho_grid[3])
+
+    # Calculate radii from the radial densities ...
+    pR2, nR2, chR2 = Radial_Radii(Rho_grid[1],Rho_grid[2],Rho_grid[3],Rho_grid[4])
+
+    # Export radial densities ...
+    Radial_Density_Export(Densities_File,Rho_grid)
+
+    # Export radii to summary file ...
+    Radial_Summary(Params,Summary_File,pR2,nR2,chR2,R_CMS,kR2)
+
+    println("\nRadial densities and corresponding radii sucessfully exported ...")
+
+    return
+end
+
+function Radial_CMS(Params::Parameters,Rho::pnMatrix,C::pnMatrix,Orb::Vector{NOrb})
+    # Read parameters ...
+    hw, A, Z = Params.Calc.hw, Float64(Params.Calc.A), Float64(Params.Calc.Z)
+    N_max = Params.Calc.Nmax
+    a_max = div((N_max + 1)*(N_max + 2),2)
+
+    # Calculate 1st & 2nd radial moments in LHO basis ...
+    Radial_r1_LHO = Radial_Moment_Matrix_LHO(1,hw,Orb)
+    Radial_r2_LHO = Radial_Moment_Matrix_LHO(2,hw,Orb)
+
+    # Initialize arrays for the radial moments ...
+    pRadial_r1, pRadial_r2 = zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max)
+    nRadial_r1, nRadial_r2 = zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max)
+
+    # Transform Radial Moment matrices to the reference basis ...
+    @inbounds for a in 1:a_max
+        l_a = Orb[a].l
+        j_a = Orb[a].j
+        @inbounds for b in 1:a_max
+            l_b = Orb[b].l
+            j_b = Orb[b].j
+            pR1Sum, pR2Sum = 0.0, 0.0
+            nR1Sum, nR2Sum = 0.0, 0.0
+            @inbounds for k in 1:a_max
+                l_k = Orb[k].l
+                j_k = Orb[k].j
+                if (l_k == l_a) && (j_k == j_a)
+                    @inbounds for l in 1:a_max
+                        l_l = Orb[l].l
+                        j_l = Orb[l].j
+                        if (l_l == l_b) && (j_l == j_b)
+                            pME1 = C.p[k,a] * C.p[l,b] * Radial_r1_LHO[k,l]
+                            pME2 = C.p[k,a] * C.p[l,b] * Radial_r2_LHO[k,l]
+                            pR1Sum += pME1
+                            pR2Sum += pME2
+
+                            nME1 = C.n[k,a] * C.n[l,b] * Radial_r1_LHO[k,l]
+                            nME2 = C.n[k,a] * C.n[l,b] * Radial_r2_LHO[k,l]
+                            nR1Sum += nME1
+                            nR2Sum += nME2
+                        end
+                    end
+                end
+            end
+            pRadial_r1[a,b], pRadial_r2[a,b] = pR1Sum, pR2Sum
+            nRadial_r1[a,b], nRadial_r2[a,b] = nR1Sum, nR2Sum
+        end
+    end
+
+    # Initialize CM corrections to radii ...
+    pR2_CMS1, pR2_CMS2 = 0.0, 0.0
+    nR2_CMS1, nR2_CMS2 = 0.0, 0.0
+
+    # Calculate 2-body CM corrections to proton & neutron radii ...
+    @inbounds for a in 1:a_max
+        l_a = Orb[a].l
+        j_a = Orb[a].j
+        @inbounds for b in 1:a_max
+            l_b = Orb[b].l
+            j_b = Orb[b].j
+            Amp = fCG(j_a,j_b,2,1,-1,0) * fCG(j_b,j_a,2,1,-1,0)
+            pME = Amp * ((Rho.p[a,a] * Rho.p[b,b]  * abs(pRadial_r1[a,b])^2) * (2.0 / (Z*A) - 1.0 / A^2) - 1.0 / A^2 * Rho.n[a,a] * Rho.n[b,b] * abs(nRadial_r1[a,b])^2)
+            nME = Amp * ((Rho.n[a,a] * Rho.n[b,b]  * abs(nRadial_r1[a,b])^2) * (2.0 / (Z*A) - 1.0 / A^2) - 1.0 / A^2 * Rho.p[a,a] * Rho.p[b,b] * abs(pRadial_r1[a,b])^2)
+            pR2_CMS2 += pME
+            nR2_CMS2 += nME
+        end
+        pME = ((1.0 / A^2 - 2.0 / (Z*A)) * Rho.p[a,a] * pRadial_r2[a,a] + Rho.n[a,a] * nRadial_r2[a,a] / A^2) * Float64(j_a + 1)
+        nME = ((1.0 / A^2 - 2.0 / ((A-Z)*A)) * Rho.n[a,a] * nRadial_r2[a,a] + Rho.p[a,a] * pRadial_r2[a,a] / A^2) * Float64(j_a + 1)
+        pR2_CMS1 += pME
+        nR2_CMS1 += nME
+    end
+
+    return [pR2_CMS1, pR2_CMS2, nR2_CMS1 ,nR2_CMS2]
+end
+
+function Radial_Density_Grid(Params::Parameters,Rho::pnMatrix,C::pnMatrix,Orb::Vector{NOrb})
+    # Read parameters ...
+    hw, A = Params.Calc.hw, Float64(Params.Calc.A)
+    N_max = Params.Calc.Nmax
+    a_max = div((N_max + 1)*(N_max + 2),2)
+
+    # Basic constants ...
+    hc, m_p, m_n = 197.326980, 938.272013, 939.565346
+    nu_proton = 0.5 * m_p * hw / hc^2
+    nu_neutron = 0.5 * m_n * hw / hc^2
+
+    # Preallocate grid ...
+    r1, r2 = 0.0 + 1e-8, 2.5 * 1.2 * A^(1/3)
+    N_Sampling = 2^13 + 1 # 8192 + 1 grid points ...
+    r_grid, pRho_grid, nRho_grid = collect(range(r1, stop = r2, length = N_Sampling)), zeros(Float64,N_Sampling), zeros(Float64,N_Sampling)
+
+    # Evaluate the radial grid ...
+    @inbounds Threads.@threads for i in 1:N_Sampling
+        r = r_grid[i]
+        pSum, nSum = 0.0, 0.0
+        @inbounds for a in 1:a_max
+            l_a = Orb[a].l
+            j_a = Orb[a].j
+            pRad, nRad = 0.0, 0.0
+            @inbounds for k in 1:a_max
+                l_k = Orb[k].l
+                j_k = Orb[k].j
+                n_k = Orb[k].n
+                if (j_a == j_k) && (l_a == l_k)
+                    pPsi = Psi_rad_LHO(r,n_k,l_k,nu_proton) * C.p[k,a]
+                    nPsi = Psi_rad_LHO(r,n_k,l_k,nu_neutron) * C.n[k,a]
+                    pRad += pPsi
+                    nRad += nPsi
+                end
+            end
+            pSum += Rho.p[a,a] * pRad^2 * Float64(j_a + 1)
+            nSum += Rho.n[a,a] * nRad^2 * Float64(j_a + 1)
+        end
+        pRho_grid[i] = pSum / (4.0 * π)
+        nRho_grid[i] = nSum / (4.0 * π)
+    end
+    
+    return [r_grid, pRho_grid, nRho_grid]
+end
+
+function Radial_ChDensity_Grid(Params::Parameters,Rho::pnMatrix,C::pnMatrix,Orb::Vector{NOrb},R_CMS::Vector{Float64},r_grid::Vector{Float64},pRho_grid::Vector{Float64},nRho_grid::Vector{Float64})
+    # Read parameters ...
+    hw, A, Z = Params.Calc.hw, Float64(Params.Calc.A), Float64(Params.Calc.Z)
+    N_max = Params.Calc.Nmax
+    a_max = div((N_max + 1)*(N_max + 2),2)
+
+    # Basic constants ...
+    hc, m_p, m_n = 197.326980, 938.272013, 939.565346
+    k_p, k_n = 1.793, 1.913
+    nu_proton = 0.5 * m_p * hw / hc^2
+    nu_neutron = 0.5 * m_n * hw / hc^2
+
+    # CMS radius corrections ...
+    pR_CMS = R_CMS[1] + R_CMS[2]
+    nR_CMS = R_CMS[3] + R_CMS[4]
+
+    # Preallocate charged densitiy grid ...
+    N_Sampling = 2^13 + 1
+    chRho_grid = zeros(Float64,N_Sampling)
+
+    # Preallocate anomalous magnetic moment correction ...
+    kR2 = 0.0
+    
+    # Evaluate the charged density ...
+    @inbounds Threads.@threads for i in 1:N_Sampling
+        r = r_grid[i]
+        chSum = 0.0
+        @inbounds for a in 1:a_max
+            l_a = Orb[a].l
+            j_a = Orb[a].j
+            pRad, nRad = 0.0, 0.0
+            @inbounds for k in 1:a_max
+                l_k = Orb[k].l
+                j_k = Orb[k].j
+                n_k = Orb[k].n
+                if (j_a == j_k) && (l_a == l_k)
+                    pPsi = Psi_rad_LHO(r,n_k,l_k,nu_proton) * C.p[k,a]
+                    nPsi = Psi_rad_LHO(r,n_k,l_k,nu_neutron) * C.n[k,a]
+                    pRad += pPsi
+                    nRad += nPsi
+                end
+            end 
+            # Spin-Orbit interaction matrix element ...
+            SO = Float64(l_a * KroneckerDelta(j_a,2*l_a+1) - (l_a+1) * KroneckerDelta(j_a,2*l_a-1))
+            chME = (k_n / m_n^2 * Rho.n[a,a] * nRad^2 + k_p / m_p^2 * Rho.p[a,a] * pRad^2) *
+                    hc^2 * SO * Float64(j_a + 1) / Z
+            chSum += chME
+        end
+        chME = Fold_pRho(r,r_grid,pRho_grid,pR_CMS)
+        chSum += chME
+        chME = Fold_nRho(r,r_grid,nRho_grid,nR_CMS)
+        chSum += chME
+        chRho_grid[i] += chSum
+    end
+
+    # Separately we also evaluate the anomalous magnetic moment contribution to the charged radius ...
+    @inbounds for a in 1:a_max
+        l_a, j_a = Orb[a].l, Orb[a].j
+        SO = Float64(l_a * KroneckerDelta(j_a,2*l_a+1) - (l_a+1) * KroneckerDelta(j_a,2*l_a-1))
+        kME = hc^2 * (k_p / m_p^2 * Rho.p[a,a] + k_n / m_n^2 * Rho.n[a,a]) * Float64(j_a + 1)^2 * SO / (4.0 * π * Z)
+        kR2 += kME
+    end
+
+    return [r_grid, pRho_grid, nRho_grid, chRho_grid], kR2
+end
+
+function Radial_Radii(r_grid::Vector{Float64},pRho_grid::Vector{Float64},nRho_grid::Vector{Float64},chRho_grid::Vector{Float64})
+    pR2 = Integrate_Trap(r_grid, r_grid.^4 .* pRho_grid) / Integrate_Trap(r_grid, r_grid.^2 .* pRho_grid)
+    nR2 = Integrate_Trap(r_grid, r_grid.^4 .* nRho_grid) / Integrate_Trap(r_grid, r_grid.^2 .* nRho_grid)
+    chR2 = Integrate_Trap(r_grid, r_grid.^4 .* chRho_grid) / Integrate_Trap(r_grid, r_grid.^2 .* chRho_grid)
+    return pR2, nR2, chR2
+end
+
+function Radial_Density_Export(Densities_File::String,Rho_grid::Vector{Vector{Float64}})
+    # Export radial grid & densities to .dat file ...
+    open(Densities_File, "w") do Export_File
+        writedlm(Export_File, hcat(Rho_grid[1], Rho_grid[2], Rho_grid[3], Rho_grid[4]), "\t")
+    end
+
+    return
+end
+
+function Radial_Summary(Params::Parameters,Summary_File::String,pR2::Float64,nR2::Float64,chR2::Float64,R_CMS::Vector{Float64},kR2::Float64)
+    # Read parameters ...
+    A, Z, N = Float64(Params.Calc.A), Float64(Params.Calc.Z), Float64(Params.Calc.A - Params.Calc.Z)
+
+    # Print basis information regarding the charge radii ...
+    println("\nResulting point-proton, charged & point-neutron radii ...")
+    println("\nr_p  = " * string(round(sqrt(pR2 + R_CMS[1] + R_CMS[2] + 0.5 * (197.326980 / 938.272013)^2), sigdigits=6)) * " fm \t\t ... \t Point-proton radius")
+    println("r_n  = " * string(round(sqrt(nR2 + R_CMS[3] + R_CMS[4] + 0.5 * (197.326980 / 939.565346)^2), sigdigits=6)) * " fm \t\t ... \t Point-neutron radius")
+    println("r_ch = " * string(round(sqrt(pR2 + R_CMS[1] + R_CMS[2] - 0.106 * N / Z + 0.8414 - 0.143), sigdigits=6)) * " fm \t\t ... \t Standard charge radius")
+    println("r_ch = " * string(round(sqrt(chR2 + R_CMS[1] + R_CMS[2] + 0.5 * (197.326980 / 938.272013)^2), sigdigits=6)) * " fm \t\t ... \t Folded charge radius")
+    println("\nFor more details see the summary file ... ''" * Summary_File * "'' ...")
+
+    # Export resulsts & contributions to radii ...
+    println("\nExporting information on radii ...")
+    Summary =  open(Summary_File, "a")
+        println(Summary, "\n\nResulting nuclear radii ...")
+        println(Summary, "\nr_p  = " * string(round(sqrt(pR2 + R_CMS[1] + R_CMS[2] + 0.5 * (197.326980 / 938.272013)^2), sigdigits=6)) * " fm \t\t ... \t Point-proton radius")
+        println(Summary, "r_n  = " * string(round(sqrt(nR2 + R_CMS[3] + R_CMS[4] + 0.5 * (197.326980 / 939.565346)^2), sigdigits=6)) * " fm \t\t ... \t Point-neutron radius")
+        println(Summary, "r_ch = " * string(round(sqrt(pR2 + R_CMS[1] + R_CMS[2] - 0.106 * N / Z + 0.8414 - 0.143), sigdigits=6)) * " fm \t\t ... \t Standard charge radius")
+        println(Summary, "r_ch = " * string(round(sqrt(chR2 + R_CMS[1] + R_CMS[2] + 0.5 * (197.326980 / 938.272013)^2), sigdigits=6)) * " fm \t\t ... \t Folded charge radius")
+        println(Summary, "\nr_p  = " * string(round(sqrt(pR2), sigdigits=6)) * "\t fm \t\t ... \t Uncorrected point-proton radius")
+        println(Summary, "r_ch = " * string(round(sqrt(chR2), sigdigits=6)) * "\t fm \t\t ... \t Uncorrected folded charge radius")
+        println(Summary, "r_n  = " * string(round(sqrt(nR2), sigdigits=6)) * "\t fm \t\t ... \t Uncorrected point-neutron radius")
+        println(Summary, "\nDetails on radii corrections ...\n")
+        println(Summary, "r_p2_cm1^2 = " * string(round(R_CMS[1], digits=6)) * "\t fm^2")
+        println(Summary, "r_p2_cm2^2 = " * string(round(R_CMS[2], digits=6)) * "\t fm^2")
+        println(Summary, "r_n2_cm1^2 = " * string(round(R_CMS[3], digits=6)) * "\t fm^2")
+        println(Summary, "r_n2_cm2^2 = " * string(round(R_CMS[4], digits=6)) * "\t fm^2")
+        println(Summary, "r_ch2_k^2   = " * string(round(kR2, sigdigits=7)) * "\t fm^2")
+        println(Summary, "r_pDF2^2   = " * string(round(0.5 * (197.326980 / 938.272013)^2, sigdigits=7)) * "\t fm^2")
+        println(Summary, "r_nDF2^2   = " * string(round(0.5 * (197.326980 / 939.565346)^2, sigdigits=7)) * "\t fm^2")
+        println(Summary, "\n\nResulting nuclear radii normalized by the scale factor 1/A^1/3 ...")
+        println(Summary, "\nr_p  = " * string(round(sqrt(pR2 + R_CMS[1] + R_CMS[2] + 0.5 * (197.326980 / 938.272013)^2) / A^(1/3), sigdigits=6)) * " fm \t\t ... \t Point-proton radius")
+        println(Summary, "r_n  = " * string(round(sqrt(nR2 + R_CMS[3] + R_CMS[4] + 0.5 * (197.326980 / 939.565346)^2) / A^(1/3), sigdigits=6)) * " fm \t\t ... \t Point-neutron radius")
+        println(Summary, "r_ch = " * string(round(sqrt(pR2 + R_CMS[1] + R_CMS[2] - 0.106 * N / Z + 0.8414 - 0.143) / A^(1/3), sigdigits=6)) * " fm \t\t ... \t Standard charge radius")
+        println(Summary, "r_ch = " * string(round(sqrt(chR2 + R_CMS[1] + R_CMS[2] + 0.5 * (197.326980 / 938.272013)^2) / A^(1/3), sigdigits=6)) * " fm \t\t ... \t Folded charge radius")
+        println(Summary, "\nr_p  = " * string(round(sqrt(pR2) / A^(1/3), sigdigits=6)) * "\t fm \t\t ... \t Uncorrected point-proton radius")
+        println(Summary, "r_n  = " * string(round(sqrt(nR2) / A^(1/3), sigdigits=6)) * "\t fm \t\t ... \t Uncorrected point-neutron radius")
+        println(Summary, "r_ch = " * string(round(sqrt(chR2) / A^(1/3), sigdigits=6)) * "\t fm \t\t ... \t Uncorrected folded charge radius")
+        println(Summary, "\nDetails on radii corrections ...\n")
+        println(Summary, "r_p2_cm1^2 = " * string(round(R_CMS[1] / A^(1/3), digits=6)) * "\t fm^2")
+        println(Summary, "r_p2_cm2^2 = " * string(round(R_CMS[2] / A^(1/3), digits=6)) * "\t fm^2")
+        println(Summary, "r_n2_cm1^2 = " * string(round(R_CMS[3] / A^(1/3), digits=6)) * "\t fm^2")
+        println(Summary, "r_n2_cm2^2 = " * string(round(R_CMS[4] / A^(1/3), digits=6)) * "\t fm^2")
+        println(Summary, "r_ch2_k^2   = " * string(round(kR2 / A^(1/3), sigdigits=7)) * "\t fm^2")
+        println(Summary, "r_pDF2^2   = " * string(round(0.5 * (197.326980 / 938.272013)^2 / A^(1/3), sigdigits=7)) * "\t fm^2")
+        println(Summary, "r_nDF2^2   = " * string(round(0.5 * (197.326980 / 939.565346)^2 / A^(1/3), sigdigits=7)) * "\t fm^2")
+    close(Summary)
+
+    return
+end
+
+# Auxiliary functions for contributions of finite proton & neutron sizes to charge densities ...
+@inline function Fold_pRho(r::Float64,r_grid::Vector{Float64},pRho_grid::Vector{Float64},pR_CMS::Float64)
+    N_Sampling = 2^13 + 1
+    Rho = Vector{Float64}(undef,N_Sampling)
+    @inbounds for i in 1:N_Sampling
+        Rho[i] = pConvolution(r_grid[i],r,pR_CMS) * pRho_grid[i]
+    end
+    chRho = Integrate_Trap(r_grid,Rho)
+    return chRho
+end
+
+@inline function Fold_nRho(r::Float64,r_grid::Vector{Float64},nRho_grid::Vector{Float64},nR_CMS::Float64)
+    N_Sampling = 2^13 + 1
+    Rho = Vector{Float64}(undef,N_Sampling)
+    @inbounds for i in 1:N_Sampling
+        Rho[i] = nConvolution(r_grid[i],r,nR_CMS) * nRho_grid[i]
+    end
+    chRho = Integrate_Trap(r_grid,Rho)
+    return chRho
+end
+
+@inline function pConvolution(x::Float64,r::Float64,pR_CMS::Float64)
+    a_1, a_2, a_3 = 0.506373, 0.327922, 0.165705
+    r_1 = sqrt(abs(0.431566 + pR_CMS + 0.5 * (197.326980 / 938.272013)^2))
+    r_2 = sqrt(abs(0.139140 + pR_CMS + 0.5 * (197.326980 / 938.272013)^2))
+    r_3 = sqrt(abs(1.525540 + pR_CMS + 0.5 * (197.326980 / 938.272013)^2))
+    rho = x / (r * sqrt(pi)) * (a_1 / r_1 * (exp(-((r-x)/r_1)^2) - exp(-((r+x)/r_1)^2)) +
+                                a_2 / r_2 * (exp(-((r-x)/r_2)^2) - exp(-((r+x)/r_2)^2)) +
+                                a_3 / r_3 * (exp(-((r-x)/r_3)^2) - exp(-((r+x)/r_3)^2)))
+    return rho
+end
+
+@inline function nConvolution(x::Float64,r::Float64,nR_CMS::Float64)
+    r_p = sqrt(abs(0.4828 - 0.038664 + nR_CMS + 0.5 * (197.326980 / 939.565346)^2))
+    r_m = sqrt(abs(0.4828 + 0.038664 + nR_CMS + 0.5 * (197.326980 / 939.565346)^2))
+    rho = x / (r * sqrt(pi)) * ((exp(-((r-x)/r_p)^2) - exp(-((r+x)/r_p)^2)) / r_p -
+                                (exp(-((r-x)/r_m)^2) - exp(-((r+x)/r_m)^2)) / r_m)
+    return rho
+end

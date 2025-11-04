@@ -102,7 +102,8 @@ function BCS_SQS_Summary(Params::Parameters,SPE::pnVector,SQE::pnVector,U::pnVec
 
     return
 end
-# To be refined ...
+
+# To be refined (???) ...
 function BCS_Export(Params::Parameters,U::pnMatrix,SPEnergies::pnVector)
     # Read parameters
     N_max = Params.Calc.Nmax

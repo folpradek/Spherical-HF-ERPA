@@ -16,12 +16,12 @@ module HF_RPA_Module
     # HF + LO HF-MBPT solver ...
     include("HF/HF.jl")
     include("HF/HF_Solver.jl")
+    include("HF/HF_Allocate.jl")
     include("HF/HF_Density_Operator.jl")
     include("HF/HF_Orbital_Ordering.jl")
     include("HF/HF_Radial_Density.jl")
     include("HF/HF_Radial_Potential.jl")
     include("HF/HF_Energy.jl")
-    include("HF/HF_Summary.jl")
     include("HF/HF_Export.jl")
     include("HF/HF_MBPT.jl")
     include("HF/HF_Radial_MBPT.jl")

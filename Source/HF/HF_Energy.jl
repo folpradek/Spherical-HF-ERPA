@@ -5,9 +5,9 @@ function HF_Energy(Params::Parameters,Rho::pnMatrix,Orb::Vector{NOrb},Orb_NN::NN
     N_2max = Params.Calc.N2max
     N_3max = Params.Calc.N3max
     CMS = Params.Calc.CMS
-
     a_max = div((N_max + 1)*(N_max + 2),2)
 
+    # Read Rho ...
     pRho, nRho = Rho.p, Rho.n
 
     #Calculate the HF energy ...
@@ -106,6 +106,8 @@ function HF_Energy(Params::Parameters,Rho::pnMatrix,Orb::Vector{NOrb},Orb_NN::NN
     return E_HF
 end
 
+
+# To be removed ...
 function HF_Kinetic_Energy(Params::Parameters,Rho::pnMatrix,Orb::Vector{NOrb},T::Matrix{Float64})
     A = Params.Calc.A
     hw = Params.Calc.hw

@@ -179,47 +179,6 @@ function HF_Radial_Density_Grid(Params::Parameters,Orb::Vector{NOrb},U::pnMatrix
     return Rho_Grid
 end
 
-@inline function Fold_pRho(r::Float64,r_grid::Vector{Float64},pRho_rad::Vector{Float64},pR_CMS::Float64)
-    N_Sampling = 10000
-    Rho = Vector{Float64}(undef,N_Sampling)
-    @inbounds for i in 1:N_Sampling
-        Rho[i] = pConvolution(r_grid[i],r,pR_CMS) * pRho_rad[i]
-    end
-    chRho = Integrate_Trap(r_grid,Rho)
-    return chRho
-end
-
-@inline function Fold_nRho(r::Float64,r_grid::Vector{Float64},nRho_rad::Vector{Float64},nR_CMS::Float64)
-    N_Sampling = 10000
-    Rho = Vector{Float64}(undef,N_Sampling)
-    @inbounds for i in 1:N_Sampling
-        Rho[i] = nConvolution(r_grid[i],r,nR_CMS) * nRho_rad[i]
-    end
-    chRho = Integrate_Trap(r_grid,Rho)
-    return chRho
-end
-
-@inline function pConvolution(x::Float64,r::Float64,pR_CMS::Float64)
-    a_1 = 0.506373
-    a_2 = 0.327922
-    a_3 = 0.165705
-    r_1 = sqrt(abs(0.431566 + pR_CMS + 0.5 * (197.326980 / 938.272013)^2))
-    r_2 = sqrt(abs(0.139140 + pR_CMS + 0.5 * (197.326980 / 938.272013)^2))
-    r_3 = sqrt(abs(1.525540 + pR_CMS + 0.5 * (197.326980 / 938.272013)^2))
-    rho = x / (r * sqrt(pi)) * (a_1 / r_1 * (exp(-((r-x)/r_1)^2) - exp(-((r+x)/r_1)^2)) +
-                                a_2 / r_2 * (exp(-((r-x)/r_2)^2) - exp(-((r+x)/r_2)^2)) +
-                                a_3 / r_3 * (exp(-((r-x)/r_3)^2) - exp(-((r+x)/r_3)^2)))
-    return rho
-end
-
-@inline function nConvolution(x::Float64,r::Float64,nR_CMS::Float64)
-    r_p = sqrt(abs(0.4828 - 0.038664 + nR_CMS + 0.5 * (197.326980 / 939.565346)^2))
-    r_m = sqrt(abs(0.4828 + 0.038664 + nR_CMS + 0.5 * (197.326980 / 939.565346)^2))
-    rho = x / (r * sqrt(pi)) * ((exp(-((r-x)/r_p)^2) - exp(-((r+x)/r_p)^2)) / r_p -
-                                (exp(-((r-x)/r_m)^2) - exp(-((r+x)/r_m)^2)) / r_m)
-    return rho
-end
-
 function HF_Radial_ChDensity_Grid(Params::Parameters,Orb::Vector{NOrb},U::pnMatrix,R_CMS::Vector{Float64},r_grid::Vector{Float64},pRho_rad::Vector{Float64},nRho_rad::Vector{Float64})
     # Basic constants ...
     HbarC = 197.326980
