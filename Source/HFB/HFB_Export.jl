@@ -11,34 +11,34 @@ function HFB_Summary(Params::Parameters,E_HFB::Float64,T_HFB::Float64,Lambda::pn
 
     # Export the HF calculation summary ...
     println("\nExporting HFB calculation summary ...")
-    Summary_File =  open(string("IO/", Output_File, "/HFB/HFB_Summary.dat"), "a")
-        println(Summary_File, "Target nuclid:       A = " * string(A) * ", Z = " * string(Z))
-        println(Summary_File, "\nCalculation data:    hw = " * string(hw) * " , N_max = " * string(N_max) *
+    Summary =  open(string("IO/", Output_File, "/HFB/HFB_Summary.dat"), "a")
+        println(Summary, "Target nuclid:       A = " * string(A) * ", Z = " * string(Z))
+        println(Summary, "\nCalculation data:    hw = " * string(hw) * " , N_max = " * string(N_max) *
                 " , N_2max = " * string(N_2max) * " , N_3max = " * string(N_3max) * ", J-basis size = " *
                 string(div((N_max+1)*(N_max+2),2)) * ", M-basis size = " * string(div((N_max+1)*(N_max+2)*(N_max+3),6)))
-        println(Summary_File, "                     Center of mass correction option is set to:    " * string(CMS))
+        println(Summary, "                     Center of mass correction option is set to:    " * string(CMS))
         if CMS == "CMS1+2B"
-            println(Summary_File, "\nCombined 1-body + 2-body Center-of-Mass (CM) motion correction is included ...")
+            println(Summary, "\nCombined 1-body + 2-body Center-of-Mass (CM) motion correction is included ...")
         elseif CMS == "CMS2B"
-            println(Summary_File, "\nOnly pure 2-body Center-of-Mass (CM) motion correction is included ...")
+            println(Summary, "\nOnly pure 2-body Center-of-Mass (CM) motion correction is included ...")
         else
-            println(Summary_File, "\nNo Center-of-Mass (CM) motion correction is included ...")
+            println(Summary, "\nNo Center-of-Mass (CM) motion correction is included ...")
         end
-        println(Summary_File, "\nSpherical HFB solution review:")
-        println(Summary_File, "\nNumber of HFB Iterations = " * string(Iteration) * ", Convergence precision = " * string(round(epsilon, digits=8)) * " (dE <-> MeV, dN <-> Nucleons)")
-        println(Summary_File, "\nE_HFB  = " * string(round(E_HFB, sigdigits=9)) * "\t MeV \t\t ... \t HFB mean-field ground-state energy")
-        println(Summary_File, "T_HFB = " * string(round(T_HFB, sigdigits=9)) * "\t MeV \t\t ... \t HFB mean-field ground-state kinetic energy")
-        println(Summary_File, "\n\nE_HFB / A  = " * string(round(E_HFB / A, digits=9)) * "\t MeV / Nucleon \t\t ... \t HFB mean-field ground-state energy per nucleon")
-        println(Summary_File, "T_HFB / A = " * string(round(T_HFB / A, digits=9)) * "\t MeV / Nucleon\t\t ... \t HFB mean-field ground-state kinetic energy per nucleon")
-        println(Summary_File, "\n\nValues of HFB chemical potentials:")
-        println(Summary_File, "\npLambda =  " * string(Lambda.p) * " MeV")
-        println(Summary_File, "nLambda =  " * string(Lambda.n) * " MeV")
-        println(Summary_File, "\nDispersion of HFB particle numbers dZ & dN:")
-        println(Summary_File, "\ndZ = " * string(round(dA.p, sigdigits=6)))
-        println(Summary_File, "dN = " * string(round(dA.n, sigdigits=6)))
-        println(Summary_File, "\ndZ / Z = " * string(round(dA.p / Float64(Z), sigdigits=6)))
-        println(Summary_File, "dN / N = " * string(round(dA.n / Float64(A - Z), sigdigits=6)))
-    close(Summary_File)
+        println(Summary, "\nSpherical HFB solution review:")
+        println(Summary, "\nNumber of HFB Iterations = " * string(Iteration) * ", Convergence precision = " * string(round(epsilon, digits=8)) * " (dE <-> MeV, dN <-> Nucleons)")
+        println(Summary, "\nE_HFB  = " * string(round(E_HFB, sigdigits=9)) * "\t MeV \t\t ... \t HFB mean-field ground-state energy")
+        println(Summary, "T_HFB = " * string(round(T_HFB, sigdigits=9)) * "\t MeV \t\t ... \t HFB mean-field ground-state kinetic energy")
+        println(Summary, "\n\nE_HFB / A  = " * string(round(E_HFB / A, digits=9)) * "\t MeV / Nucleon \t\t ... \t HFB mean-field ground-state energy per nucleon")
+        println(Summary, "T_HFB / A = " * string(round(T_HFB / A, digits=9)) * "\t MeV / Nucleon\t\t ... \t HFB mean-field ground-state kinetic energy per nucleon")
+        println(Summary, "\n\nValues of HFB chemical potentials:")
+        println(Summary, "\npLambda =  " * string(Lambda.p) * " MeV")
+        println(Summary, "nLambda =  " * string(Lambda.n) * " MeV")
+        println(Summary, "\nDispersion of HFB particle numbers dZ & dN:")
+        println(Summary, "\ndZ = " * string(round(dA.p, sigdigits=6)))
+        println(Summary, "dN = " * string(round(dA.n, sigdigits=6)))
+        println(Summary, "\ndZ / Z = " * string(round(dA.p / Float64(Z), sigdigits=6)))
+        println(Summary, "dN / N = " * string(round(dA.n / Float64(A - Z), sigdigits=6)))
+    close(Summary)
 
     return
 end
@@ -96,7 +96,7 @@ function HFB_SQS_Summary(Params::Parameters,SQE::pnVector,SQE_C::pnVector,Rho_C:
     return
 end
 
-# To be refined ...
+# Yet to be defined ...
 function HFB_Export(Params::Parameters,C::pnMatrix,U::pnMatrix,V::pnMatrix,SQE::pnVector)
     # Read parameters
     N_max = Params.Calc.Nmax

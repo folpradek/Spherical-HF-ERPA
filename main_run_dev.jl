@@ -1,9 +1,8 @@
 using DelimitedFiles, LinearAlgebra, CGcoefficient, BenchmarkTools, Hungarian
 include("Source/Import_Structures.jl")
 include("Source/Functions/Functions.jl")
-include("Source/Functions/OBDM.jl")
 include("Source/MatrixElements/Orb.jl")
-include("Source/MatrixElements/TrOp.jl")
+include("Source/MatrixElements/OBDM.jl")
 include("Source/MatrixElements/TrOp.jl")
 include("Source/MatrixElements/T1B.jl")
 include("Source/MatrixElements/T2B.jl")
@@ -14,13 +13,11 @@ include("Source/HF/HF.jl")
 include("Source/HF/HF_Solver.jl")
 include("Source/HF/HF_Allocate.jl")
 include("Source/HF/HF_Density_Operator.jl")
-include("Source/HF/HF_Orbital_Ordering.jl")
-include("Source/HF/HF_Radial_Density.jl")
+include("Source/HF/HF_Ordering.jl")
 include("Source/HF/HF_Radial_Potential.jl")
 include("Source/HF/HF_Energy.jl")
 include("Source/HF/HF_Export.jl")
 include("Source/HF/HF_MBPT.jl")
-include("Source/HF/HF_Radial_MBPT.jl")
 include("Source/HF_RPA/HF_RPA_Solver.jl")
 include("Source/HF_RPA/HF_RPA.jl")
 include("Source/HF_RPA/HF_RPA_Phonon_Count.jl") 
@@ -58,11 +55,24 @@ include("Source/pHF_RPA/pHF_RPA_Diagonalize.jl")
 # BCS
 include("Source/BCS/BCS.jl")
 include("Source/BCS/BCS_Solver.jl")
+include("Source/BCS/BCS_Residual_Interaction.jl")
+include("Source/BCS/BCS_Density_Operator.jl")
+include("Source/BCS/BCS_Particle_Number.jl")
+include("Source/BCS/BCS_Allocate.jl")
+include("Source/BCS/BCS_Energy.jl")
 include("Source/BCS/BCS_Export.jl")
 
 # HFB
 include("Source/HFB/HFB.jl")
 include("Source/HFB/HFB_Solver.jl")
+include("Source/HFB/HFB_Density_Operator.jl")
+include("Source/HFB/HFB_Chemical_Potential.jl")
+include("Source/HFB/HFB_Particle_Number.jl")
+include("Source/HFB/HFB_Broyden.jl")
+include("Source/HFB/HFB_Ordering.jl")
+include("Source/HFB/HFB_Allocate.jl")
+include("Source/HFB/HFB_Canonical_Basis.jl")
+include("Source/HFB/HFB_Energy.jl")
 include("Source/HFB/HFB_Export.jl")
 
 function run_main()
@@ -90,7 +100,9 @@ function run_main()
                 #Path = "HF_A16_Z8_hw16.0_Nmax3_N2max6_N3max9_CMS1+2B",
                 #ERPA = Parameters_ERPA(OBDM = "Full", ScOBH = true, Sc3N = true),
                 #Format = "Bin",
-                #cV_res = 0.01
+                #cV_res = 0.01,
+                Pairing = Parameters_Pairing(ScBCS = false),
+                HFB = Parameters_HFB(Broyden = true)
                 )
 
     #HF(Parameters(IntParams,CalcParams))

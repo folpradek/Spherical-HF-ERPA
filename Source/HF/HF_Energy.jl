@@ -11,11 +11,9 @@ function HF_Energy(Params::Parameters,Rho::pnMatrix,Orb::Vector{NOrb},Orb_NN::NN
     pRho, nRho = Rho.p, Rho.n
 
     #Calculate the HF energy ...
-
-    E_HF = 0.0
-
     println("\nCalculating total HF energy ...")
 
+    E_HF = 0.0
     E_HF_partial = Threads.Atomic{Float64}[Threads.Atomic{Float64}(0.0) for _ in 1:Threads.nthreads()]
 
     @inbounds Threads.@threads for a = 1:a_max
@@ -104,104 +102,4 @@ function HF_Energy(Params::Parameters,Rho::pnMatrix,Orb::Vector{NOrb},Orb_NN::NN
     println("\nHF energy    ...   E_HF = " * string(E_HF) * " MeV")
 
     return E_HF
-end
-
-
-# To be removed ...
-function HF_Kinetic_Energy(Params::Parameters,Rho::pnMatrix,Orb::Vector{NOrb},T::Matrix{Float64})
-    A = Params.Calc.A
-    hw = Params.Calc.hw
-    N_max = Params.Calc.Nmax
-    N_2max = Params.Calc.N2max
-    CMS = Params.Calc.CMS
-
-    a_max = div((N_max + 1)*(N_max + 2),2)
-
-    pRho, nRho = Rho.p, Rho.n
-
-    pT, nT = zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max)
-
-    @inbounds Threads.@threads for a = 1:a_max
-        n_a = Orb[a].n
-        l_a = Orb[a].l
-        j_a = Orb[a].j
-        @inbounds for d = 1:a_max
-            n_d = Orb[d].n
-            l_d = Orb[d].l
-            j_d = Orb[d].j
-            if l_a == l_d && j_a == j_d
-                pSum = 0.0
-                nSum = 0.0
-                @inbounds for b = 1:a_max
-                    n_b = Orb[b].n
-                    l_b = Orb[b].l
-                    j_b = Orb[b].j
-                    if (2*(n_a + n_b) + l_a + l_b) <= N_2max
-                        @inbounds for e = 1:a_max
-                            n_e = Orb[e].n
-                            l_e = Orb[e].l
-                            j_e = Orb[e].j
-                            if l_b == l_e && j_b == j_e && (2*(n_d + n_e) + l_d + l_e) <= N_2max
-
-                                # 2-body CMS correction
-                                if rem(l_a + l_b, 2) == rem(l_d + l_e, 2)
-                                    @inbounds for j = div(abs(j_a - j_b),2):div((j_a + j_b),2)
-
-                                        if CMS == "CMS1+2B"
-                                            TNN_sym =  T2B(Orb,a,b,d,e,j) * hw
-    
-                                            TNN_antisym = 1.0 / sqrt(Float64((1 + KroneckerDelta(a,b))*(1 + KroneckerDelta(d,e)))) * (T2B(Orb, a, b, d, e, j) -
-                                                          Float64((-1)^(round(div(j_d + j_e,2) - j))) * T2B(Orb, a, b, e, d, j)) * hw
-                                        elseif CMS == "CMS2B"
-                                            Amp = hw / sqrt(Float64(1 + KroneckerDelta(a,b)) * Float64(1 + KroneckerDelta(d,e)))
-                                            Amp_2 = 1.0 / sqrt(Float64(1 + KroneckerDelta(a,b)) * Float64(1 + KroneckerDelta(d,e)))
-    
-                                            TNN_sym = hw * T2B(Orb, a, b, d, e, j) + T[a,d] * KroneckerDelta(b,e) + T[b,e] * KroneckerDelta(a,d)
-
-                                            TNN_antisym = (Amp * T2B(Orb,a,b,d,e,j) + Amp_2 * (KroneckerDelta(b,e) * T[a,d] + KroneckerDelta(a,d) * T[b,e])
-                                                        - Float64((-1)^(div(j_d + j_e,2) - j)) * (Amp * T2B(Orb,a,b,e,d,j) + Amp_2 * (Float64(KroneckerDelta(b,d)) *
-                                                        T[a,e] + Float64(KroneckerDelta(a,e)) * T[b,d]))) / Float64(A)
-                                        else
-                                            TNN_sym = 0.0
-                                            TNN_antisym = 0.0
-                                        end
-
-                                        pSum += 1.0/Float64(A) * TNN_antisym * pRho[b,e] * Float64(2*j + 1) / Float64(j_a + 1)
-                                        pSum += 1.0/Float64(A) * TNN_sym * nRho[b,e] * Float64(2*j + 1) / Float64(j_a + 1)
-                                        nSum += 1.0/Float64(A) * TNN_antisym * nRho[b,e] * Float64(2*j + 1) / Float64(j_a + 1)
-                                        nSum += 1.0/Float64(A) * TNN_sym * pRho[b,e] * Float64(2*j + 1) / Float64(j_a + 1)
-
-                                    end
-                                end
-
-                            end
-                        end
-                    end
-                end
-
-                # 1-body kinetic operator & CMS correction
-                if CMS == "CMS1+2B"
-                    pT[a,d] = pSum + T[a,d] * (1.0 - 1.0/Float64(A))
-                    nT[a,d] = nSum + T[a,d] * (1.0 - 1.0/Float64(A))
-                elseif CMS == "CMS2B"
-                    pT[a,d] = pSum
-                    nT[a,d] = nSum
-                else
-                    pT[a,d] = pSum + T[a,d]
-                    nT[a,d] = nSum + T[a,d]
-                end
-
-            end
-        end
-    end
-
-    T_HF = 0.0
-
-    @inbounds for a = 1:a_max
-        T_HF += (pT[a,a] * pRho[a,a] + nT[a,a] * nRho[a,a]) * Float64(Orb[a].j + 1)
-    end
-
-    println("\nTotal mean-field kinetic energy reads:    <T> = " * string(T_HF) * " MeV")
-
-    return T_HF, pnMatrix(pT,nT)
 end

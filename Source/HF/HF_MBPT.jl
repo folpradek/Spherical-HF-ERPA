@@ -133,13 +133,6 @@ function HFMBPT_Density(Params::Parameters,Orb::Vector{NOrb},Orb_NN::NNOrb,N_Par
     N_max = Params.Calc.Nmax
     a_max = div((N_max + 1)*(N_max + 2),2)
 
-    # Read the transformation matrix C ... LHO -> HF ...
-    C = pnMatrix(Read_Transformation_Matrix(Params,"IO/" * Params.Calc.Path * "/Bin/pU_HF.bin"),
-                 Read_Transformation_Matrix(Params,"IO/" * Params.Calc.Path * "/Bin/nU_HF.bin"))
-
-    # Allocate the HF OBDM Rho ...
-    Rho = HF_Density_Operator(Orb,a_max,C)
-
     # Initialize density matrices ...
     dpRho = zeros(Float64,a_max,a_max)
     dnRho = zeros(Float64,a_max,a_max)
@@ -749,133 +742,209 @@ function HFMBPT_Density(Params::Parameters,Orb::Vector{NOrb},Orb_NN::NNOrb,N_Par
         end
     end
 
-    # Calculate & export HF-MBPT(3) occupation numbers ...
-    HFMBPT_OBDM_Occupation(Params,Orb,pnMatrix(dpRho,dnRho))
+    # Read the transformation matrix C ... LHO -> HF ...
+    C = pnMatrix(Read_Transformation_Matrix(Params,"IO/" * Params.Calc.Path * "/Bin/pU_HF.bin"),
+                 Read_Transformation_Matrix(Params,"IO/" * Params.Calc.Path * "/Bin/nU_HF.bin"))
 
-    # (!!!) TO BE FIXED (!!!)
+    # Allocate the HF OBDM Rho ... in the LHO basis ...
+    Rho_HF = HF_Density_Operator(a_max,C,Orb)
 
-    # Diagonalize new full Rho, determine new C & perform reordering ...
+    # Transform Rho_HF to the HF basis ...
+    Rho_HF = pnMatrix(C.p' * Rho_HF.p * C.p, C.n' * Rho_HF.n * C.n)
 
-    #=
     # Include HF-MBPT(3) corrections to Rho ...
-    Rho = pnMatrix(Rho.p .+ C.p * dpRho * C.p', Rho.n .+ C.n * dnRho * C.n')
+    pRho, nRho = Rho_HF.p .+ dpRho, Rho_HF.n .+ dnRho
+
+    # Symmetrize, clean & regularize Rho ...
+        # Symmetrize density matrices ...
+    pRho .= 0.5 .* (pRho .+ pRho')
+    nRho .= 0.5 .* (nRho .+ nRho')
+        # Eliminate any possible numerical noise spoiling block-diagonal structure ...
+    @inbounds for a in 1:a_max
+        @inbounds for b in 1:a_max
+            if (Orb[a].j != Orb[b].j) || (Orb[a].l != Orb[b].l)
+                pRho[a,b] = 0.0
+                nRho[a,b] = 0.0
+            end
+        end
+    end
+        # Add a tiny deterministic diagonal splitting to lift degeneracies ...
+    @inbounds for a in 1:a_max
+        pRho[a,a] += 1e-10 * Float64(a)
+        nRho[a,a] += 1e-10 * Float64(a)
+    end
+
+    # Diagonalize Rho ...
+    pn, pD = eigen(Symmetric(pRho))
+    nn, nD = eigen(Symmetric(nRho))
+
+    # Reorder D & allocate new density matrix Rho ... in the HF-NAT basis ...
+    Rho, D = HF_MBPT_Reorder(Params,pnVector(pn,nn),pnMatrix(pD,nD),Orb)
 
     # Calculate & export radial HF-MBPT(3) densities & radii ...
     Summary_File = "IO/" * Params.Calc.Path * "/HF/HF_Summary.dat"
     Densities_File = "IO/" * Params.Calc.Path * "/HF/Densities/HFMBPT_Radial_Densities.dat"
-    OBDM_Export(Params,Summary_File,Densities_File,Rho,C,Orb)
-    =#
+    OBDM_Export(Params,Summary_File,Densities_File,pnMatrix(C.p * D.p * Rho.p * D.p' * C.p', C.n * D.n * Rho.n * D.n' * C.n'),pnMatrix(C.p * D.p, C.n * D.n),Orb)
 
-    #@time HFMBPT_Radial_Density(Params,Orb,pnMatrix(dpRho,dnRho))
+    # Calculate & export HF-MBPT(3) occupation numbers ...
+    HFMBPT_Occupation(Params,Orb,Rho_HF,Rho)
 
     return
 end
 
-function HFMBPT_OBDM_Occupation(Params::Parameters,Orb::Vector{NOrb},dRho::pnMatrix)
+function HF_MBPT_Reorder(Params::Parameters,n::pnVector,C::pnMatrix,Orb::Vector{NOrb})
+    # Read calculation parameters ...
+    N_max = Params.Calc.Nmax
+    a_max = div((N_max + 1) * (N_max + 2), 2)
+
+    # Read needed arrays ...
+    pC, pn = C.p, n.p
+    nC, nn = C.n, n.n
+ 
+    # Allocata temporary arrays for ordering ...
+    pOrdering, nOrdering = zeros(Int64,a_max), zeros(Int64,a_max)
+    V = diagm(ones(Float64,a_max))
+
+    # Compute the largest overlaps ...
+    @inbounds for a in 1:a_max
+        pIndex, nIndex = 0, 0
+        @views v = V[:,a]
+        pMaximum, nMaximum = 0.0, 0.0
+        @inbounds for b in 1:a_max
+            @views pu = C.p[:,b]
+            @views nu = C.n[:,b]
+            pOverlap = abs(dot(v,pu))
+            nOverlap = abs(dot(v,nu))
+            if pOverlap > pMaximum
+                pIndex = b
+                pMaximum = pOverlap
+            end
+            if nOverlap > nMaximum
+                nIndex = b
+                nMaximum = nOverlap
+            end
+        end
+        pOrdering[a] = pIndex
+        nOrdering[a] = nIndex
+    end
+
+    # Reorder Occupations n & transformation matrix C ...
+    @views pn .= pn[pOrdering]
+    @views pC .= pC[:,pOrdering]
+
+    @views nn .= nn[nOrdering]
+    @views nC .= nC[:,nOrdering]
+
+    # Define the diagonal density matrix Rho ...
+    pRho, nRho = diagm(pn), diagm(nn)
+
+    return pnMatrix(pRho,nRho), pnMatrix(pC,nC)
+end
+
+# To be removed ...
+function HF_MBPT_Reorder_Alt(Params::Parameters,n::pnVector,C::pnMatrix,Orb::Vector{NOrb})
+    # Read calculation parameters ...
+    N_max = Params.Calc.Nmax
+    a_max = div((N_max + 1) * (N_max + 2), 2)
+
+    # Read needed arrays ...
+    pC, pn = C.p, n.p
+    nC, nn = C.n, n.n
+
+    # Hungarian algorithm reordering ... first pre-sort
+        # Evaluate the basis overlaps ...
+    pOverlap = diagm(ones(Float64,a_max)) - abs.(pC)
+    nOverlap = diagm(ones(Float64,a_max)) - abs.(nC)
+        # Apply the Hungarian algorithm ...
+    pOrb_order, Temp = hungarian(pOverlap)
+    nOrb_order, Temp = hungarian(nOverlap)
+        # Apply the Hungarian reordering ...
+    @views pC .= pC[:,pOrb_order]
+    @views pn .= pn[pOrb_order]
+
+    @views nC .= nC[:,nOrb_order]
+    @views nn .= nn[nOrb_order]
+
+    # Continue with reordering in l & j numbers ...
+
+    # Preallocate temporary arrays ...
+    pOrb_order, nOrb_order = Vector{Int64}(undef,a_max), Vector{Int64}(undef,a_max)
+    pOrb_mask, nOrb_mask = falses(a_max), falses(a_max)
+
+    pl_values, pj_values = zeros(Float64,a_max), zeros(Float64,a_max)
+    nl_values, nj_values = zeros(Float64,a_max), zeros(Float64,a_max)
+
+    # Evaluate values of j & l for single-particle orbitals ...
+    @inbounds for a in 1:a_max
+        pjSum, plSum = 0.0, 0.0
+        njSum, nlSum = 0.0, 0.0
+        @inbounds for b in 1:a_max
+            l_b, j_b = Float64(Orb[b].l), Float64(Orb[b].j)
+            pN, nN = pC[b,a]^2, nC[b,a]^2
+            pjSum, plSum = pjSum + j_b * pN, plSum + l_b * pN
+            njSum, nlSum = njSum + j_b * nN, nlSum + l_b * nN
+        end
+        pl_values[a], pj_values[a] = plSum, pjSum
+        nl_values[a], nj_values[a] = nlSum, njSum
+    end
+
+    # Find the ordering for single-particle orbitals ...
+    @inbounds for a in 1:a_max
+        pl, pj = pl_values[a], pj_values[a]
+        nl, nj = nl_values[a], nj_values[a]
+        @inbounds for b in 1:a_max
+            if (pOrb_mask[b] == false) && (abs(Float64(Orb[b].l) - pl) < 1e-3) && (abs(Float64(Orb[b].j) - pj) < 1e-3)
+                pOrb_order[b] = a
+                pOrb_mask[b] = true
+                break
+            end
+        end
+
+        @inbounds for b in 1:a_max
+            if (nOrb_mask[b] == false) && (abs(Float64(Orb[b].l) - nl) < 1e-3) && (abs(Float64(Orb[b].j) - nj) < 1e-3)
+                nOrb_order[b] = a
+                nOrb_mask[b] = true
+                break
+            end
+        end
+    end
+
+    # Perform reordering of single-particle orbitals ...
+    @views pC .= pC[:,pOrb_order]
+    @views pn .= pn[pOrb_order]
+
+    @views nC .= nC[:,nOrb_order]
+    @views nn .= nn[nOrb_order]
+
+    # Define the diagonal density matrix Rho ...
+    pRho, nRho = diagm(pn), diagm(nn)
+
+    return pnMatrix(pRho,nRho), pnMatrix(pC,nC)
+end
+
+function HFMBPT_Occupation(Params::Parameters,Orb::Vector{NOrb},Rho_HF::pnMatrix,Rho_NAT::pnMatrix)
     # Read parameters ...
     Orthogon = Params.Calc.Ortho
     Output_File = Params.Calc.Path
     N_max = Params.Calc.Nmax
     a_max = div((N_max + 1)*(N_max + 2),2)
 
+    # Determine the export path ...
     if Orthogon == true
         Output_Path = "IO/" * Output_File * "/HF/Densities/HFMBPT_Occupation_Ortho.dat"
     else
         Output_Path = "IO/" * Output_File * "/HF/Densities/HFMBPT_Occupation_Spur.dat"
     end
 
-    # Initialize HF 1-body density matrix ...
-    pRho_HF, nRho_HF = zeros(Float64,a_max,a_max),zeros(Float64,a_max,a_max)
-    @inbounds for a in 1:a_max
-        pRho_HF[a,a] = Orb[a].pO
-        nRho_HF[a,a] = Orb[a].nO
-    end
-
-    # Construct the HF-MBPT OBDM ...
-    pRho_MBPT, nRho_MBPT = pRho_HF .+ dRho.p, nRho_HF .+ dRho.n
-
-    # Ensure Hermicity of OBDMs ...
-    pRho_MBPT .= 0.5 .* (pRho_MBPT .+ pRho_MBPT')
-    nRho_MBPT .= 0.5 .* (nRho_MBPT .+ nRho_MBPT')
-
-    # Diagonalize OBDMs ...
-    pN, pU = eigen(pRho_MBPT, sortby = nothing)
-    nN, nU = eigen(pRho_MBPT, sortby = nothing)
-
-    # Reorder according to HF orbital convention ...
-    pN, pU = HFMBPT_OBDM_Reorder(a_max,pN,pU)
-    nN, nU = HFMBPT_OBDM_Reorder(a_max,nN,nU)
-
     # Export the occupation probabilities to data file ...
-
-    # Initialize occupation probabilities vectors ...
-    pO_HF = Vector{Float64}(undef,a_max)
-    nO_HF = Vector{Float64}(undef,a_max)
-    pO_MBPT = Vector{Float64}(undef,a_max)
-    nO_MBPT = Vector{Float64}(undef,a_max)
-    pa = Vector{Int64}(undef,a_max)
-    na = Vector{Int64}(undef,a_max)
-
-    @inbounds for a in 1:a_max
-        pO_HF[a] = pRho_HF[a,a]
-        nO_HF[a] = nRho_HF[a,a]
-        pO_MBPT[a] = round(pN[a], digits = 4)
-        nO_MBPT[a] = round(nN[a], digits = 4)
-        pa[a] = a
-        na[a] = a
-    end
-
-    Sort_pInd = sortperm(pO_MBPT, rev = true)
-    Sort_nInd = sortperm(nO_MBPT, rev = true)
-
-    pO_HF = pO_HF[Sort_pInd]
-    pO_MBPT = pO_MBPT[Sort_pInd]
-    pa = pa[Sort_pInd]
-
-    nO_HF = nO_HF[Sort_nInd]
-    nO_MBPT = nO_MBPT[Sort_nInd]
-    na = na[Sort_nInd]
-
-    # HF-MBPT occupation export ...
     open(Output_Path, "w") do Write_File
-        println(Write_File, "a\ta_p\tpN_HF\tpN_MBPT\tpN_dep\ta_n\tnN_HF\tnN_MBPT\tnN_dep")
+        println(Write_File, "a\tpn_HF\tpn_MBPT\td_pn\tnn_HF\tnn_MBPT\td_nn")
         @inbounds for a in 1:a_max
-            println(Write_File, string(a) * "\t" * string(pa[a]) * "\t" * string(pO_HF[a]) * "\t" * string(pO_MBPT[a]) * "\t" * string(round(pO_MBPT[a] - pO_HF[a], digits = 5)) * "\t" * string(na[a]) * "\t" * string(nO_HF[a]) * "\t" * string(nO_MBPT[a]) * "\t" * string(round(nO_MBPT[a] - nO_HF[a], digits = 5)))
+            println(Write_File, string(a) * "\t" * string(Rho_HF.p[a,a]) * "\t" * string(Rho_NAT.p[a,a]) *
+                    "\t" * string(round(Rho_HF.p[a,a] - Rho_NAT.p[a,a], digits = 5)) * "\t" * string(Rho_HF.n[a,a]) *
+                    "\t" * string(Rho_NAT.n[a,a]) * "\t" * string(round(Rho_HF.n[a,a] - Rho_NAT.n[a,a], digits = 5)))
         end
     end
 
     return
-end
-
-# Also rewrite 
-#
-# First apply Hungarian with respect to the LHO basis, second
-# reorder to match l & j numbers ....
-function HFMBPT_OBDM_Reorder(a_max::Int64,N::Vector{Float64},U::Matrix{Float64})
-    Ordering = zeros(Int64,a_max)
-    V = diagm(ones(Float64,a_max))
-    @inbounds for a in 1:a_max
-        Index = 0
-        v = V[:,a]
-        Maximum = 0.0
-        @inbounds for b in 1:a_max
-            u = U[:,b]
-            Overlap = abs(dot(v,u))
-            if Overlap > Maximum
-                Index = b
-                Maximum = Overlap
-            end
-        end
-        Ordering[a] = Index
-    end
-    N = N[Ordering]
-    U = U[:, Ordering]
-    @inbounds for a in 1:a_max
-        if U[a,a] < 0.0
-            @inbounds for b in 1:a_max
-                U[b,a] = -1.0 * U[b,a]
-            end
-        end
-    end
-    return N, U
 end

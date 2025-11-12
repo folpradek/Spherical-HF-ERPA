@@ -38,16 +38,16 @@ function HF_RPA_Radial_Density(Params::Parameters,Orb::Vector{NOrb},Rho::pnMatri
     end
 
     # Evaluate HF densities on a grid ...
-    Rho_Grid = HF_RPA_Radial_Density_Grid(Params,Orb,U,Rho)
+    Rho_grid = HF_RPA_Radial_Density_Grid(Params,Orb,U,Rho)
 
     # Evaluate HF charged density on a grid & calculte anomalous magnetic moment correction ...
-    Rho_Grid, kR2 = HF_RPA_Radial_ChDensity_Grid(Params,Orb,U,Rho,R_CMS,Rho_Grid[1],Rho_Grid[2],Rho_Grid[3])
+    Rho_grid, kR2 = HF_RPA_Radial_ChDensity_Grid(Params,Orb,U,Rho,R_CMS,Rho_grid[1],Rho_grid[2],Rho_grid[3])
 
     # Calculate HF mean-field nuclear radii ...
-    pR2, nR2, chR2 = HF_RPA_Radial_Radii(Rho_Grid[1],Rho_Grid[2],Rho_Grid[3],Rho_Grid[4])
+    pR2, nR2, chR2 = HF_RPA_Radial_Radii(Rho_grid[1],Rho_grid[2],Rho_grid[3],Rho_grid[4])
 
     # Export HF mean-field radial densities ...
-    HF_RPA_Radial_Export(Params,Rho_Grid)
+    HF_RPA_Radial_Export(Params,Rho_grid)
 
     # Write HF mean-field summary for radii ...
     HF_RPA_Radial_Summary(Params,pR2,nR2,chR2,R_CMS,kR2)
@@ -160,12 +160,12 @@ function HF_RPA_Radial_Density_Grid(Params::Parameters,Orb::Vector{NOrb},U::pnMa
     # Preallocate grid ...
     r1 = 0.0 + 1e-8
     r2 = 2.5 * 1.2 * A^(1/3)
-    N_Sampling = 10000
+    N_Sampling = 2^13 + 1
     r_grid = range(r1, stop = r2, length = N_Sampling)
     r_grid = collect(r_grid)
 
-    pRho_rad = zeros(Float64,N_Sampling)
-    nRho_rad = zeros(Float64,N_Sampling)
+    pRho_grid = zeros(Float64,N_Sampling)
+    nRho_grid = zeros(Float64,N_Sampling)
 
     nu_proton = 0.5 * m_p * HbarOmega / HbarC^2
     nu_neutron = 0.5 * m_n * HbarOmega / HbarC^2
@@ -194,14 +194,14 @@ function HF_RPA_Radial_Density_Grid(Params::Parameters,Orb::Vector{NOrb},U::pnMa
             pSum += pRho[a,a] * pRad^2 * (Float64(j_a) + 1.0)
             nSum += nRho[a,a] * nRad^2 * (Float64(j_a) + 1.0)
         end
-        pRho_rad[i] = pSum / (4.0 * π)
-        nRho_rad[i] = nSum / (4.0 * π)
+        pRho_grid[i] = pSum / (4.0 * π)
+        nRho_grid[i] = nSum / (4.0 * π)
     end
-    Rho_Grid = [r_grid, pRho_rad, nRho_rad]
-    return Rho_Grid
+    Rho_grid = [r_grid, pRho_grid, nRho_grid]
+    return Rho_grid
 end
 
-function HF_RPA_Radial_ChDensity_Grid(Params::Parameters,Orb::Vector{NOrb},U::pnMatrix,Rho::pnMatrix,R_CMS::Vector{Float64},r_grid::Vector{Float64},pRho_rad::Vector{Float64},nRho_rad::Vector{Float64})
+function HF_RPA_Radial_ChDensity_Grid(Params::Parameters,Orb::Vector{NOrb},U::pnMatrix,Rho::pnMatrix,R_CMS::Vector{Float64},r_grid::Vector{Float64},pRho_grid::Vector{Float64},nRho_grid::Vector{Float64})
     # Basic constants ...
     HbarC = 197.326980
     m_n = 939.565346
@@ -224,8 +224,8 @@ function HF_RPA_Radial_ChDensity_Grid(Params::Parameters,Orb::Vector{NOrb},U::pn
     nR_CMS = R_CMS[3] + R_CMS[4]
 
     # Preallocate charged densitiy grid ...
-    N_Sampling = 10000
-    chRho_rad = zeros(Float64,N_Sampling)
+    N_Sampling = 2^13 + 1
+    chRho_grid = zeros(Float64,N_Sampling)
     kR2 = 0.0
 
     nu_proton = 0.5 * m_p * HbarOmega / HbarC^2
@@ -257,11 +257,11 @@ function HF_RPA_Radial_ChDensity_Grid(Params::Parameters,Orb::Vector{NOrb},U::pn
                     (HbarC)^2 * SO * (Float64(j_a) + 1.0) / Float64(Z)
             chSum += chME
         end
-        chME = Fold_pRho(r,r_grid,pRho_rad,pR_CMS)
+        chME = Fold_pRho(r,r_grid,pRho_grid,pR_CMS)
         chSum += chME
-        chME = Fold_nRho(r,r_grid,nRho_rad,nR_CMS)
+        chME = Fold_nRho(r,r_grid,nRho_grid,nR_CMS)
         chSum += chME
-        chRho_rad[i] += chSum
+        chRho_grid[i] += chSum
     end
 
     # Separately we also evaluate the anomalous magnetic moment contribution to the charged radius ...
@@ -273,26 +273,26 @@ function HF_RPA_Radial_ChDensity_Grid(Params::Parameters,Orb::Vector{NOrb},U::pn
         kR2 += kME
     end
 
-    Rho_Grid = [r_grid, pRho_rad, nRho_rad, chRho_rad]
+    Rho_grid = [r_grid, pRho_grid, nRho_grid, chRho_grid]
 
-    return Rho_Grid, kR2
+    return Rho_grid, kR2
 end
 
-function HF_RPA_Radial_Radii(r_grid::Vector{Float64},pRho_rad::Vector{Float64},nRho_rad::Vector{Float64},chRho_rad::Vector{Float64})
-    pR2 = Integrate_Trap(r_grid, r_grid.^4 .* pRho_rad) / Integrate_Trap(r_grid, r_grid.^2 .* pRho_rad)
-    nR2 = Integrate_Trap(r_grid, r_grid.^4 .* nRho_rad) / Integrate_Trap(r_grid, r_grid.^2 .* nRho_rad)
-    chR2 = Integrate_Trap(r_grid, r_grid.^4 .* chRho_rad) / Integrate_Trap(r_grid, r_grid.^2 .* chRho_rad)
+function HF_RPA_Radial_Radii(r_grid::Vector{Float64},pRho_grid::Vector{Float64},nRho_grid::Vector{Float64},chRho_grid::Vector{Float64})
+    pR2 = Integrate_Trap(r_grid, r_grid.^4 .* pRho_grid) / Integrate_Trap(r_grid, r_grid.^2 .* pRho_grid)
+    nR2 = Integrate_Trap(r_grid, r_grid.^4 .* nRho_grid) / Integrate_Trap(r_grid, r_grid.^2 .* nRho_grid)
+    chR2 = Integrate_Trap(r_grid, r_grid.^4 .* chRho_grid) / Integrate_Trap(r_grid, r_grid.^2 .* chRho_grid)
     return pR2, nR2, chR2
 end
 
-function HF_RPA_Radial_Export(Params::Parameters,Rho_Grid::Vector{Vector{Float64}})
+function HF_RPA_Radial_Export(Params::Parameters,Rho_grid::Vector{Vector{Float64}})
     # Read parameters ...
     Output_File = Params.Calc.Path
 
     # Export r_grid radius & pRho, nRho, chRho HF-RPA densities ...
     Density_File_name = "IO/" * Output_File * "/RPA/Densities/HF_RPA_Radial_Densities.dat"
     open(Density_File_name, "w") do Export_File
-        writedlm(Export_File, hcat(Rho_Grid[1], Rho_Grid[2], Rho_Grid[3], Rho_Grid[4]), "\t")
+        writedlm(Export_File, hcat(Rho_grid[1], Rho_grid[2], Rho_grid[3], Rho_grid[4]), "\t")
     end
     return
 end

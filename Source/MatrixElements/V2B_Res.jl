@@ -318,12 +318,12 @@ function V2B_Res_Ini(Orb::Vector{NOrb},N_max::Int64)
     return VNN, Orb_NN
 end
 
-function V2B_Res_Index(a::Int64,b::Int64,J::Int64,P::Int64,Orb_NN_Res::NNOrb_Res)
+function V2B_Res_Index(a::Int64,b::Int64,J::Int64,P::Int64,Orb_NN_res::NNOrb_Res)
     P = Int8(P)
     J = Int8(J)
     a = Int16(a)
     b = Int16(b)
-    Ind = Int64(Orb_NN_Res.Dic[(P,J,a,b)])
+    Ind = Int64(Orb_NN_res.Dic[(P,J,a,b)])
     return Ind
 end
 
@@ -350,7 +350,7 @@ function V2B_Res_Ind1(Params::Parameters,JP::Vector{Vector{Int64}},Orb::Vector{N
     JP = JP_Ini(J_max)
 
     # Make temporary arrays for NN interaction...
-    VNN_Res_I, Orb_NN_Res = V2B_Res_Ini(Orb,N_max)
+    VNN_res_I, Orb_NN_res = V2B_Res_Ini(Orb,N_max)
 
     # Index 1
     println("\nTransformation in 1st index...")
@@ -362,17 +362,17 @@ function V2B_Res_Ind1(Params::Parameters,JP::Vector{Vector{Int64}},Orb::Vector{N
         else
             println("Calculating   ...   J = " * string(J) * "/" * string(N_2max+1) * "\tP = -")
         end
-        @views N = Orb_NN_Res.N[P,J+1]
+        @views N = Orb_NN_res.N[P,J+1]
         @inbounds for Bra in 1:N
-            @views a = Orb_NN_Res.Ind[P,J+1][Bra][1]
-            @views b = Orb_NN_Res.Ind[P,J+1][Bra][2]
+            @views a = Orb_NN_res.Ind[P,J+1][Bra][1]
+            @views b = Orb_NN_res.Ind[P,J+1][Bra][2]
             l_a = Orb[a].l
             j_a = Orb[a].j
 
             Orb_x = Orb_PreComp(a_max,j_a,l_a,Orb)
             @inbounds for Ket in 1:N
-                c = Orb_NN_Res.Ind[P,J+1][Ket][1]
-                d = Orb_NN_Res.Ind[P,J+1][Ket][2]
+                c = Orb_NN_res.Ind[P,J+1][Ket][1]
+                d = Orb_NN_res.Ind[P,J+1][Ket][2]
 
                 ppSum = 0.0
                 pnSum = 0.0
@@ -383,16 +383,16 @@ function V2B_Res_Ind1(Params::Parameters,JP::Vector{Vector{Int64}},Orb::Vector{N
                     pnSum += MEpn
                     nnSum += MEnn
                 end
-                @views VNN_Res_I.pp[P,J+1][Bra,Ket] = ppSum
-                @views VNN_Res_I.pn[P,J+1][Bra,Ket] = pnSum
-                @views VNN_Res_I.nn[P,J+1][Bra,Ket] = nnSum
+                @views VNN_res_I.pp[P,J+1][Bra,Ket] = ppSum
+                @views VNN_res_I.pn[P,J+1][Bra,Ket] = pnSum
+                @views VNN_res_I.nn[P,J+1][Bra,Ket] = nnSum
             end
         end
     end
-    return VNN_Res_I, Orb_NN_Res
+    return VNN_res_I, Orb_NN_res
 end
 
-function V2B_Res_Ind2(Params::Parameters,JP::Vector{Vector{Int64}},Orb::Vector{NOrb},Orb_NN_Res::NNOrb_Res,VNN_Res_I::NNInt_Res,U::pnMatrix)
+function V2B_Res_Ind2(Params::Parameters,JP::Vector{Vector{Int64}},Orb::Vector{NOrb},Orb_NN_res::NNOrb_Res,VNN_res_I::NNInt_Res,U::pnMatrix)
     # Parameter initialization...
     N_max = Params.Calc.Nmax
     N_2max = 2*N_max
@@ -404,7 +404,7 @@ function V2B_Res_Ind2(Params::Parameters,JP::Vector{Vector{Int64}},Orb::Vector{N
     JP = JP_Ini(J_max)
 
     # Make 2nd temporary array for NN interaction...
-    VNN_Res_II = NNInt_Res(deepcopy(VNN_Res_I.pp), deepcopy(VNN_Res_I.pn), deepcopy(VNN_Res_I.nn))
+    VNN_res_II = NNInt_Res(deepcopy(VNN_res_I.pp), deepcopy(VNN_res_I.pn), deepcopy(VNN_res_I.nn))
 
     # Index 2
     println("\nTransformation in 2nd index...")
@@ -416,35 +416,35 @@ function V2B_Res_Ind2(Params::Parameters,JP::Vector{Vector{Int64}},Orb::Vector{N
         else
             println("Calculating   ...   J = " * string(J) * "/" * string(N_2max+1) * "\tP = -")
         end
-        N = Orb_NN_Res.N[P,J+1]
+        N = Orb_NN_res.N[P,J+1]
         @inbounds for Bra in 1:N
-            a = @views Orb_NN_Res.Ind[P,J+1][Bra][1]
-            b = @views Orb_NN_Res.Ind[P,J+1][Bra][2]
+            a = @views Orb_NN_res.Ind[P,J+1][Bra][1]
+            b = @views Orb_NN_res.Ind[P,J+1][Bra][2]
             l_b = Orb[b].l
             j_b = Orb[b].j
             Orb_x = Orb_PreComp(a_max,j_b,l_b,Orb)
             @inbounds for Ket in 1:N
                 ppSum, pnSum, nnSum = 0.0, 0.0, 0.0
                 @inbounds for i in Orb_x
-                    Bra_ai = V2B_Res_Index(a,i,J,P,Orb_NN_Res)
-                    MEpp, MEpn, Mnn = V2B_Res_Ind2_MEs(P,J,Bra_ai,Ket,i,b,pU,nU,VNN_Res_I)
+                    Bra_ai = V2B_Res_Index(a,i,J,P,Orb_NN_res)
+                    MEpp, MEpn, Mnn = V2B_Res_Ind2_MEs(P,J,Bra_ai,Ket,i,b,pU,nU,VNN_res_I)
                     ppSum += MEpp
                     pnSum += MEpn
                     nnSum += Mnn
                 end
-                @views VNN_Res_II.pp[P,J+1][Bra,Ket] = ppSum
-                @views VNN_Res_II.pn[P,J+1][Bra,Ket] = pnSum
-                @views VNN_Res_II.nn[P,J+1][Bra,Ket] = nnSum
+                @views VNN_res_II.pp[P,J+1][Bra,Ket] = ppSum
+                @views VNN_res_II.pn[P,J+1][Bra,Ket] = pnSum
+                @views VNN_res_II.nn[P,J+1][Bra,Ket] = nnSum
             end
         end
     end
 
-    VNN_Res_I = NNInt_Res(deepcopy(VNN_Res_II.pp),deepcopy(VNN_Res_II.pn),deepcopy(VNN_Res_II.nn))
+    VNN_res_I = NNInt_Res(deepcopy(VNN_res_II.pp),deepcopy(VNN_res_II.pn),deepcopy(VNN_res_II.nn))
 
-    return VNN_Res_I, VNN_Res_II
+    return VNN_res_I, VNN_res_II
 end
 
-function V2B_Res_Ind3(Params::Parameters,JP::Vector{Vector{Int64}},Orb::Vector{NOrb},Orb_NN_Res::NNOrb_Res,VNN_Res_I::NNInt_Res,VNN_Res_II::NNInt_Res,U::pnMatrix)
+function V2B_Res_Ind3(Params::Parameters,JP::Vector{Vector{Int64}},Orb::Vector{NOrb},Orb_NN_res::NNOrb_Res,VNN_res_I::NNInt_Res,VNN_res_II::NNInt_Res,U::pnMatrix)
     # Parameter initialization...
     N_max = Params.Calc.Nmax
     N_2max = 2*N_max
@@ -465,10 +465,10 @@ function V2B_Res_Ind3(Params::Parameters,JP::Vector{Vector{Int64}},Orb::Vector{N
         else
             println("Calculating   ...   J = " * string(J) * "/" * string(N_2max+1) * "\tP = -")
         end
-        @views N = Orb_NN_Res.N[P,J+1]
+        @views N = Orb_NN_res.N[P,J+1]
         @inbounds for Ket in 1:N
-            @views c = Orb_NN_Res.Ind[P,J+1][Ket][1]
-            @views d = Orb_NN_Res.Ind[P,J+1][Ket][2]
+            @views c = Orb_NN_res.Ind[P,J+1][Ket][1]
+            @views d = Orb_NN_res.Ind[P,J+1][Ket][2]
             l_c = Orb[c].l
             j_c = Orb[c].j
             Orb_x = Orb_PreComp(a_max,j_c,l_c,Orb)
@@ -477,23 +477,23 @@ function V2B_Res_Ind3(Params::Parameters,JP::Vector{Vector{Int64}},Orb::Vector{N
                 pnSum = 0.0
                 nnSum = 0.0
                 @inbounds for i in Orb_x
-                    Ket_id = V2B_Res_Index(i,d,J,P,Orb_NN_Res)
-                    MEpp, MEpn, MEnn = V2B_Res_Ind3_MEs(P,J,Bra,Ket_id,i,c,pU,nU,VNN_Res_I)
+                    Ket_id = V2B_Res_Index(i,d,J,P,Orb_NN_res)
+                    MEpp, MEpn, MEnn = V2B_Res_Ind3_MEs(P,J,Bra,Ket_id,i,c,pU,nU,VNN_res_I)
                     ppSum += MEpp
                     pnSum += MEpn
                     nnSum += MEnn
                 end
-                @views VNN_Res_II.pp[P,J+1][Bra,Ket] = ppSum
-                @views VNN_Res_II.pn[P,J+1][Bra,Ket] = pnSum
-                @views VNN_Res_II.nn[P,J+1][Bra,Ket] = nnSum
+                @views VNN_res_II.pp[P,J+1][Bra,Ket] = ppSum
+                @views VNN_res_II.pn[P,J+1][Bra,Ket] = pnSum
+                @views VNN_res_II.nn[P,J+1][Bra,Ket] = nnSum
             end
         end
     end
 
-    return VNN_Res_II
+    return VNN_res_II
 end
 
-function V2B_Res_Ind4(Params::Parameters,JP::Vector{Vector{Int64}},Orb::Vector{NOrb},Orb_NN_Res::NNOrb_Res,VNN_Res_II::NNInt_Res,U::pnMatrix)
+function V2B_Res_Ind4(Params::Parameters,JP::Vector{Vector{Int64}},Orb::Vector{NOrb},Orb_NN_res::NNOrb_Res,VNN_res_II::NNInt_Res,U::pnMatrix)
     # Parameter initialization...
     N_max = Params.Calc.Nmax
     N_2max = 2*N_max
@@ -529,12 +529,12 @@ function V2B_Res_Ind4(Params::Parameters,JP::Vector{Vector{Int64}},Orb::Vector{N
                     @views d = Orb_NN.Ind[1,P,J+1][Ket][2]
                     l_d = Orb[d].l
                     j_d = Orb[d].j
-                    Bra_ab = V2B_Res_Index(a,b,J,P,Orb_NN_Res)
+                    Bra_ab = V2B_Res_Index(a,b,J,P,Orb_NN_res)
                     Orb_x = Orb_PreComp(a_max,j_d,l_d,Orb)
                     pnSum = 0.0
                     @inbounds for i in Orb_x
-                        Ket_ci = V2B_Res_Index(c,i,J,P,Orb_NN_Res)
-                        MEpn = V2B_Res_Ind4_MEs_t0(P,J,Bra_ab,Ket_ci,i,d,nU,VNN_Res_II)
+                        Ket_ci = V2B_Res_Index(c,i,J,P,Orb_NN_res)
+                        MEpn = V2B_Res_Ind4_MEs_t0(P,J,Bra_ab,Ket_ci,i,d,nU,VNN_res_II)
                         pnSum += MEpn
                     end
                     @views VNN.pn[P,J+1][Ind] = pnSum
@@ -548,13 +548,13 @@ function V2B_Res_Ind4(Params::Parameters,JP::Vector{Vector{Int64}},Orb::Vector{N
                     @views d = Orb_NN.Ind[2,P,J+1][Ket][2]
                     l_d = Orb[d].l
                     j_d = Orb[d].j
-                    Bra_ab = V2B_Res_Index(a,b,J,P,Orb_NN_Res)
+                    Bra_ab = V2B_Res_Index(a,b,J,P,Orb_NN_res)
                     Orb_x = Orb_PreComp(a_max,j_d,l_d,Orb)
                     ppSum = 0.0
                     nnSum = 0.0
                     @inbounds for i in Orb_x
-                        Ket_ci = V2B_Res_Index(c,i,J,P,Orb_NN_Res)
-                        MEpp, MEnn = V2B_Res_Ind4_MEs_t1(P,J,Bra_ab,Ket_ci,i,d,pU,nU,VNN_Res_II)
+                        Ket_ci = V2B_Res_Index(c,i,J,P,Orb_NN_res)
+                        MEpp, MEnn = V2B_Res_Ind4_MEs_t1(P,J,Bra_ab,Ket_ci,i,d,pU,nU,VNN_res_II)
                         ppSum += MEpp
                         nnSum += MEnn
                     end
@@ -578,16 +578,16 @@ function V2B_Res(Params::Parameters,Orb::Vector{NOrb},Orb_NN::NNOrb,VNN::NNInt,U
     JP = JP_Ini(Params.Calc.N2max + 1)
 
     # Index 1
-    VNN_Res_I, Orb_NN_Res = V2B_Res_Ind1(Params,JP,Orb,Orb_NN,VNN,U)
+    VNN_res_I, Orb_NN_res = V2B_Res_Ind1(Params,JP,Orb,Orb_NN,VNN,U)
 
     # Index 2
-    VNN_Res_I, VNN_Res_II = V2B_Res_Ind2(Params,JP,Orb,Orb_NN_Res,VNN_Res_I,U)
+    VNN_res_I, VNN_res_II = V2B_Res_Ind2(Params,JP,Orb,Orb_NN_res,VNN_res_I,U)
 
     # Index 3
-    VNN_Res_II = V2B_Res_Ind3(Params,JP,Orb,Orb_NN_Res,VNN_Res_I,VNN_Res_II,U)
+    VNN_res_II = V2B_Res_Ind3(Params,JP,Orb,Orb_NN_res,VNN_res_I,VNN_res_II,U)
 
     # Index 4
-    VNN, Orb_NN = V2B_Res_Ind4(Params,JP,Orb,Orb_NN_Res,VNN_Res_II,U)
+    VNN, Orb_NN = V2B_Res_Ind4(Params,JP,Orb,Orb_NN_res,VNN_res_II,U)
     
     println("\nResidual 2-body interaction ready...\n")
 
@@ -598,50 +598,50 @@ end
     return @views V2B(i,b,c,d,J,1,VNN.pp,Orb,Orb_NN) * pU[i,a], V2B(i,b,c,d,J,0,VNN.pn,Orb,Orb_NN) * pU[i,a], V2B(i,b,c,d,J,1,VNN.nn,Orb,Orb_NN) * nU[i,a]
 end
 
-@inline  function V2B_Res_Ind2_MEs(P::Int64,J::Int64,Bra::Int64,Ket::Int64,i::Int64,b::Int64,pU::Matrix{Float64},nU::Matrix{Float64},VNN_Res_I::NNInt_Res)
-    return @views pU[i,b] * VNN_Res_I.pp[P,J+1][Bra,Ket], nU[i,b] * VNN_Res_I.pn[P,J+1][Bra,Ket], nU[i,b] * VNN_Res_I.nn[P,J+1][Bra,Ket]
+@inline  function V2B_Res_Ind2_MEs(P::Int64,J::Int64,Bra::Int64,Ket::Int64,i::Int64,b::Int64,pU::Matrix{Float64},nU::Matrix{Float64},VNN_res_I::NNInt_Res)
+    return @views pU[i,b] * VNN_res_I.pp[P,J+1][Bra,Ket], nU[i,b] * VNN_res_I.pn[P,J+1][Bra,Ket], nU[i,b] * VNN_res_I.nn[P,J+1][Bra,Ket]
 end
 
-@inline  function V2B_Res_Ind3_MEs(P::Int64,J::Int64,Bra::Int64,Ket::Int64,i::Int64,c::Int64,pU::Matrix{Float64},nU::Matrix{Float64},VNN_Res_I::NNInt_Res)
-    return @views VNN_Res_I.pp[P,J+1][Bra,Ket] * pU[i,c], VNN_Res_I.pn[P,J+1][Bra,Ket] * pU[i,c], VNN_Res_I.nn[P,J+1][Bra,Ket] * nU[i,c]
+@inline  function V2B_Res_Ind3_MEs(P::Int64,J::Int64,Bra::Int64,Ket::Int64,i::Int64,c::Int64,pU::Matrix{Float64},nU::Matrix{Float64},VNN_res_I::NNInt_Res)
+    return @views VNN_res_I.pp[P,J+1][Bra,Ket] * pU[i,c], VNN_res_I.pn[P,J+1][Bra,Ket] * pU[i,c], VNN_res_I.nn[P,J+1][Bra,Ket] * nU[i,c]
 end
 
-@inline  function V2B_Res_Ind4_MEs_t0(P::Int64,J::Int64,Bra::Int64,Ket::Int64,i::Int64,d::Int64,nU::Matrix{Float64},VNN_Res_II::NNInt_Res)
-    return @views VNN_Res_II.pn[P,J+1][Bra,Ket] * nU[i,d]
+@inline  function V2B_Res_Ind4_MEs_t0(P::Int64,J::Int64,Bra::Int64,Ket::Int64,i::Int64,d::Int64,nU::Matrix{Float64},VNN_res_II::NNInt_Res)
+    return @views VNN_res_II.pn[P,J+1][Bra,Ket] * nU[i,d]
 end
 
-@inline  function V2B_Res_Ind4_MEs_t1(P::Int64,J::Int64,Bra::Int64,Ket::Int64,i::Int64,d::Int64,pU::Matrix{Float64},nU::Matrix{Float64},VNN_Res_II::NNInt_Res)
-    return @views VNN_Res_II.pp[P,J+1][Bra,Ket] * pU[i,d], VNN_Res_II.nn[P,J+1][Bra,Ket] * nU[i,d]
+@inline  function V2B_Res_Ind4_MEs_t1(P::Int64,J::Int64,Bra::Int64,Ket::Int64,i::Int64,d::Int64,pU::Matrix{Float64},nU::Matrix{Float64},VNN_res_II::NNInt_Res)
+    return @views VNN_res_II.pp[P,J+1][Bra,Ket] * pU[i,d], VNN_res_II.nn[P,J+1][Bra,Ket] * nU[i,d]
 end
 
-function V2B_Res_Export(Params::Parameters,Orb_NN::NNOrb,VNN_Res::NNInt)
+function V2B_Res_Export(Params::Parameters,Orb_NN::NNOrb,VNN_res::NNInt)
     Format = Params.Calc.Format
 
     if Format == "Bin"
-        V2B_Res_Export_Bin(Params,Orb_NN,VNN_Res)
+        V2B_Res_Export_Bin(Params,Orb_NN,VNN_res)
     elseif Format == "HRBin"
-        V2B_Res_Export_HRBin(Params,Orb_NN,VNN_Res)
+        V2B_Res_Export_HRBin(Params,Orb_NN,VNN_res)
     elseif Format == "HR"
-        V2B_Res_Export_HR(Params,Orb_NN,VNN_Res)
+        V2B_Res_Export_HR(Params,Orb_NN,VNN_res)
     end
 
     return
 end
 
-function V2B_Res_Export_Bin(Params::Parameters,Orb_NN::NNOrb,VNN_Res::NNInt)
+function V2B_Res_Export_Bin(Params::Parameters,Orb_NN::NNOrb,VNN_res::NNInt)
     # Read parameters ...
     N_max = Params.Calc.Nmax
     N_2max = 2*N_max
     Output_File = Params.Calc.Path
 
     J_max = N_2max + 1
-    V2B_Res_Export = "IO/" * Output_File * "/Bin/V2B_Res_HF.bin"
+    V2B_res_Export = "IO/" * Output_File * "/Bin/V2B_res_HF.bin"
 
     # Export residual 2-body interaction ...
 
     println("\nExporting residual 2-body interaction in internal binary format ...")
 
-    open(V2B_Res_Export, "w") do Export_File
+    open(V2B_res_Export, "w") do Export_File
         # ppV
         @inbounds for J in 0:J_max
             @inbounds for P in 1:2
@@ -649,7 +649,7 @@ function V2B_Res_Export_Bin(Params::Parameters,Orb_NN::NNOrb,VNN_Res::NNInt)
                 @inbounds for Bra in 1:N_t1
                     @inbounds for Ket in 1:Bra
                         Ind = Bra + (Ket - 1) * N_t1 - div(Ket * (Ket - 1),2)
-                        ME = @views VNN_Res.pp[P,J+1][Ind]
+                        ME = @views VNN_res.pp[P,J+1][Ind]
                         write(Export_File, Float64(ME))
                     end
                 end
@@ -663,7 +663,7 @@ function V2B_Res_Export_Bin(Params::Parameters,Orb_NN::NNOrb,VNN_Res::NNInt)
                 @inbounds for Bra in 1:N_t0
                     @inbounds for Ket in 1:N_t0
                         Ind = Bra + (Ket - 1) * N_t0 - div(Ket * (Ket - 1),2)
-                        ME = @views VNN_Res.pn[P,J+1][Ind]
+                        ME = @views VNN_res.pn[P,J+1][Ind]
                         write(Export_File, Float64(ME))
                     end
                 end
@@ -677,7 +677,7 @@ function V2B_Res_Export_Bin(Params::Parameters,Orb_NN::NNOrb,VNN_Res::NNInt)
                 @inbounds for Bra in 1:N_t1
                     @inbounds for Ket in 1:Bra
                         Ind = Bra + (Ket - 1) * N_t1 - div(Ket * (Ket - 1),2)
-                        ME = @views VNN_Res.nn[P,J+1][Ind]
+                        ME = @views VNN_res.nn[P,J+1][Ind]
                         write(Export_File, Float64(ME))
                     end
                 end
@@ -686,25 +686,25 @@ function V2B_Res_Export_Bin(Params::Parameters,Orb_NN::NNOrb,VNN_Res::NNInt)
 
     end
 
-    println("\nResidual 2-body interaction succesfully exported into file V2B_Res_HF.bin ...")
+    println("\nResidual 2-body interaction succesfully exported into file V2B_res_HF.bin ...")
 
     return
 end
 
-function V2B_Res_Export_HR(Params::Parameters,Orb_NN::NNOrb,VNN_Res::NNInt)
+function V2B_Res_Export_HR(Params::Parameters,Orb_NN::NNOrb,VNN_res::NNInt)
     # Read parameters ...
     N_max = Params.Calc.Nmax
     N_2max = 2*N_max
     Output_File = Params.Calc.Path
 
     J_max = N_2max + 1
-    V2B_Res_Export = "IO/" * Output_File * "/V2B_Res_HF_HR.dat"
+    V2B_res_Export = "IO/" * Output_File * "/V2B_res_HF_HR.dat"
 
     # Export residual 2-body interaction ...
 
     println("\nExporting residual 2-body interaction in human reeadable format ...")
 
-    open(V2B_Res_Export, "w") do Export_File
+    open(V2B_res_Export, "w") do Export_File
         println(Export_File, "t\ta\tb\tc\td\tJ\tV")
         # ppV
         @inbounds for J in 0:J_max
@@ -717,7 +717,7 @@ function V2B_Res_Export_HR(Params::Parameters,Orb_NN::NNOrb,VNN_Res::NNInt)
                         c = 2*Orb_NN.Ind[2,P,J+1][Ket][1] - 1
                         d = 2*Orb_NN.Ind[2,P,J+1][Ket][2] - 1
                         Ind = Bra + (Ket - 1) * N_t1 - div(Ket * (Ket - 1),2)
-                        ME = VNN_Res.pp[P,J+1][Ind]
+                        ME = VNN_res.pp[P,J+1][Ind]
                         Row = "-1\t" * string(a) * "\t" * string(b) * "\t" *
                                 string(c) * "\t" * string(d) * "\t" * string(J) *
                                 "\t" * string(round(ME, digits = 10))
@@ -739,7 +739,7 @@ function V2B_Res_Export_HR(Params::Parameters,Orb_NN::NNOrb,VNN_Res::NNInt)
                         c = 2*Orb_NN.Ind[1,P,J+1][Ket][1] - 1
                         d = 2*Orb_NN.Ind[1,P,J+1][Ket][2]
                         Ind = Bra + (Ket - 1) * N_t0 - div(Ket * (Ket - 1),2)
-                        ME = VNN_Res.pn[P,J+1][Ind]
+                        ME = VNN_res.pn[P,J+1][Ind]
                         Row = "0\t" * string(a) * "\t" * string(b) * "\t" *
                                 string(c) * "\t" * string(d) * "\t" * string(J) *
                                 "\t" * string(round(ME, digits = 10))
@@ -760,7 +760,7 @@ function V2B_Res_Export_HR(Params::Parameters,Orb_NN::NNOrb,VNN_Res::NNInt)
                         c = 2*Orb_NN.Ind[2,P,J+1][Ket][1]
                         d = 2*Orb_NN.Ind[2,P,J+1][Ket][2]
                         Ind = Bra + (Ket - 1) * N_t1 - div(Ket * (Ket - 1),2)
-                        ME = VNN_Res.nn[P,J+1][Ind]
+                        ME = VNN_res.nn[P,J+1][Ind]
                         Row = "1\t" * string(a) * "\t" * string(b) * "\t" *
                                 string(c) * "\t" * string(d) * "\t" * string(J) *
                                 "\t" * string(round(ME, digits = 10))
@@ -772,25 +772,25 @@ function V2B_Res_Export_HR(Params::Parameters,Orb_NN::NNOrb,VNN_Res::NNInt)
 
     end
 
-    println("\nResidual 2-body interaction succesfully exported into file V2B_Res_HF.bin ...")
+    println("\nResidual 2-body interaction succesfully exported into file V2B_res_HF.bin ...")
 
     return
 end
 
-function V2B_Res_Export_HRBin(Params::Parameters,Orb_NN::NNOrb,VNN_Res::NNInt)
+function V2B_Res_Export_HRBin(Params::Parameters,Orb_NN::NNOrb,VNN_res::NNInt)
     # Read parameters ...
     N_max = Params.Calc.Nmax
     N_2max = 2*N_max
     Output_File = Params.Calc.Path
 
     J_max = N_2max + 1
-    V2B_Res_Export = "IO/" * Output_File * "/Bin/V2B_Res_HF_HR.bin"
+    V2B_res_Export = "IO/" * Output_File * "/Bin/V2B_res_HF_HR.bin"
 
     # Export residual 2-body interaction ...
 
     println("\nExporting residual 2-body interaction in Human Readable binary format ...")
 
-    open(V2B_Res_Export, "w") do Export_File
+    open(V2B_res_Export, "w") do Export_File
         # ppV
 
         @inbounds for J in 0:J_max
@@ -803,7 +803,7 @@ function V2B_Res_Export_HRBin(Params::Parameters,Orb_NN::NNOrb,VNN_Res::NNInt)
                         c = 2*Orb_NN.Ind[2,P,J+1][Ket][1] - 1
                         d = 2*Orb_NN.Ind[2,P,J+1][Ket][2] - 1
                         Ind = Bra + (Ket - 1) * N_t1 - div(Ket * (Ket - 1),2)
-                        ME = VNN_Res.pp[P,J+1][Ind]
+                        ME = VNN_res.pp[P,J+1][Ind]
                         write(Export_File, Int16(a))
                         write(Export_File, Int16(b))
                         write(Export_File, Int16(c))
@@ -826,7 +826,7 @@ function V2B_Res_Export_HRBin(Params::Parameters,Orb_NN::NNOrb,VNN_Res::NNInt)
                         c = 2*Orb_NN.Ind[1,P,J+1][Ket][1] - 1
                         d = 2*Orb_NN.Ind[1,P,J+1][Ket][2]
                         Ind = Bra + (Ket - 1) * N_t0 - div(Ket * (Ket - 1),2)
-                        ME = VNN_Res.pn[P,J+1][Ind]
+                        ME = VNN_res.pn[P,J+1][Ind]
                         write(Export_File, Int16(a))
                         write(Export_File, Int16(b))
                         write(Export_File, Int16(c))
@@ -849,7 +849,7 @@ function V2B_Res_Export_HRBin(Params::Parameters,Orb_NN::NNOrb,VNN_Res::NNInt)
                         c = 2*Orb_NN.Ind[2,P,J+1][Ket][1]
                         d = 2*Orb_NN.Ind[2,P,J+1][Ket][2]
                         Ind = Bra + (Ket - 1) * N_t1 - div(Ket * (Ket - 1),2)
-                        ME = VNN_Res.nn[P,J+1][Ind]
+                        ME = VNN_res.nn[P,J+1][Ind]
                         write(Export_File, Int16(a))
                         write(Export_File, Int16(b))
                         write(Export_File, Int16(c))
@@ -864,7 +864,7 @@ function V2B_Res_Export_HRBin(Params::Parameters,Orb_NN::NNOrb,VNN_Res::NNInt)
 
     end
 
-    println("\nResidual 2-body interaction succesfully exported into file V2B_Res_HF.bin ...")
+    println("\nResidual 2-body interaction succesfully exported into file V2B_res_HF.bin ...")
 
     return
 end
@@ -875,13 +875,13 @@ function V2B_Res_Import(Params::Parameters,Orb::Vector{NOrb})
     N_max = Params.Calc.Nmax
     N_2max = 2*N_max
     J_max = N_2max + 1
-    V2B_Res_Import = "IO/" * Import_File * "/Bin/V2B_Res_HF.bin"
+    V2B_res_Import = "IO/" * Import_File * "/Bin/V2B_res_HF.bin"
 
     # Read Residual 2-body NN interaction ...
     println("\nReading Residual 2-body NN interaction ...")
 
     # Initialize NN residual interaction arrays ...
-    VNN_Res, Orb_NN = V2B_Ini(Orb,N_max)
+    VNN_res, Orb_NN = V2B_Ini(Orb,N_max)
 
     # Iteraction list for J & P ...
     JP_list = JP_Ini(J_max)
@@ -896,13 +896,13 @@ function V2B_Res_Import(Params::Parameters,Orb::Vector{NOrb})
         J = JP[1]
         P = JP[2]
         N_t1 = Orb_NN.N[2,P,J+1]
-        open(V2B_Res_Import, "r") do Bin_Read
+        open(V2B_res_Import, "r") do Bin_Read
             seek(Bin_Read, N_Chunk_skip[1,P,J+1])
             @inbounds for Bra in 1:N_t1
                 @inbounds for Ket in 1:Bra
                     Ind = Bra + (Ket - 1) * N_t1 - div(Ket * (Ket - 1),2)
                     ME = read(Bin_Read, Float64)
-                    VNN_Res.pp[P,J+1][Ind] = ME
+                    VNN_res.pp[P,J+1][Ind] = ME
                 end
             end
         end
@@ -913,13 +913,13 @@ function V2B_Res_Import(Params::Parameters,Orb::Vector{NOrb})
         J = JP[1]
         P = JP[2]
         N_t0 = Orb_NN.N[1,P,J+1]
-        open(V2B_Res_Import, "r") do Bin_Read
+        open(V2B_res_Import, "r") do Bin_Read
             seek(Bin_Read, N_Chunk_skip[2,P,J+1])
             @inbounds for Bra in 1:N_t0
                 @inbounds for Ket in 1:N_t0
                     Ind = Bra + (Ket - 1) * N_t0 - div(Ket * (Ket - 1),2)
                     ME = read(Bin_Read, Float64)
-                    VNN_Res.pn[P,J+1][Ind] = ME
+                    VNN_res.pn[P,J+1][Ind] = ME
                 end
             end
         end
@@ -930,13 +930,13 @@ function V2B_Res_Import(Params::Parameters,Orb::Vector{NOrb})
         J = JP[1]
         P = JP[2]
         N_t1 = Orb_NN.N[2,P,J+1]
-        open(V2B_Res_Import, "r") do Bin_Read
+        open(V2B_res_Import, "r") do Bin_Read
             seek(Bin_Read, N_Chunk_skip[3,P,J+1])
             @inbounds for Bra in 1:N_t1
                 @inbounds for Ket in 1:Bra
                     Ind = Bra + (Ket - 1) * N_t1 - div(Ket * (Ket - 1),2)
                     ME = read(Bin_Read, Float64)
-                    VNN_Res.nn[P,J+1][Ind] = ME
+                    VNN_res.nn[P,J+1][Ind] = ME
                 end
             end
         end
@@ -944,7 +944,7 @@ function V2B_Res_Import(Params::Parameters,Orb::Vector{NOrb})
 
     println("\nResidual 2-body NN interaction succesfully loaded ...")
 
-    return VNN_Res, Orb_NN
+    return VNN_res, Orb_NN
 end
 
 function V2B_Res_Count(N_max::Int64,Orb_NN::NNOrb)

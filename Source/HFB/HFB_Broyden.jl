@@ -1,285 +1,343 @@
+struct HFB_Broyden_Key
+    a::Int64
+    b::Int64
+end
+
 struct HFB_Broyden
     Map::Matrix{Int64}
-    Key::Vector{Matrix{Int64}}
+    Key::Vector{HFB_Broyden_Key}
     M::Int64
+    m::Int64
 end
 
-
-
-
-# Cheap Broyden HFB ... HFB iteration using simplified & cheap block Broyden method ... doesnt work yet ...
-function HFB_Solve_CheapBroyden(Params::Parameters,Orb::Vector{NOrb},Orb_NN::NNOrb,Orb_NNN::NNNOrb,T::Matrix{Float64},VNN::NNInt,VNNN::Array{Vector{Vector{Float32}},4},epsilon::Float64)
-    # Read calculation parameters ...
-    A_target, Z_target, N_target = Float64(Params.Calc.A), Float64(Params.Calc.Z), Float64(Params.Calc.A - Params.Calc.Z)
-    hw = Params.Int.hw
-    N_max = Params.Calc.Nmax
-    a_max = div((N_max + 1) * (N_max + 2), 2)
-
-    # Setup local iteration variables ...
-    Iteration, Iteration_max = 0, 250
-    dE, dZ, dN = 1.0, 1.0, 1.0
-
-    # Preallocate arrays ...
-        # Matrices for U & V HFB ...
-    V = pnMatrix(zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max))
-    U = pnMatrix(zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max))
-         # Matrices for densities Rho & Kappa ...
-    Rho, Kappa = HFB_Density_Operator_Initialize(Params,Orb)
-    Rho_old, Kappa_old = pnMatrix(Rho.p,Rho.n), pnMatrix(Kappa.p,Kappa.n)
-        # Matrices for the single-particle field H & pairing field Delta ...
-    H = pnMatrix(zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max))
-    H_old = pnMatrix(zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max))
-    Delta = pnMatrix(zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max))
-    Delta_old = pnMatrix(zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max))
-        # Vectors for single-(quasi)particle energies ...
-    SQE = pnVector(zeros(Float64,a_max),zeros(Float64,a_max))
-    SQE_old = pnVector(zeros(Float64,a_max),zeros(Float64,a_max))
-
-    # Setup particle numbers ...
-    Z, Z_1, Z_2 = Z_target, 0.0, 0.0
-    N, N_1, N_2 = N_target, 0.0, 0.0
-
-    # Initial guess on chemical potentials lambda ...
-    Lambda, Lambda_2, Lambda_1 = pnFloat(0.5,0.5), pnFloat(0.5,0.5), pnFloat(1.0,1.0)
-
-    # Initialize the Broyden Jacobian B ...
-    B = diagm(ones(Float64,4))
-
-    # Solve the spherical HFB equations ... by the means of self-consistent cheap Broyden iteration ...
-    println("\nStarting iteration of HFB equations ...\n")
-
-    while ((dE > epsilon) || (dZ > epsilon) || (dN > epsilon)) && (Iteration < Iteration_max)
-
-        # Perform a few secant iterations for the chemical potentials Lambda ...
-        #println("\nStarting to iterate the chemical potential Lambda ...")
-        @inbounds for L in 1:6
-            # Initialization of the secant method ...
-            if (Iteration == 0) && (L == 1)
-                # Allocate the single-particle fields H_1, H_2 and pairing fields Delta_1, Delta_2 ...
-                H_1, Delta_1 = HFB_Allocate(Params,Lambda_1,Rho,Kappa,Orb,Orb_NN,Orb_NNN,T,VNN,VNNN)
-                H_2, Delta_2 = HFB_Allocate(Params,Lambda_2,Rho,Kappa,Orb,Orb_NN,Orb_NNN,T,VNN,VNNN)
-
-                # Diagonalize the HFB equations ... basis is reordered as needed ...
-                SQE_1, U_1, V_1 = HFB_Diagonalize(Params,H_1,Delta_1,Orb)
-                SQE_2, U_2, V_2 = HFB_Diagonalize(Params,H_2,Delta_2,Orb)
-                
-                # Generate temporary densities Rho & Kappa ...
-                Rho_1, Kappa_1 = HFB_Density_Operator(Params,U_1,V_1,Orb)
-                Rho_2, Kappa_2 = HFB_Density_Operator(Params,U_2,V_2,Orb)
-
-                # Determine new average particle numbers ...
-                Z_1, N_1 = HFB_Particle_Number(Params,Rho_1,Orb)
-                Z_2, N_2 = HFB_Particle_Number(Params,Rho_2,Orb)
-
-                # Update average particle numbers ...
-                Z, N = Z_2, N_2
-
-                # Perform secant iteration to determine new optimal value of Lambda ...
-                Lambda = HFB_Lambda_Secant(Lambda_1,pnFloat(Z_target - Z_1, N_target - N_1),Lambda_2,pnFloat(Z_target - Z_2, N_target - N_2))
-
-                # Update chemical potentials ...
-                Lambda_1, Lambda_2 = pnFloat(Lambda_2.p, Lambda_2.n), pnFloat(Lambda.p, Lambda.n)
-
-                # Update single-quasiparticle energies ...
-                SQE = pnVector(SQE_2.p, SQE_2.n)
-
-                # Update amplitudes U & V ...
-                U, V = pnMatrix(U_2.p,U_2.n), pnMatrix(V_2.p,V_2.n)
-
-                # Update the matrices H, Delta, Rho, Kappa
-                H, H_old = pnMatrix(H_2.p,H_2.n), pnMatrix(H_1.p,H_1.n)
-                Delta, Delta_old = pnMatrix(Delta_2.p,Delta_2.n), pnMatrix(Delta_1.p,Delta_1.n)
-                Rho, Rho_old = pnMatrix(Rho_2.p,Rho_2.n), pnMatrix(Rho_1.p,Rho_1.n)
-                Kappa, Kappa_old = pnMatrix(Kappa_2.p,Kappa_2.n), pnMatrix(Kappa_1.p,Kappa_1.n)
-
-            end
-
-            # Allocate the single-particle field H and the pairing field Delta ...
-            H, Delta = HFB_Allocate(Params,Lambda,Rho,Kappa,Orb,Orb_NN,Orb_NNN,T,VNN,VNNN)
-
-            # Diagonalize the HFB equations ... basis is reordered as needed ...
-            SQE, U, V = HFB_Diagonalize(Params,H,Delta,Orb)
-            
-            # Generate temporary densities Rho & Kappa ...
-            Rho_temp, Kappa_temp = HFB_Density_Operator(Params,U,V,Orb)
-
-            # Determine new average particle numbers ...
-            Z, N = HFB_Particle_Number(Params,Rho_temp,Orb)
-
-            # Update average particle numbers ...
-            Z_1, N_1 = Z_2, N_2
-            Z_2, N_2 = Z, N
-
-            # Perform secant iteration to determine new optimal value of Lambda ...
-            Lambda = HFB_Lambda_Secant(Lambda_1,pnFloat(Z_target - Z_1, N_target - N_1),Lambda_2,pnFloat(Z_target - Z_2, N_target - N_2))
-
-            # Update chemical potentials ...
-            Lambda_1 = pnFloat(Lambda_2.p, Lambda_2.n)
-            Lambda_2 = pnFloat(Lambda.p, Lambda.n)
-
-            # Evaluate iteration of the chemical potential Lambda ...
-            dZ, dN = abs(Z_target - Z), abs(N_target - N)
-
-            if dZ < epsilon && dN < epsilon
-                break
-            end
-
-        end
-
-        # Allocate the single-particle field H and the pairing field Delta ...
-        H, Delta = HFB_Allocate(Params,Lambda,Rho,Kappa,Orb,Orb_NN,Orb_NNN,T,VNN,VNNN)
-
-        # Diagonalize the HFB equations ... basis is reordered as needed ...
-        SQE, U, V = HFB_Diagonalize(Params,H,Delta,Orb)
-
-        # Generate new densities Rho & Kappa ...
-        Rho, Kappa = HFB_Density_Operator(Params,U,V,Orb)
-
-        # Perform a cheap Broyden iteration - Update of Rho, Kappa & Lambda ...
-        Rho, Kappa, B = HFB_CheapBroyden(Params,Rho,Kappa,H,Delta,Rho_old,Kappa_old,H_old,Delta_old,B,Orb)
-
-        # Evaluate the particle numbers ...
-        Z_1, N_1 = Z, N
-        Z, N = HFB_Particle_Number(Params,Rho,Orb)
-        Z_2, N_2 = Z, N
-
-        # Evaluate iteration of the single-quasiparticle energies ...
-        Iteration += 1
-
-        dE = (sum(abs.(SQE.p .- SQE_old.p )) + sum(abs.(SQE.n .- SQE_old.n))) / Float64(2 * a_max)
-        dZ, dN = abs(Z_target - Z), abs(N_target - N)
-
-        println("\n\nHFB iteration number:   " * string(Iteration) * "   Single-quasiparticle energy difference:   " * string(round(dE, sigdigits=8))
-                * "   Proton number difference:   " * string(round(dZ, sigdigits=8)) * "   Neutron number difference:   " * string(round(dN, sigdigits=8)))
-
-        # Store old values of SQE, Rho, Kappa, Lambda, H, Delta, N & B ...
-        SQE_old, Lambda_old = pnVector(SQE.p,SQE.n), pnFloat(Lambda.p, Lambda.n)
-        Rho_old, Kappa_old = pnMatrix(Rho.p,Rho.n), pnMatrix(Kappa.p,Kappa.n)
-        H_old, Delta_old = pnMatrix(H.p,H.n), pnMatrix(Delta.p,Delta.n)
-
-        println("pLambda = " * string(Lambda.p))
-        println("nLambda = " * string(Lambda.n))
-        println("Z = " * string(Z))
-        println("N = " * string(N))
-
-    end
-
-    println("\nHFB iteration with residual NN interaction has converged ...")
-
-    # Perform transformation of U & V into the canonical basis ...
-    #   Rho, Kappa, H, Delta ... remain expressed in the reference LHO basis ...
-    SQE_C, C, U_C, V_C = HFB_Canonical_Basis(Params,U,V,Rho,H,Delta,Orb)
-
-    return Lambda, SQE, U, V, SQE_C, U_C, V_C, C, Rho, Kappa, H, Delta, Iteration
+mutable struct HFB_Broyden_Vector
+    x_Rho::pnVector
+    y_Rho::pnVector
+    X_Rho::pnMatrix
+    r_Rho::pnVector
+    s_Rho::pnVector
+    R_Rho::pnMatrix
+    x_Kappa::pnVector
+    y_Kappa::pnVector
+    X_Kappa::pnMatrix
+    r_Kappa::pnVector
+    s_Kappa::pnVector
+    R_Kappa::pnMatrix
 end
 
-function HFB_CheapBroyden(Params::Parameters,Rho::pnMatrix,Kappa::pnMatrix,H::pnMatrix,Delta::pnMatrix,Rho_old::pnMatrix,Kappa_old::pnMatrix,H_old::pnMatrix,Delta_old::pnMatrix,B_old::Matrix{Float64},Orb::Vector{NOrb})
+function HFB_Broyden_Initialize_Mapping(Params::Parameters,m::Int64,Orb::Vector{NOrb})
     # Read calculation parameters ...
     N_max = Params.Calc.Nmax
     a_max = div((N_max + 1) * (N_max + 2), 2)
 
-    # Initialize needed arrays ...
-    dx, df, B = zeros(Float64,4), zeros(Float64,4), zeros(Float64,4,4)
+    # Initialize the counter of linearized indices & Broyden mapping ...
+    M_count, Broyden_Map = 0, zeros(Int64,a_max,a_max)
 
-    # Evaluate finite differences ...
-    d_pRho, d_nRho = Rho.p .- Rho_old.p, Rho.n .- Rho_old.n
-    d_pKappa, d_nKappa = Kappa.p .- Kappa_old.p, Kappa.n .- Kappa_old.n
-    d_pH, d_nH = H.p .- H_old.p, H.n .- H_old.n
-    d_pDelta, d_nDelta = Delta.p .- Delta_old.p, Delta.n .- Delta_old.n
-
-    # Allocate finite difference vectors dx & df ...
-    dx[1], dx[2] = sum(d_pRho), sum(d_pKappa)
-    dx[3], dx[4] = sum(d_nRho), sum(d_nKappa)
-
-    df[1], df[2] = sum(d_pH), sum(d_pDelta)
-    df[3], df[4] = sum(d_nH), sum(d_nDelta)
-
-    # Renormalize dx & df ...
-    dx .= dx ./ Float64(a_max^2)
-    df .= df ./ Float64(a_max^2)
-
-    # Update the Broyden Jacobian B ...
-    D = dot(dx,dx)
-    if D < 1e-14
-        D += 1e-14
-    end
-    B .= B_old + ((df - B_old * dx) * dx') / D
-
-    # Invert the Broyden Jacobian B ...
-    eta = 1e-12 * maximum(abs.(diag(B))) + 1e-14
-    iB = inv(B + eta * diagm(ones(Float64,4)))
-
-    #display(iB)
-    #display(H.n)
-    #display(H.n .- H_old.n)
-
-    # Evaluate the Broyden finite difference steps ...
-    dRho = pnMatrix(iB[1,1] * (H.p .- H_old.p) .+ iB[1,2] * (Delta.p .- Delta_old.p) .+ iB[1,3] * (H.n .- H_old.n) .+ iB[1,4] * (Delta.n .- Delta_old.n),
-                    iB[3,1] * (H.p .- H_old.p) .+ iB[3,2] * (Delta.p .- Delta_old.p) .+ iB[3,3] * (H.n .- H_old.n) .+ iB[3,4] * (Delta.n .- Delta_old.n))
-
-    dKappa = pnMatrix(iB[2,1] * (H.p .- H_old.p) .+ iB[2,2] * (Delta.p .- Delta_old.p) .+ iB[2,3] * (H.n .- H_old.n) .+ iB[2,4] * (Delta.n .- Delta_old.n),
-                      iB[4,1] * (H.p .- H_old.p) .+ iB[4,2] * (Delta.p .- Delta_old.p) .+ iB[4,3] * (H.n .- H_old.n) .+ iB[4,4] * (Delta.n .- Delta_old.n))
-
-    Z, N = HFB_Particle_Number(Params,Rho,Orb)
-    dZ, dN = HFB_Particle_Number(Params,dRho,Orb)
-
-    if dZ / Z > 0.05
-        dRho = pnMatrix(0.05 * Z / dZ .* dRho.p, dRho.n)
-        dKappa = pnMatrix(0.05 * Z / dZ .* dKappa.p, dKappa.n)
-    end
-    if dN / N > 0.05
-        dRho = pnMatrix(dRho.p, 0.05 * N / dN .* dRho.n)
-        dKappa = pnMatrix(dKappa.p, 0.05 * N / dN .* dKappa.n)
+    # Enumerate M_count & allocate Broyden mapping ...
+    @inbounds for a in 1:a_max
+        l_a, j_a = Orb[a].l, Orb[a].j
+        @inbounds for b in 1:a_max
+            l_b, j_b = Orb[b].l, Orb[b].j
+            if (l_a == l_b) && (j_a == j_b)
+                M_count += 1
+                Broyden_Map[a,b] = M_count 
+                #Broyden_Map[b,a] = M_count
+            end
+        end
     end
 
-    #display(Rho.n)
-    #display(Kappa.n)
+    # Initialize the total number of linearized indices & Broyden key ...
+    M, Broyden_Key = 0, Vector{HFB_Broyden_Key}(undef,M_count)
 
-    # Perform the Broyden update of densities Rho & Kappa ...
-    Rho, Kappa = HFB_Broyden_Update(a_max,Rho,dRho,Kappa,dKappa)
+    # Enumerate M & allocate Broyden key ...
+    @inbounds for a in 1:a_max
+        l_a, j_a = Orb[a].l, Orb[a].j
+        @inbounds for b in 1:a_max
+            l_b, j_b = Orb[b].l, Orb[b].j
+            if (l_a == l_b) && (j_a == j_b)
+                M += 1
+                Broyden_Key[M] = HFB_Broyden_Key(a,b) 
+            end
+        end
+    end
 
-    #display(Rho.n)
-    #display(Kappa.n)
-    #throw("Stop here")
-
-    return Rho, Kappa, B
+    return HFB_Broyden(Broyden_Map,Broyden_Key,M,m), M
 end
 
-function HFB_Broyden_Update(a_max::Int64,Rho::pnMatrix,dRho::pnMatrix,Kappa::pnMatrix,dKappa::pnMatrix)
-    # Basic parameters ...
-    q, q_min,g, c = 1.0, 1e-4, 0.5, 1e-12
+function HFB_Broyden_Initialize(Params::Parameters,Rho::pnMatrix,Kappa::pnMatrix,Orb::Vector{NOrb})
+    # Read calculation parameters ...
+    N_max = Params.Calc.Nmax
+    a_max = div((N_max + 1) * (N_max + 2), 2)
 
-    # Evaluate current finite difference d_current ...
-    d_current = (sum(abs.(dRho.p)) + sum(abs.(dKappa.p)) + sum(abs.(dRho.n)) + sum(abs.(dKappa.n))) / Float64(4*a_max^2)
+    # Number of history vectors ...
+    m = 8
 
-    # Iterate on the quenching factor q ...
-    while q >= q_min
-        # Perform trial step ...
-        pRho_trial, pKappa_trial = (1.0 - q) * Rho.p .- q * dRho.p, (1.0 - q) * Kappa.p .- q * dKappa.p
-        nRho_trial, nKappa_trial = (1.0 - q) * Rho.p .- q * dRho.n, (1.0 - q) * Kappa.n .- q * dKappa.n
+    # Prepare Broyden ... Map, Key & calculate the number of linearized indices M ...
+    Broyden, M = HFB_Broyden_Initialize_Mapping(Params,m,Orb)
 
-        # Symmetrize trial densities ...
-        pRho_trial .= 0.5 * (pRho_trial .+ pRho_trial')
-        nRho_trial .= 0.5 * (nRho_trial .+ nRho_trial')
-        pKappa_trial .= 0.5 * (pKappa_trial .+ pKappa_trial')
-        nKappa_trial .= 0.5 * (nKappa_trial .+ nKappa_trial')
+    # Initialize arrays x & r ...
+    x_Rho, x_Kappa = HFB_Broyden_Linearize(Rho,Kappa,Broyden;Initialize = true)
+    y_Rho, y_Kappa = pnVector(zeros(Float64,M),zeros(Float64,M)), pnVector(zeros(Float64,M),zeros(Float64,M))
+    r_Rho, r_Kappa = pnVector(zeros(Float64,M),zeros(Float64,M)), pnVector(zeros(Float64,M),zeros(Float64,M))
+    s_Rho, s_Kappa = pnVector(zeros(Float64,M),zeros(Float64,M)), pnVector(zeros(Float64,M),zeros(Float64,M))
 
-        # Evaluate trial finite difference d_trial ...
-        d_trial = (sum(abs.(pRho_trial .- Rho.p)) + sum(abs.(nRho_trial .- Rho.n)) + sum(abs.(pKappa_trial .- Kappa.p)) + sum(abs.(nKappa_trial .- Kappa.n))) / Float64(4*a_max^2)
+    # Initialize history vectors X & R ...
+    X_Rho, X_Kappa = pnMatrix(zeros(Float64,M,m),zeros(Float64,M,m)), pnMatrix(zeros(Float64,M,m),zeros(Float64,M,m))
+    R_Rho, R_Kappa = pnMatrix(zeros(Float64,M,m),zeros(Float64,M,m)), pnMatrix(zeros(Float64,M,m),zeros(Float64,M,m))
 
-        # Armijo-like condition on accepting the current trial step ...
-        if (d_trial + c * q) < d_current
-            return pnMatrix(pRho_trial, nRho_trial), pnMatrix(pKappa_trial, nKappa_trial)
+    # Initialize Broyden vector ...
+    Broyden_Vector = HFB_Broyden_Vector(x_Rho,y_Rho,X_Rho,r_Rho,s_Rho,R_Rho,x_Kappa,y_Kappa,X_Kappa,r_Kappa,s_Kappa,R_Kappa)
+
+    return Broyden, Broyden_Vector
+end
+
+function HFB_Broyden_Linearize(Rho::pnMatrix,Kappa::pnMatrix,Broyden::HFB_Broyden;Initialize::Bool=false)
+    # Initialize linearized Rho & Kappa ...
+    pRho, pKappa = zeros(Float64,Broyden.M), zeros(Float64,Broyden.M)
+    nRho, nKappa = zeros(Float64,Broyden.M), zeros(Float64,Broyden.M)
+
+    # Allocate linearized Rho & Kappa ...
+        # Paralelize using threads (???) ...
+    @inbounds for i in 1:Broyden.M
+        a, b = Broyden.Key[i].a, Broyden.Key[i].b
+        pRho[i], pKappa[i] = Rho.p[a,b], Kappa.p[a,b]
+        nRho[i], nKappa[i] = Rho.n[a,b], Kappa.n[a,b]
+    end
+
+    if Initialize == false
+        return pRho, pKappa, nRho, nKappa
+    elseif Initialize == true
+        return pnVector(pRho,nRho), pnVector(pKappa,nKappa)
+    end
+end
+
+function HFB_Broyden_Reconstruct(Params::Parameters,Rho::pnVector,Kappa::pnVector,Broyden::HFB_Broyden,Orb::Vector{NOrb})
+    # Read calculation parameters ...
+    N_max = Params.Calc.Nmax
+    a_max = div((N_max + 1) * (N_max + 2), 2)
+
+    # Initialize density matrices Rho & Kappa ...
+    pRho, pKappa = zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max)
+    nRho, nKappa = zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max)
+
+    # Allocate density matrices Rho & Kappa ...
+        # Paralelize using threads (???) ...
+    @inbounds for a in 1:a_max
+        @inbounds for b in 1:a_max
+            i = Broyden.Map[a,b]
+            if i != 0
+                pRho[a,b], pKappa[a,b] = Rho.p[i], Kappa.p[i]
+                nRho[a,b], nKappa[a,b] = Rho.n[i], Kappa.n[i]
+            end
+        end
+    end
+
+    # Clean numerical noise in Rho & Kappa ...
+    @inbounds for a in 1:a_max
+        @inbounds for b in 1:a_max
+            if abs(pRho[a,b]) < 1e-14
+                pRho[a,b] = 0.0
+            end
+            if abs(pKappa[a,b]) < 1e-14
+                pKappa[a,b] = 0.0
+            end
+           if abs(nRho[a,b]) < 1e-14
+                nRho[a,b] = 0.0
+            end
+            if abs(nKappa[a,b]) < 1e-14
+                nKappa[a,b] = 0.0
+            end
+        end
+    end
+
+    return pnMatrix(pRho,nRho), pnMatrix(pKappa,nKappa)
+end
+
+function HFB_Broyden_History_Update(Broyden::HFB_Broyden,BroyVec::HFB_Broyden_Vector)
+    # Define the residual overlap matrix N = R' * R ...
+    pRho_N, pKappa_N = BroyVec.R_Rho.p' * BroyVec.R_Rho.p, BroyVec.R_Kappa.p' * BroyVec.R_Kappa.p
+    nRho_N, nKappa_N = BroyVec.R_Rho.n' * BroyVec.R_Rho.n, BroyVec.R_Kappa.n' * BroyVec.R_Kappa.n
+
+    # Calculate the regularizing factors epsilon ...
+    pRho_Eps = max(1e-4 * opnorm(pRho_N,2), 1e-7) .* diagm(ones(Float64,Broyden.m))
+    nRho_Eps = max(1e-4 * opnorm(nRho_N,2), 1e-7) .* diagm(ones(Float64,Broyden.m))
+    pKappa_Eps = max(1e-4 * opnorm(pKappa_N,2), 1e-7) .* diagm(ones(Float64,Broyden.m))
+    nKappa_Eps = max(1e-4 * opnorm(nKappa_N,2), 1e-7) .* diagm(ones(Float64,Broyden.m))
+
+    # Calculate & allocate beta ...
+    pRho_beta = (pRho_N .+ pRho_Eps) \ (BroyVec.R_Rho.p' * BroyVec.r_Rho.p)
+    nRho_beta = (nRho_N .+ nRho_Eps) \ (BroyVec.R_Rho.n' * BroyVec.r_Rho.n)
+    pKappa_beta = (pKappa_N .+ pKappa_Eps) \ (BroyVec.R_Kappa.p' * BroyVec.r_Kappa.p)
+    nKappa_beta = (nKappa_N .+ nKappa_Eps) \ (BroyVec.R_Kappa.n' * BroyVec.r_Kappa.n)
+
+    return pRho_beta, pKappa_beta, nRho_beta, nKappa_beta
+end
+
+function HFB_Broyden_Update(Params::Parameters,Iteration::Int64,Rho::pnMatrix,Kappa::pnMatrix,Broyden::HFB_Broyden,BroyVec::HFB_Broyden_Vector,Orb::Vector{NOrb})
+    # Initialize quenching flags ...
+    Q_pRho, Q_pKappa = false, false
+    Q_nRho, Q_nKappa = false, false
+
+    # History vector index m ...
+    m = rem(Iteration,Broyden.m) + 1
+
+    # Quenching parameters alpha ...
+    alpha_pRho, alpha_pKappa = 0.9, 0.9
+    alpha_nRho, alpha_nKappa = 0.9, 0.9
+
+    # Linearize Rho & Kappa ...
+    pRho, pKappa, nRho, nKappa = HFB_Broyden_Linearize(Rho,Kappa,Broyden)
+
+        # Remove this later ... allocate as slightly quenched previous iteration ...
+    pRho_new, pKappa_new, nRho_new, nKappa_new = zeros(Float64,Broyden.M), zeros(Float64,Broyden.M), zeros(Float64,Broyden.M), zeros(Float64,Broyden.M)
+
+    # Update & allocate vectors r & s ...
+        # Case of s = r^(n-1) ...
+    BroyVec.s_Rho.p .= BroyVec.r_Rho.p
+    BroyVec.s_Rho.n .= BroyVec.r_Rho.n
+    BroyVec.s_Kappa.p .= BroyVec.r_Kappa.p
+    BroyVec.s_Kappa.n .= BroyVec.r_Kappa.n
+        # Case of r = r^(n) ...
+    BroyVec.r_Rho.p .= pRho .- BroyVec.x_Rho.p
+    BroyVec.r_Rho.n .= nRho .- BroyVec.x_Rho.n
+    BroyVec.r_Kappa.p .= pKappa .- BroyVec.x_Kappa.p
+    BroyVec.r_Kappa.n .= nKappa .- BroyVec.x_Kappa.n
+
+    # Update history vectors X & R ...
+        # Case of X = X^(n) ...
+    @views BroyVec.X_Rho.p[:,m] = BroyVec.x_Rho.p[:] .- BroyVec.y_Rho.p[:]
+    @views BroyVec.X_Rho.n[:,m] = BroyVec.x_Rho.n[:] .- BroyVec.y_Rho.n[:]
+    @views BroyVec.X_Kappa.p[:,m] = BroyVec.x_Kappa.p[:] .- BroyVec.y_Kappa.p[:]
+    @views BroyVec.X_Kappa.n[:,m] = BroyVec.x_Kappa.n[:] .- BroyVec.y_Kappa.n[:]
+        # Case of R = R^(n) ...
+    @views BroyVec.R_Rho.p[:,m] = BroyVec.r_Rho.p[:] .- BroyVec.s_Rho.p[:]
+    @views BroyVec.R_Rho.n[:,m] = BroyVec.r_Rho.n[:] .- BroyVec.s_Rho.n[:]
+    @views BroyVec.R_Kappa.p[:,m] = BroyVec.r_Kappa.p[:] .- BroyVec.s_Kappa.p[:]
+    @views BroyVec.R_Kappa.n[:,m] = BroyVec.r_Kappa.n[:] .- BroyVec.s_Kappa.n[:]
+
+    # Allocate finite difference D for previous residual r ...
+    D_pRho, D_pKappa = norm(BroyVec.r_Rho.p), norm(BroyVec.r_Kappa.p)
+    D_nRho, D_nKappa = norm(BroyVec.r_Rho.n), norm(BroyVec.r_Kappa.n)
+
+    # Initialize the Broyden's history fit matrix beta ...
+    pRho_beta, pKappa_beta = zeros(Float64,Broyden.m), zeros(Float64,Broyden.m)
+    nRho_beta, nKappa_beta = zeros(Float64,Broyden.m), zeros(Float64,Broyden.m)
+        # If there is enough history, calculate the history update matrix beta ...
+    if Iteration > (2*Broyden.m + 1)
+        pRho_beta, pKappa_beta, nRho_beta, nKappa_beta = HFB_Broyden_History_Update(Broyden,BroyVec)
+    end
+
+    # Perform several quenching iterations for densities ...
+    @inbounds for Quench in 1:3
+
+        # Quench pRho ...
+        if Q_pRho == false
+            alpha_r = alpha_pRho .* BroyVec.r_Rho.p
+            X_beta = BroyVec.X_Rho.p * pRho_beta
+            dX_beta_max = 0.15 * norm(alpha_r)
+            if dX_beta_max > 1e-8 && norm(X_beta) > dX_beta_max
+                X_beta .= X_beta .* (dX_beta_max / (norm(X_beta) + eps()))
+            end
+
+            #pRho_trial = BroyVec.x_Rho.p .+ alpha_pRho .* BroyVec.r_Rho.p .- BroyVec.X_Rho.p * pRho_beta
+            pRho_trial = BroyVec.x_Rho.p .+ alpha_r .- X_beta
+            D_pRho_trial = norm(pRho .- pRho_trial)
+
+            if ((D_pRho_trial / D_pRho) < 0.9) || (Quench == 3)
+                pRho_new .= pRho_trial
+                Q_pRho = true
+            else
+                alpha_pRho = 0.5 * alpha_pRho
+            end
         end
 
-        q = g * q
+        # Quench pKappa ...
+        if Q_pKappa == false
+            alpha_r = alpha_pKappa .* BroyVec.r_Kappa.p
+            X_beta = BroyVec.X_Kappa.p * pKappa_beta
+            dX_beta_max = 0.15 * norm(alpha_r)
+            if dX_beta_max > 1e-8 && norm(X_beta) > dX_beta_max
+                X_beta .= X_beta .* (dX_beta_max / (norm(X_beta) + eps()))
+            end
+
+            #pKappa_trial = BroyVec.x_Kappa.p .+ alpha_pKappa .* BroyVec.r_Kappa.p .- BroyVec.X_Kappa.p * pKappa_beta
+            pKappa_trial = BroyVec.x_Kappa.p .+ alpha_r .- X_beta
+
+            D_pKappa_trial = norm(pKappa .- pKappa_trial)
+
+            if ((D_pKappa_trial / D_pKappa) < 0.9) || (Quench == 3)
+                pKappa_new .= pKappa_trial
+                Q_pKappa = true
+            else 
+                alpha_pKappa = 0.5 * alpha_pKappa
+            end
+        end
+
+        # Quench nRho ...
+        if Q_nRho == false
+            alpha_r = alpha_nRho .* BroyVec.r_Rho.n
+            X_beta = BroyVec.X_Rho.n * nRho_beta
+            dX_beta_max = 0.15 * norm(alpha_r)
+            if dX_beta_max > 1e-8 && norm(X_beta) > dX_beta_max
+                X_beta .= X_beta .* (dX_beta_max / (norm(X_beta) + eps()))
+            end
+
+            #nRho_trial = BroyVec.x_Rho.n .+ alpha_nRho .* BroyVec.r_Rho.n .- BroyVec.X_Rho.n * nRho_beta
+            nRho_trial = BroyVec.x_Rho.n .+ alpha_r .- X_beta
+
+            D_nRho_trial = norm(nRho .- nRho_trial)
+
+            if ((D_nRho_trial / D_nRho) < 0.9) || (Quench == 3)
+                nRho_new .= nRho_trial
+                Q_nRho = true
+            else
+                alpha_nRho = 0.5 * alpha_nRho
+            end
+        end
+
+        # Quench nKappa ...
+        if Q_nKappa == false
+            alpha_r = alpha_nKappa .* BroyVec.r_Kappa.n
+            X_beta = BroyVec.X_Kappa.n * nKappa_beta
+            dX_beta_max = 0.15 * norm(alpha_r)
+            if dX_beta_max > 1e-8 && norm(X_beta) > dX_beta_max
+                X_beta .= X_beta .* (dX_beta_max / (norm(X_beta) + eps()))
+            end
+
+            #nKappa_trial = BroyVec.x_Kappa.n .+ alpha_nKappa .* BroyVec.r_Kappa.n .- BroyVec.X_Kappa.n * nKappa_beta
+            nKappa_trial = BroyVec.x_Kappa.n .+ alpha_r .- X_beta
+
+            D_nKappa_trial = norm(nKappa .- nKappa_trial)
+
+            if ((D_nKappa_trial / D_nKappa) < 0.9) || (Quench == 3)
+                nKappa_new .= nKappa_trial
+                Q_nKappa = true
+            else
+                alpha_nKappa = 0.5 * alpha_nKappa
+            end
+        end
+
+        # Break loop if update is done ...
+        if Q_pRho == true && Q_pKappa == true && Q_nRho == true && Q_nKappa == true 
+            break
+        end
+
     end
 
-    # No improvement due to quenching ... return old densities ...
-    return Rho, Kappa
-end
+    # Update previous step vector y ...
+    BroyVec.y_Rho.p .= BroyVec.x_Rho.p
+    BroyVec.y_Rho.n .= BroyVec.x_Rho.n
+    BroyVec.y_Kappa.p .= BroyVec.x_Kappa.p
+    BroyVec.y_Kappa.n .= BroyVec.x_Kappa.n
 
-function HFB_Broyden_Update_Difference(pRho::Matrix{Float64},nRho::Matrix{Float64},pKappa::Matrix{Float64},nKappa::Matrix{Float64},Rho::pnMatrix,Kappa::pnMatrix)
-    d = sum(abs.(pRho .- Rho.p)) + sum(abs.(nRho .- Rho.n)) + sum(abs.(pKappa .- Kappa.p)) + sum(abs.(nKappa .- Kappa.n))
-    return d
+    # Update current step vector x ...
+    BroyVec.x_Rho.p .= pRho_new
+    BroyVec.x_Rho.n .= nRho_new
+    BroyVec.x_Kappa.p .= pKappa_new
+    BroyVec.x_Kappa.n .= nKappa_new
+
+    # Update densities Rho & Kappa ...
+    Rho, Kappa = HFB_Broyden_Reconstruct(Params,pnVector(pRho_new,nRho_new),pnVector(pKappa_new,nKappa_new),Broyden,Orb)
+
+    return Rho, Kappa, BroyVec
 end

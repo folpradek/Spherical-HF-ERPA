@@ -1,0 +1,42 @@
+function HFB_Particle_Number(Params::Parameters,Rho::pnMatrix,Orb::Vector{NOrb})
+    # Read parameters ...
+    N_max = Params.Calc.Nmax
+    a_max = div((N_max + 1) * (N_max + 2), 2)
+
+    # Initialize particle numbers ...
+    Z, N = 0,0, 0,0
+
+    # Evaluate the angular-momentum weighted trace of density matrices ...
+    @inbounds for a in 1:a_max
+        Z += Rho.p[a,a] * Float64(Orb[a].j + 1)
+        N += Rho.n[a,a] * Float64(Orb[a].j + 1)
+    end
+
+    return Z, N
+end
+
+function HFB_Particle_Number_Dispersion(Params::Parameters,Rho::pnMatrix,Orb::Vector{NOrb})
+    # Read parameters ...
+    N_max = Params.Calc.Nmax
+    a_max = div((N_max + 1)*(N_max + 2),2)
+    dZ, dN = 0.0, 0.0
+
+    # Calculate the particle number dispersion ...
+    println("\nCalculating the HFB dispersion of proton & neutron particle numbers ...")
+
+    @inbounds for a in 1:a_max
+        j_a, l_a = Orb[a].j, Orb[a].l
+        j_a_hat = Float64(j_a + 1)
+        dZ += 2.0 * j_a_hat * Rho.p[a,a] * (1.0 - Rho.p[a,a])
+        dN += 2.0 * j_a_hat * Rho.n[a,a] * (1.0 - Rho.n[a,a])
+    end
+
+    # Calculate square roots of dispersion numbers ...
+    dZ, dN = sqrt(dZ), sqrt(dN)
+
+    println("\nHFB dispersion of nucleons numbers are ...")
+    println("dZ = " * string(round(dZ,digits=5)))
+    println("dN = " * string(round(dN,digits=5)))
+
+    return pnFloat(dZ,dN)
+end

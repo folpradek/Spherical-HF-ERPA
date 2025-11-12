@@ -135,7 +135,7 @@ function HF_ERPA_Radial_Density_Grid(Params::Parameters,Orb::Vector{NOrb},U::pnM
     # Preallocate grid ...
     r1 = 0.0 + 1e-8
     r2 = 2.5 * 1.2 * A^(1/3)
-    N_Sampling = 10000
+    N_Sampling = 2^13 + 1
     r_grid = range(r1, stop = r2, length = N_Sampling)
     r_grid = collect(r_grid)
 
@@ -199,7 +199,7 @@ function HF_ERPA_Radial_ChDensity_Grid(Params::Parameters,Orb::Vector{NOrb},U::p
     nR_CMS = R_CMS[3] + R_CMS[4]
 
     # Preallocate charged densitiy grid ...
-    N_Sampling = 10000
+    N_Sampling = 2^13 + 1
     chRho_rad = zeros(Float64,N_Sampling)
     kR2 = 0.0
 

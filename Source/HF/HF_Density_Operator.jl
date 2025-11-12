@@ -1,4 +1,4 @@
-function HF_Density_Operator(Orb::Vector{NOrb},a_max::Int64,U::pnMatrix)
+function HF_Density_Operator(a_max::Int64,U::pnMatrix,Orb::Vector{NOrb})
     pRho, nRho = zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max)
     pU, nU = U.p, U.n
     @inbounds for k in 1:a_max

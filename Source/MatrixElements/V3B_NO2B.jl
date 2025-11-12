@@ -152,6 +152,242 @@ end
 
 function V3B_NO2B_Read(Params::Parameters,Orb::Vector{NOrb})
     # Read parameters ...
+        # Interaction file path ...
+    Int_File = Params.Int.NNN_File
+        # Interaction configuration space...
+    N_max_Int = Params.Int.Nmax
+    N_2max_Int = Params.Int.N2max
+    N_3max_Int = Params.Int.N3max
+    a_max = div((N_max_Int+1)*(N_max_Int+2),2)
+        # Calculation configuration space ...
+    N_max_Calc = Params.Calc.Nmax
+    N_2max_Calc = Params.Calc.N2max
+    N_3max_Calc = Params.Calc.N3max
+
+    # Initialize NNN interaction arrays ...
+    println("\nPreparing 3-body NNN interaction array ...")
+    VNNN, Orb_NNN = V3B_NO2B_Ini(N_max_Calc,N_2max_Calc,N_3max_Calc,Orb)
+
+    # Precount NNN interaction matrix elements ...
+    println("\nPrecounting # of 3-body NNN interaction matrix elements ...")
+    N_Chunk_skip, ab, ab_max = V3B_NO2B_Count(N_max_Int,N_2max_Int,N_3max_Int,Orb)
+
+    # Read NNN interaction from designated binary ...
+    println("\nReading 3-body NO2B NNN interaction file. ..")
+    @inbounds Threads.@threads for ab_i in 1:ab_max
+        a, b = ab[ab_i,1], ab[ab_i,2]
+        n_a, l_a , j_a = Orb[a].n, Orb[a].l, Orb[a].j
+        n_b, l_b , j_b = Orb[b].n, Orb[b].l, Orb[b].j
+        N_a , N_b = 2*n_a + l_a, 2*n_b + l_b
+        N_ab = N_a + N_b
+        open(Int_File, "r") do Bin_Read
+            seek(Bin_Read, N_Chunk_skip[ab_i])
+            @inbounds for c in 1:a_max
+                n_c = Orb[c].n
+                l_c = Orb[c].l
+                j_c = Orb[c].j
+                N_c = 2*n_c + l_c
+                N_ac = N_a + N_c
+                N_bc = N_b + N_c
+                N_abc = N_a + N_b + N_c
+                if (N_ac<= N_2max_Int) && (N_bc <= N_2max_Int) && (N_abc <= N_3max_Int)
+                    P_abc = rem(l_a + l_b + l_c,2) + 1
+                    @inbounds for d in 1:a 
+                        n_d = Orb[d].n
+                        l_d = Orb[d].l
+                        j_d = Orb[d].j
+                        N_d = 2*n_d + l_d
+                        @inbounds for e in 1:d
+                            n_e = Orb[e].n
+                            l_e = Orb[e].l
+                            j_e = Orb[e].j
+                            N_e = 2*n_e + l_e
+                            N_de = N_d + N_e
+                            if (N_de <= N_2max_Int)
+                                @inbounds for f in 1:a_max
+                                    n_f = Orb[f].n
+                                    l_f = Orb[f].l
+                                    j_f = Orb[f].j
+                                    N_f = 2*n_f + l_f
+                                    N_df = N_d + N_f
+                                    N_ef = N_e + N_f
+                                    N_def = N_d + N_e + N_f
+                                    if (j_c == j_f) && (l_c == l_f) && (N_df <= N_2max_Int) && (N_ef <= N_2max_Int) && (N_def <= N_3max_Int)
+                                        P_def = rem(l_d + l_e + l_f,2) + 1
+                                        if (P_abc == P_def)
+                                            @inbounds for J in div(max(abs(j_a - j_b),abs(j_d - j_e)),2):div(min((j_a + j_b),(j_d + j_e)),2)
+                                                @inbounds for T_ab in 0:1
+                                                    @inbounds for T_de in 0:1
+                                                        @inbounds for T in max(abs(2*T_ab-1),abs(2*T_de-1)):2:min((2*T_ab+1),(2*T_de+1))
+
+                                                            V = read(Bin_Read,Float32)
+
+                                                            if (N_a <= N_max_Calc) && (N_b <= N_max_Calc) && (N_c <= N_max_Calc) &&
+                                                                (N_d <= N_max_Calc) && (N_e <= N_max_Calc) && (N_f <= N_max_Calc) &&
+                                                                (N_ab <= N_2max_Calc) && (N_ac <= N_2max_Calc) && (N_bc <= N_2max_Calc) &&
+                                                                (N_de <= N_2max_Calc) && (N_df <= N_2max_Calc) && (N_ef <= N_2max_Calc) &&
+                                                                (N_abc <= N_3max_Calc) && (N_def <= N_3max_Calc)
+
+                                                                T_ind = div((T+1),2)
+                                                                P = rem(l_a + l_b + l_c,2) + 1
+                                                                Ind = V3B_NO2B_Index(a,b,c,T_ab,d,e,f,T_de,J,T,P,Orb,Orb_NNN)
+                                                                if j_c == abs(2*l_c-1)
+                                                                    VNNN[P,l_c+1,J+1,T_ind][1][Ind] = V
+                                                                elseif j_c == (2*l_c+1)
+                                                                    VNNN[P,l_c+1,J+1,T_ind][2][Ind] = V
+                                                                end
+                                                            end
+
+                                                        end
+                                                    end
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    println("\nFinished loading of 3-body NO2B NNN interaction...")
+
+    return VNNN, Orb_NNN
+end
+
+function V3B_NO2B_Allocate(N_max::Int64,N_2max::Int64,N_3max::Int64,Orb::Vector{NOrb})
+    # Initialize a_max, ab_count ...
+    a_max, ab_count = div((N_max+1)*(N_max+2),2), 0
+
+    # Evaluate ab_count ...
+    @inbounds for a in 1:a_max
+        n_a = Orb[a].n
+        l_a = Orb[a].l
+        j_a = Orb[a].j
+        N_a = 2*n_a + l_a
+        if (N_a <= N_max)
+            @inbounds for b in 1:a
+                n_b = Orb[b].n
+                l_b = Orb[b].l
+                j_b = Orb[b].j
+                N_b = 2*n_b + l_b
+                if ((N_a + N_b) <= N_2max)
+                    ab_count += 1
+                end
+            end
+        end
+    end
+
+    # Initialize ab, and restart ab_count ...
+    ab = Matrix{Int64}(undef,ab_count,2)
+    ab_count = 0
+
+    # Allocate ab, and evaluate ab_count ...
+    @inbounds for a in 1:a_max
+        n_a = Orb[a].n
+        l_a = Orb[a].l
+        j_a = Orb[a].j
+        N_a = 2*n_a + l_a
+        if (N_a <= N_max)
+            @inbounds for b in 1:a
+                n_b = Orb[b].n
+                l_b = Orb[b].l
+                j_b = Orb[b].j
+                N_b = 2*n_b + l_b
+                if ((N_a + N_b) <= N_2max)
+                    ab_count += 1
+                    ab[ab_count,1] = a
+                    ab[ab_count,2] = b
+                end
+            end
+        end
+    end
+
+    return ab, ab_count
+end
+
+function V3B_NO2B_Count(N_max::Int64,N_2max::Int64,N_3max::Int64,Orb::Vector{NOrb})
+    # Evaluate a_max ...
+    a_max = div((N_max+1)*(N_max+2),2)
+
+    # Initialize ab, ab_max ...
+    ab, ab_max = V3B_NO2B_Allocate(N_max,N_2max,N_3max,Orb)
+
+    # Initialize N_Chunk, N_Chunk_skip
+    N_Chunk = Vector{Int64}(undef,ab_max)
+    N_Chunk_skip = Vector{Int64}(undef,ab_max)
+
+    # Allocate N_Chunk ...
+    @inbounds Threads.@threads for ab_i in 1:ab_max
+        a, b = ab[ab_i,1], ab[ab_i,2]
+        n_a, l_a , j_a = Orb[a].n, Orb[a].l, Orb[a].j
+        n_b, l_b , j_b = Orb[b].n, Orb[b].l, Orb[b].j
+        N_a , N_b = 2*n_a + l_a, 2*n_b + l_b
+        N = 0
+        @inbounds for c in 1:a_max
+            n_c = Orb[c].n
+            l_c = Orb[c].l
+            j_c = Orb[c].j
+            N_c = 2*n_c + l_c
+            if ((N_a + N_c) <= N_2max) && ((N_b + N_c) <= N_2max) && ((N_a + N_b + N_c) <= N_3max)
+                P_abc = rem(l_a + l_b + l_c,2) + 1
+                @inbounds for d in 1:a 
+                    n_d = Orb[d].n
+                    l_d = Orb[d].l
+                    j_d = Orb[d].j
+                    N_d = 2*n_d + l_d
+                    @inbounds for e in 1:d
+                        n_e = Orb[e].n
+                        l_e = Orb[e].l
+                        j_e = Orb[e].j
+                        N_e = 2*n_e + l_e
+                        if ((N_d + N_e) <= N_2max)
+                            @inbounds for f in 1:a_max
+                                n_f = Orb[f].n
+                                l_f = Orb[f].l
+                                j_f = Orb[f].j
+                                N_f = 2*n_f + l_f
+                                if (j_c == j_f) && (l_c == l_f) && ((N_d + N_f) <= N_2max) && ((N_e + N_f) <= N_2max) && ((N_d + N_e + N_f) <= N_3max)
+                                    P_def = rem(l_d + l_e + l_f,2) + 1
+                                    if (P_abc == P_def)
+                                        @inbounds for J in div(max(abs(j_a - j_b),abs(j_d - j_e)),2):div(min((j_a + j_b),(j_d + j_e)),2)
+                                            @inbounds for T_ab in 0:1
+                                                @inbounds for T_de in 0:1
+                                                    @inbounds for T in max(abs(2*T_ab-1),abs(2*T_de-1)):2:min((2*T_ab+1),(2*T_de+1))
+                                                        N += 1
+                                                    end
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        N_Chunk[ab_i] = N
+    end
+
+    # Allocate N_Chunk_skip ...
+    @inbounds for ab_i in 1:ab_max
+        Sum = 0
+        @inbounds for ab_j in 1:(ab_i-1)
+            Sum += 4 * N_Chunk[ab_j]
+        end
+        N_Chunk_skip[ab_i] = Sum
+    end
+
+    return N_Chunk_skip, ab, ab_max
+end
+
+# Old remove ...
+function V3B_NO2B_Read_old(Params::Parameters,Orb::Vector{NOrb})
+    # Read parameters ...
     Int_File = Params.Int.NNN_File
     N_max_Int = Params.Int.Nmax
     N_2max_Int = Params.Int.N2max
@@ -263,7 +499,7 @@ function V3B_NO2B_Read(Params::Parameters,Orb::Vector{NOrb})
     return VNNN, Orb_NNN
 end
 
-function V3B_NO2B_Count(N_max::Int64,N_2max::Int64,N_3max::Int64,Orb::Vector{NOrb})
+function V3B_NO2B_Count_old(N_max::Int64,N_2max::Int64,N_3max::Int64,Orb::Vector{NOrb})
     a_max = div((N_max+1)*(N_max+2),2)
     N_Chunk = Vector{Int64}(undef,a_max)
     N_Chunk_skip = Vector{Int64}(undef,a_max)
@@ -340,3 +576,141 @@ function V3B_NO2B_Count(N_max::Int64,N_2max::Int64,N_3max::Int64,Orb::Vector{NOr
 
     return N_Chunk_skip
 end
+# Buffer mod ...
+#=
+function V3B_NO2B_Read_buff(Params::Parameters,Orb::Vector{NOrb})
+    # Read parameters ...
+        # Interaction file path ...
+    Int_File = Params.Int.NNN_File
+        # Interaction configuration space...
+    N_max_Int = Params.Int.Nmax
+    N_2max_Int = Params.Int.N2max
+    N_3max_Int = Params.Int.N3max
+    a_max = div((N_max_Int+1)*(N_max_Int+2),2)
+        # Calculation configuration space ...
+    N_max_Calc = Params.Calc.Nmax
+    N_2max_Calc = Params.Calc.N2max
+    N_3max_Calc = Params.Calc.N3max
+
+    # Initialize the buffer ...
+    Buffer_size = 1000000 
+    Buffer = Vector{Float32}(undef,Buffer_size)
+
+    # Initialize NNN interaction arrays ...
+    println("\nPreparing 3-body NNN interaction array ...")
+    VNNN, Orb_NNN = V3B_NO2B_Ini(N_max_Calc,N_2max_Calc,N_3max_Calc,Orb)
+
+    # Precount NNN interaction matrix elements ...
+    println("\nPrecounting # of 3-body NNN interaction matrix elements ...")
+    N_Chunk_skip, N_Chunk, ab, ab_max = V3B_NO2B_Count(N_max_Int,N_2max_Int,N_3max_Int,Orb)
+
+    # Read NNN interaction from designated binary ...
+    println("\nReading 3-body NO2B NNN interaction file. ..")
+    @inbounds Threads.@threads for ab_i in 1:ab_max
+        a, b = ab[ab_i,1], ab[ab_i,2]
+        n_a, l_a , j_a = Orb[a].n, Orb[a].l, Orb[a].j
+        n_b, l_b , j_b = Orb[b].n, Orb[b].l, Orb[b].j
+        N_a , N_b = 2*n_a + l_a, 2*n_b + l_b
+        N_ab = N_a + N_b
+        open(Int_File, "r") do Bin_Read
+            seek(Bin_Read, N_Chunk_skip[ab_i])
+            Buffer_i, Buffer_N = 0, 0
+            Buffer_n = min(N_Chunk[ab_i] - Buffer_N * Buffer_size,Buffer_size)
+            @inbounds for c in 1:a_max
+                n_c = Orb[c].n
+                l_c = Orb[c].l
+                j_c = Orb[c].j
+                N_c = 2*n_c + l_c
+                N_ac = N_a + N_c
+                N_bc = N_b + N_c
+                N_abc = N_a + N_b + N_c
+                if (N_ac<= N_2max_Int) && (N_bc <= N_2max_Int) && (N_abc <= N_3max_Int)
+                    P_abc = rem(l_a + l_b + l_c,2) + 1
+                    @inbounds for d in 1:a 
+                        n_d = Orb[d].n
+                        l_d = Orb[d].l
+                        j_d = Orb[d].j
+                        N_d = 2*n_d + l_d
+                        @inbounds for e in 1:d
+                            n_e = Orb[e].n
+                            l_e = Orb[e].l
+                            j_e = Orb[e].j
+                            N_e = 2*n_e + l_e
+                            N_de = N_d + N_e
+                            if (N_de <= N_2max_Int)
+                                @inbounds for f in 1:a_max
+                                    n_f = Orb[f].n
+                                    l_f = Orb[f].l
+                                    j_f = Orb[f].j
+                                    N_f = 2*n_f + l_f
+                                    N_df = N_d + N_f
+                                    N_ef = N_e + N_f
+                                    N_def = N_d + N_e + N_f
+                                    if (j_c == j_f) && (l_c == l_f) && (N_df <= N_2max_Int) && (N_ef <= N_2max_Int) && (N_def <= N_3max_Int)
+                                        P_def = rem(l_d + l_e + l_f,2) + 1
+                                        if (P_abc == P_def)
+                                            @inbounds for J in div(max(abs(j_a - j_b),abs(j_d - j_e)),2):div(min((j_a + j_b),(j_d + j_e)),2)
+                                                @inbounds for T_ab in 0:1
+                                                    @inbounds for T_de in 0:1
+                                                        @inbounds for T in max(abs(2*T_ab-1),abs(2*T_de-1)):2:min((2*T_ab+1),(2*T_de+1))
+
+
+
+                                                            if Buffer_i > Buffer_N
+                                                                Buffer_n = min(N_Chunk[ab_i] - Buffer_N * Buffer_size,Buffer_size)
+                                                                read!(Bin_Read,view(Buffer,1:Buffer_n))
+                                                                Buffer_N = nread
+                                                                Buffer_i = 1
+
+                                                            else
+                                                                Buffer_i += 1
+
+
+                                                                read!(Bin_Read,Buffer)
+                                                                if nread == 0
+                                                                    error("Unexpected end of file while reading $Int_File")
+                                                                end
+                                                                Buffer_N = nread
+                                                                Buffer_i = 1
+                                                            end
+
+                                                            V = Buffer[Buffer_i]
+                                                            Buffer_i += 1
+
+
+                                                            if (N_a <= N_max_Calc) && (N_b <= N_max_Calc) && (N_c <= N_max_Calc) &&
+                                                                (N_d <= N_max_Calc) && (N_e <= N_max_Calc) && (N_f <= N_max_Calc) &&
+                                                                (N_ab <= N_2max_Calc) && (N_ac <= N_2max_Calc) && (N_bc <= N_2max_Calc) &&
+                                                                (N_de <= N_2max_Calc) && (N_df <= N_2max_Calc) && (N_ef <= N_2max_Calc) &&
+                                                                (N_abc <= N_3max_Calc) && (N_def <= N_3max_Calc)
+
+                                                                T_ind = div((T+1),2)
+                                                                P = rem(l_a + l_b + l_c,2) + 1
+                                                                Ind = V3B_NO2B_Index(a,b,c,T_ab,d,e,f,T_de,J,T,P,Orb,Orb_NNN)
+                                                                if j_c == abs(2*l_c-1)
+                                                                    VNNN[P,l_c+1,J+1,T_ind][1][Ind] = V
+                                                                elseif j_c == (2*l_c+1)
+                                                                    VNNN[P,l_c+1,J+1,T_ind][2][Ind] = V
+                                                                end
+                                                            end
+
+                                                        end
+                                                    end
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    println("\nFinished loading of 3-body NO2B NNN interaction...")
+
+    return VNNN, Orb_NNN
+end
+=#

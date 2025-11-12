@@ -74,8 +74,7 @@ function HF_Solve(Params::Parameters,Orb::Vector{NOrb},Orb_NN::NNOrb,Orb_NNN::NN
     a_max = div((N_max + 1) * (N_max + 2), 2)
 
     # Set some parameters for iteration ...
-    Iteration, Iteraction_max = 0, 100
-    delta = 1.0
+    dE, Iteration, Iteraction_max = 1.0, 0, 100
 
     # Preallocate arrays ...
         # Vectors for single-particle energies ...
@@ -87,10 +86,10 @@ function HF_Solve(Params::Parameters,Orb::Vector{NOrb},Orb_NN::NNOrb,Orb_NNN::NN
 
         # Initial guess on single-particle states & 1-body density matrix ... LHO orbitals ...
     C = pnMatrix(diagm(ones(Float64,a_max)), diagm(ones(Float64,a_max)))
-    Rho = HF_Density_Operator(Orb,a_max,C)
+    Rho = HF_Density_Operator(a_max,C,Orb)
 
     # Iteration of spherical HF equations ...
-    @time while (Iteration < Iteraction_max) && (delta > epsilon)
+    @time while (Iteration < Iteraction_max) && (dE > epsilon)
 
         # Perform iteration of HF equations ... fills the HF Hamiltonian ...
         h = HF_Allocate(Params,Rho,Orb,Orb_NN,Orb_NNN,T,VNN,VNNN)
@@ -107,15 +106,15 @@ function HF_Solve(Params::Parameters,Orb::Vector{NOrb},Orb_NN::NNOrb,Orb_NNN::NN
         C, SPE = HF_Orbital_Ordering(Orb,a_max,C,SPE)
 
         # Generate new HF density matrix ...
-        Rho = HF_Density_Operator(Orb,a_max,C)
+        Rho = HF_Density_Operator(a_max,C,Orb)
     
         # Check on convergence of HF SPEs ...
-        delta = (sum(abs.(SPE.p .- SPE_old.p )) + sum(abs.(SPE.n .- SPE_old.n))) / Float64(2 * a_max)
+        dE = (sum(abs.(SPE.p .- SPE_old.p )) + sum(abs.(SPE.n .- SPE_old.n))) / Float64(2 * a_max)
 
         SPE_old  = pnVector(deepcopy(SPE.p), deepcopy(SPE.n))
         Iteration += 1
 
-        println("Iteration number:   " * string(Iteration) * "   Energy difference:   " * string(round(delta, sigdigits=8)) * " MeV")
+        println("Iteration number:   " * string(Iteration) * "   Energy difference:   " * string(round(dE, sigdigits=8)) * " MeV")
     end
 
     println("\nIteration of HF eqs. with NO2B NN+NNN interaction finished ...")

@@ -39,7 +39,7 @@ function BCS(Params::Parameters)
     mkdir("IO/" * Params.Calc.Path)
     mkdir("IO/" * Params.Calc.Path * "/Bin")
     mkdir("IO/" * Params.Calc.Path * "/BCS")
-    #mkdir("IO/" * Params.Calc.Path * "/BCS/Densities")
+    mkdir("IO/" * Params.Calc.Path * "/BCS/Densities")
 
     # Make Parameters structure for reference mean-field calculation ...
     Params_ref = BCS_Reference(Params)

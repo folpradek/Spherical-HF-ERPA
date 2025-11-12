@@ -15,6 +15,17 @@ Base.@kwdef struct Parameters_ERPA
     OBDM::String = "Full"
 end
 
+Base.@kwdef struct Parameters_Pairing
+    ScBCS::Bool = false
+    s2::Float64 = 1.0
+    s3::Float64 = 1.0
+end
+
+Base.@kwdef struct Parameters_HFB
+    Broyden::Bool = false
+    LipkinNogami::Bool = false
+end
+
 Base.@kwdef struct Calculation_Parameters
     A::Int64 = 0
     Z::Int64 = 0
@@ -31,6 +42,8 @@ Base.@kwdef struct Calculation_Parameters
                     "_N2max" * string(N2max) * "_N3max" * string(N3max) * "_" * CMS
     Format::String = "Bin"
     ERPA::Parameters_ERPA = Parameters_ERPA(OBDM = "Full", ScOBH = true, Sc3N = true)
+    Pairing::Parameters_Pairing = Parameters_Pairing(ScBCS = false, s2 = 1.0, s3 = 1.0)
+    HFB::Parameters_HFB = Parameters_HFB(Broyden = false, LipkinNogami = false)
 end
 
 struct Parameters
