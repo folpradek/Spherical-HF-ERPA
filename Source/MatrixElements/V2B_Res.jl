@@ -347,7 +347,7 @@ function V2B_Res_Ind1(Params::Parameters,JP::Vector{Vector{Int64}},Orb::Vector{N
 
     pU, nU = U.p, U.n
 
-    JP = JP_Ini(J_max)
+    #JP = JP_Ini(J_max)
 
     # Make temporary arrays for NN interaction...
     VNN_res_I, Orb_NN_res = V2B_Res_Ini(Orb,N_max)
@@ -401,7 +401,7 @@ function V2B_Res_Ind2(Params::Parameters,JP::Vector{Vector{Int64}},Orb::Vector{N
 
     pU, nU = U.p, U.n
 
-    JP = JP_Ini(J_max)
+    #JP = JP_Ini(J_max)
 
     # Make 2nd temporary array for NN interaction...
     VNN_res_II = NNInt_Res(deepcopy(VNN_res_I.pp), deepcopy(VNN_res_I.pn), deepcopy(VNN_res_I.nn))
@@ -453,7 +453,7 @@ function V2B_Res_Ind3(Params::Parameters,JP::Vector{Vector{Int64}},Orb::Vector{N
 
     pU, nU = U.p, U.n
 
-    JP = JP_Ini(J_max)
+    #JP = JP_Ini(J_max)
 
     # Index 3
     println("\nTransformation in 3rd index...")
@@ -502,7 +502,7 @@ function V2B_Res_Ind4(Params::Parameters,JP::Vector{Vector{Int64}},Orb::Vector{N
     
     pU, nU = U.p, U.n
 
-    JP = JP_Ini(J_max)
+    #JP = JP_Ini(J_max)
 
     VNN, Orb_NN = V2B_Ini(Orb,N_max)
 

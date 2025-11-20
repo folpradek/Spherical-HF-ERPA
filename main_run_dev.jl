@@ -1,4 +1,4 @@
-using DelimitedFiles, LinearAlgebra, CGcoefficient, BenchmarkTools, Hungarian
+using DelimitedFiles, LinearAlgebra, CGcoefficient, BenchmarkTools, Hungarian, Mmap
 include("Source/Import_Structures.jl")
 include("Source/Functions/Functions.jl")
 include("Source/MatrixElements/Orb.jl")
@@ -57,6 +57,7 @@ include("Source/BCS/BCS.jl")
 include("Source/BCS/BCS_Solver.jl")
 include("Source/BCS/BCS_Residual_Interaction.jl")
 include("Source/BCS/BCS_Density_Operator.jl")
+include("Source/BCS/BCS_Chemical_Potential.jl")
 include("Source/BCS/BCS_Particle_Number.jl")
 include("Source/BCS/BCS_Allocate.jl")
 include("Source/BCS/BCS_Energy.jl")
@@ -77,43 +78,48 @@ include("Source/HFB/HFB_Export.jl")
 
 function run_main()
 
-    # HF, HF-RPA, HF_ERPA runs ...
+    # Interaction parameters structure ...
     IntParams = Interaction_Parameters(
-                NN_File = "IO/NN.bin",
-                NNN_File = "IO/NNN.bin",
+                NN_File = "IO/NN.bin",          #   Path to the NN interaction binary file
+                NNN_File = "IO/NNN.bin",        #   Path to the NNN interaction binary file
                 hw = 16.0,
                 Nmax = 3,
                 N2max = 6,
                 N3max = 9
                 )
 
+    # Calculation parameters structure ...
     CalcParams = Calculation_Parameters(
-                A = 16,
+                A = 18,
                 Z = 8,
                 hw = 16.0,
                 Nmax = 3,
                 N2max = 6,
                 N3max = 9,
                 Ortho = true,
-                #CMS = "CMS1+2B",
-                #BMF = true,
-                #Path = "HF_A16_Z8_hw16.0_Nmax3_N2max6_N3max9_CMS1+2B",
-                #ERPA = Parameters_ERPA(OBDM = "Full", ScOBH = true, Sc3N = true),
+                CMS = "CMS1+2B",
+                BMF = true,
+                Path = "A16_Z8_hw16.0_Nmax3_N2max6_N3max9",
                 #Format = "Bin",
-                #cV_res = 0.01,
-                Pairing = Parameters_Pairing(ScBCS = false),
-                HFB = Parameters_HFB(Broyden = true)
+                #ERPA = Parameters_ERPA(OBDM = "Full", ScOBH = true, Sc3N = true),
+                #cV_res = 0.01
+                #Pairing = Parameters_Pairing(ScBCS = false, pL0 = -5.0, nL0 = -5.0, pK0 = 0.5, nK0 = 0.5, pdN0 = 2.0, ndN0 = 2.0),
                 )
 
+    # HF calculation call ...
     #HF(Parameters(IntParams,CalcParams))
 
+    # HF-RPA calculation call ...
     #HF_RPA_Solver(Parameters(IntParams,CalcParams))
 
+    # HF-ERPA calculation call ...
     #HF_ERPA_Solver(Parameters(IntParams,CalcParams))
 
-    BCS(Parameters(IntParams,CalcParams))
-    
-    #HFB(Parameters(IntParams,CalcParams))
+    # HF-BCS calculation call ...
+    #BCS(Parameters(IntParams,CalcParams))
+
+    # HFB calculation call ...
+    HFB(Parameters(IntParams,CalcParams))
 
 end
 

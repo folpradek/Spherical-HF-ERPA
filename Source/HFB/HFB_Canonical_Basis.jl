@@ -34,10 +34,10 @@ function HFB_Canonical_Basis(Params::Parameters,Rho::pnMatrix,H::pnMatrix,Delta:
     @inbounds for a in 1:a_max
         @inbounds for b in 1:a_max
             pCME, nCME = abs(pC[a,b]), abs(nC[a,b])
-            if pCME < 1e-6
+            if pCME < 1e-11
                 pC[a,b] = 0.0
             end
-            if nCME < 1e-6
+            if nCME < 1e-11
                 nC[a,b] = 0.0
             end
         end

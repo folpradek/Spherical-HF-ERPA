@@ -27,16 +27,22 @@ function HFB_Particle_Number_Dispersion(Params::Parameters,Rho::pnMatrix,Orb::Ve
     @inbounds for a in 1:a_max
         j_a, l_a = Orb[a].j, Orb[a].l
         j_a_hat = Float64(j_a + 1)
-        dZ += 2.0 * j_a_hat * Rho.p[a,a] * (1.0 - Rho.p[a,a])
-        dN += 2.0 * j_a_hat * Rho.n[a,a] * (1.0 - Rho.n[a,a])
+        @inbounds for b in 1:a_max
+            if (j_a == Orb[b].j) && (l_a == Orb[b].l)
+                dZ -= 2.0 * j_a_hat * Rho.p[a,b] * Rho.p[b,a]
+                dN -= 2.0 * j_a_hat * Rho.n[a,b] * Rho.n[b,a]
+            end
+        end
+        dZ += 2.0 * j_a_hat * Rho.p[a,a]
+        dN += 2.0 * j_a_hat * Rho.n[a,a]
     end
 
     # Calculate square roots of dispersion numbers ...
     dZ, dN = sqrt(dZ), sqrt(dN)
 
-    println("\nHFB dispersion of nucleons numbers are ...")
-    println("dZ = " * string(round(dZ,digits=5)))
-    println("dN = " * string(round(dN,digits=5)))
+    println("\nHFB dispersion of nucleon numbers are ...")
+    println("\tdZ = " * string(round(dZ,digits=5)))
+    println("\tdN = " * string(round(dN,digits=5)))
 
     return pnFloat(dZ,dN)
 end

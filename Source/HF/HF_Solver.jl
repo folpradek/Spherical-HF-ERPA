@@ -114,7 +114,7 @@ function HF_Solve(Params::Parameters,Orb::Vector{NOrb},Orb_NN::NNOrb,Orb_NNN::NN
         SPE_old  = pnVector(deepcopy(SPE.p), deepcopy(SPE.n))
         Iteration += 1
 
-        println("Iteration number:   " * string(Iteration) * "   Energy difference:   " * string(round(dE, sigdigits=8)) * " MeV")
+        println("\nHF iteration number:   " * string(Iteration) * "   dE = " * string(round(dE, sigdigits=8)) * " MeV")
     end
 
     println("\nIteration of HF eqs. with NO2B NN+NNN interaction finished ...")

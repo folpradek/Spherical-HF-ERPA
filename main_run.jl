@@ -24,24 +24,23 @@ function run_main()
                 Ortho = true,
                 CMS = "CMS1+2B",
                 BMF = true,
-                #Path = "TestRun_DN2LOGO394_A16_Z8_hw16.0_Nmax3_N2max6_N3max9_CMS1+2B",
+                Path = "A16_Z8_hw16.0_Nmax3_N2max6_N3max9",
                 #Format = "Bin",
                 #ERPA = Parameters_ERPA(OBDM = "Full", ScOBH = true, Sc3N = true),
-                #cV_res = 0.01,
-                Pairing = Parameters_Pairing(ScBCS = false),
-                HFB = Parameters_HFB(Broyden = true)
+                #cV_res = 0.01
+                #Pairing = Parameters_Pairing(ScBCS = false, pL0 = -5.0, nL0 = -5.0, pK0 = 0.5, nK0 = 0.5, pdN0 = 2.0, ndN0 = 2.0),
                 )
 
     # HF calculation call ...
     #HF(Parameters(IntParams,CalcParams))
 
     # HF-RPA calculation call ...
-    #pHF_RPA_Solver(Parameters(IntParams,CalcParams))
+    #HF_RPA_Solver(Parameters(IntParams,CalcParams))
 
     # HF-ERPA calculation call ...
     #HF_ERPA_Solver(Parameters(IntParams,CalcParams))
 
-    # HFB calculation call ...
+    # HF-BCS calculation call ...
     #BCS(Parameters(IntParams,CalcParams))
 
     # HFB calculation call ...

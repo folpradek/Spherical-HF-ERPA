@@ -63,17 +63,34 @@ function BCS_Reference(Params::Parameters)
     N_ref, Z_ref = 0, 0
     dN, dZ = 1000, 1000
 
-    # Find the closest closed-shell (magic) proton number ...
-    @inbounds for Z in Magic_Numbers.p
-        if abs(Z_target - Z) < dZ
-            Z_ref, dZ = Z, abs(Z_target - Z)
+    # This former approach causes problems ... due to weak pairing ...
+    #=
+        # Find the closest closed-shell (magic) proton number ...
+        @inbounds for Z in Magic_Numbers.p
+            if abs(Z_target - Z) < dZ
+                Z_ref, dZ = Z, abs(Z_target - Z)
+            end
+        end
+
+        # Find the closest closed-shell (magic) neutron number ...
+        @inbounds for N in Magic_Numbers.n
+            if abs(N_target - N) < dN
+                N_ref, dN = N, abs(N_target - N)
+            end
+        end
+    =#
+
+    # Find the largest closed-shell (magic) proton number not exceeding Z_target ...
+    @inbounds for Z in Magic_Numbers.p 
+        if Z <= Z_target && (Z_target - Z) < dZ
+            Z_ref, dZ = Z, (Z_target - Z)
         end
     end
 
-    # Find the closest closed-shell (magic) neutron number ...
+    # Find the largest closed-shell (magic) neutron number not exceeding N_target ...
     @inbounds for N in Magic_Numbers.n
-        if abs(N_target - N) < dN
-            N_ref, dN = N, abs(N_target - N)
+        if N <= N_target && (N_target - N) < dN
+            N_ref, dN = N, (N_target - N)
         end
     end
 

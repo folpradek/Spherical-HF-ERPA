@@ -1,4 +1,4 @@
-function BCS_Summary(Params::Parameters,Params_ref::Parameters,E_MF::Float64,E_BCS::Float64,T_BCS::Float64,Lambda::pnFloat,dA::pnFloat,epsilon::Float64,Iteration::Int64)
+function BCS_Summary(Params::Parameters,Params_ref::Parameters,E_MF::Float64,E_BCS::Float64,T_BCS::Float64,Lambda::pnFloat,dA::pnFloat,epsilon::Float64)
     # Read parameters ...
     hw = Params.Calc.hw
     A, Z = Params.Calc.A, Params.Calc.Z
@@ -26,8 +26,7 @@ function BCS_Summary(Params::Parameters,Params_ref::Parameters,E_MF::Float64,E_B
         else
             println(Summary, "\nNo center of mass motion correction is included ...")
         end
-        println(Summary, "\nSpherical BCS solution review:")
-        println(Summary, "\nNumber of BCS Iterations = " * string(Iteration) * ", Convergence precision = " * string(round(epsilon, digits=8)) * " Nucleons")
+        println(Summary, "\nBCS solution review:")
         println(Summary, "\nE_MF  = " * string(round(E_MF, sigdigits=9)) * "\t MeV \t\t ... \t Mean-field ground state energy")
         println(Summary, "E_BCS = " * string(round(E_BCS, sigdigits=9)) * "\t MeV \t\t ... \t BCS pairing ground state energy")
         println(Summary, "T_BCS = " * string(round(T_BCS, sigdigits=9)) * "\t MeV \t\t ... \t BCS mean-field ground-state kinetic energy")
@@ -35,8 +34,13 @@ function BCS_Summary(Params::Parameters,Params_ref::Parameters,E_MF::Float64,E_B
         println(Summary, "E_BCS / A = " * string(round(E_BCS / A, digits=9)) * "\t MeV/Nucleon\t\t ... \t BCS pairing ground state energy per nucleon")
         println(Summary, "T_BCS / A = " * string(round(T_BCS / A, digits=9)) * "\t MeV / Nucleon\t\t ... \t BCS mean-field ground-state kinetic energy per nucleon")
         println(Summary, "\n\nValues of BCS chemical potentials ...")
-        println(Summary, "pLambda =  " * string(Lambda.p) * " MeV")
+        println(Summary, "\npLambda =  " * string(Lambda.p) * " MeV")
         println(Summary, "nLambda =  " * string(Lambda.n) * " MeV")
+        println(Summary, "\nBCS particle number dispersions dZ & dN:")
+        println(Summary, "\ndZ = " * string(round(dA.p, sigdigits=6)))
+        println(Summary, "dN = " * string(round(dA.n, sigdigits=6)))
+        println(Summary, "\ndZ / Z = " * string(round(dA.p / Float64(Z), sigdigits=6)))
+        println(Summary, "dN / N = " * string(round(dA.n / Float64(A - Z), sigdigits=6)))
     close(Summary)
 
     return

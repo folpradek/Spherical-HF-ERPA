@@ -19,11 +19,12 @@ Base.@kwdef struct Parameters_Pairing
     ScBCS::Bool = false
     s2::Float64 = 1.0
     s3::Float64 = 1.0
-end
-
-Base.@kwdef struct Parameters_HFB
-    Broyden::Bool = false
-    LipkinNogami::Bool = false
+    pL0::Float64 = -5.0
+    nL0::Float64 = -5.0
+    pK0::Float64 = 5.0
+    nK0::Float64 = 5.0
+    pdN0::Float64 = sqrt(2.0)
+    ndN0::Float64 = sqrt(2.0)
 end
 
 Base.@kwdef struct Calculation_Parameters
@@ -43,7 +44,6 @@ Base.@kwdef struct Calculation_Parameters
     Format::String = "Bin"
     ERPA::Parameters_ERPA = Parameters_ERPA(OBDM = "Full", ScOBH = true, Sc3N = true)
     Pairing::Parameters_Pairing = Parameters_Pairing(ScBCS = false, s2 = 1.0, s3 = 1.0)
-    HFB::Parameters_HFB = Parameters_HFB(Broyden = false, LipkinNogami = false)
 end
 
 struct Parameters
@@ -182,4 +182,35 @@ struct OBDM_Iteration_Pairs
     T::Vector{Int64}
     a::Vector{Int64}
     b::Vector{Int64}
+end
+
+# HFB modified Broyden's method structures ...
+
+struct HFB_Broyden_Key
+    a::Int64
+    b::Int64
+end
+
+struct HFB_Broyden
+    Map::Matrix{Int64}
+    Key::Vector{HFB_Broyden_Key}
+    M::Int64
+    m::Int64
+end
+
+mutable struct HFB_Broyden_Vector
+    x_Rho::pnVector
+    y_Rho::pnVector
+    z_Rho::pnVector
+    X_Rho::pnMatrix
+    r_Rho::pnVector
+    s_Rho::pnVector
+    R_Rho::pnMatrix
+    x_Kappa::pnVector
+    y_Kappa::pnVector
+    z_Kappa::pnVector
+    X_Kappa::pnMatrix
+    r_Kappa::pnVector
+    s_Kappa::pnVector
+    R_Kappa::pnMatrix
 end

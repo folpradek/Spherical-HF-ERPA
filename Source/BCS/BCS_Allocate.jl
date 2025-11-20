@@ -155,6 +155,51 @@ function HF_BCS_Allocate(Params::Parameters,Rho::pnMatrix,Kappa::pnMatrix,Orb::V
     return pnMatrix(pH,nH)
 end
 
+function BCS_Allocate_SQE(Params::Parameters,SPE::pnVector,Lambda::pnFloat,Delta::pnVector)
+    # Read parameters ...
+    N_max = Params.Calc.Nmax
+    a_max = div((N_max + 1)*(N_max + 2),2)
+
+    # Initialize vectors for SQEs ...
+    pSQE, nSQE = zeros(Float64,a_max), zeros(Float64,a_max)
+
+    # Calculate BCS single-quasiparticle energies (SQEs) ...
+    println("\nEvalutiang BCS single-quasiparticle energies ...")
+    @inbounds for a in 1:a_max
+        pE_a = sqrt((SPE.p[a] - Lambda.p)^2 + Delta.p[a]^2)
+        nE_a = sqrt((SPE.n[a] - Lambda.n)^2 + Delta.n[a]^2)
+        pSQE[a], nSQE[a] = pE_a, nE_a
+    end
+
+    return pnVector(pSQE,nSQE)
+end
+
+function BCS_Allocate_Amplitudes(Params::Parameters,Lambda::pnFloat,SPE::pnVector,Delta::pnVector,Orb::Vector{NOrb})
+    # Read parameters ...
+    N_max = Params.Calc.Nmax
+    a_max = div((N_max + 1)*(N_max + 2),2)
+
+    # Initialize U & V amplitudes ...
+    pU, pV = zeros(Float64,a_max), zeros(Float64,a_max)
+    nU, nV = zeros(Float64,a_max), zeros(Float64,a_max)
+
+    # Calculate U & V from initial guess ... from the initial guess
+    @inbounds for a in 1:a_max
+        # Correct Condon-Shortley phase factors ... actually irrelevant ...
+        Amp = Float64((-1)^Orb[a].l)
+
+        pME = (SPE.p[a] - Lambda.p) / sqrt(((SPE.p[a] - Lambda.p))^2 + Delta.p[a]^2)
+        pV[a] = Amp * sqrt(0.5 * (1.0 - pME))
+        pU[a] = Amp * sqrt(0.5 * (1.0 + pME))
+
+        nME = (SPE.n[a] - Lambda.n) / sqrt(((SPE.n[a] - Lambda.n))^2 + Delta.n[a]^2)
+        nV[a] = Amp * sqrt(0.5 * (1.0 - nME))
+        nU[a] = Amp * sqrt(0.5 * (1.0 + nME))
+    end
+
+    return pnVector(pU,nU), pnVector(pV,nV)
+end
+
 function BCS_Allocate_Delta(Params::Parameters,U::pnVector,V::pnVector,Orb::Vector{NOrb},Orb_NN_res::NNOrb,VNN_res::NNInt)
     # Read parameters ...
     N_max = Params.Calc.Nmax
@@ -170,8 +215,8 @@ function BCS_Allocate_Delta(Params::Parameters,U::pnVector,V::pnVector,Orb::Vect
         @inbounds for b in 1:a_max
             j_b = Orb[b].j
             ja_jb_hat = sqrt((Float64(j_b) + 1.0) / (Float64(j_a) + 1.0))
-            pME = - ja_jb_hat * V2B(a,a,b,b,0,1,VNN_res.pp,Orb,Orb_NN_res) * U.p[b] * V.p[b]
-            nME = - ja_jb_hat * V2B(a,a,b,b,0,1,VNN_res.nn,Orb,Orb_NN_res) * U.n[b] * V.n[b]
+            pME = - 0.5 * ja_jb_hat * V2B(a,a,b,b,0,1,VNN_res.pp,Orb,Orb_NN_res) * U.p[b] * V.p[b]
+            nME = - 0.5 * ja_jb_hat * V2B(a,a,b,b,0,1,VNN_res.nn,Orb,Orb_NN_res) * U.n[b] * V.n[b]
             pSum += pME
             nSum += nME
         end
@@ -179,23 +224,5 @@ function BCS_Allocate_Delta(Params::Parameters,U::pnVector,V::pnVector,Orb::Vect
         nDelta[a] = nSum
     end    
 
-    return pDelta, nDelta
-end
-
-function BCS_SQE(a_max::Int64,SPE::pnVector,Lambda::pnFloat,Delta::pnVector)
-    # Initialize vectors for SQEs ...
-    pSQE, nSQE = zeros(Float64,a_max), zeros(Float64,a_max)
-
-    # Calculate BCS single-quasiparticle energies (SQEs) ...
-    println("\nEvalutiang BCS single-quasiparticle energies ...")
-    @inbounds for a in 1:a_max
-        pE_a = sqrt((SPE.p[a] - Lambda.p)^2 + Delta.p[a]^2)
-        nE_a = sqrt((SPE.n[a] - Lambda.n)^2 + Delta.n[a]^2)
-        pSQE[a], nSQE[a] = pE_a, nE_a
-    end
-
-    # Store SQEs ...
-    SQE = pnVector(pSQE,nSQE)
-
-    return SQE
+    return pnVector(pDelta,nDelta)
 end

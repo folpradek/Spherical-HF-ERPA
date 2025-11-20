@@ -4,14 +4,28 @@ function HFB_Density_Operator_Initialize(Params::Parameters,Orb::Vector{NOrb})
     N_max = Params.Calc.Nmax
     a_max = div((N_max + 1) * (N_max + 2), 2)
 
-    # Initialize density matrices ...
-    pRho, nRho = zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max)
-    pKappa, nKappa = zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max)
+    # Initialize the valence space shell number N ...
+    pN_valence, nN_valence = 0, 0
+
+    # Determine the valence space shell number N ...
+    @inbounds for N in 0:N_max
+        if div((N  + 1) * (N + 2),2) >= Z_target
+            pN_valence = N - 1
+        end
+        if div((N  + 1) * (N + 2),2) >= N_target
+            nN_valence = N - 1
+        end
+    end
 
     # Initialize particle numbers ...
     Z, N = 0.0, 0.0
 
-    # Fill the proton density matrix ...
+    # Initialize density matrices ...
+    pRho, nRho = zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max)
+    pKappa, nKappa = zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max)
+
+    # Allocate the density matrix Rho ...
+        # Fill the proton density matrix ...
     @inbounds for a in 1:a_max
         if (Z - Z_target) < 1e-3
             if ((Z_target - Z) - Float64(Orb[a].j + 1)) > 1e-7
@@ -25,8 +39,7 @@ function HFB_Density_Operator_Initialize(Params::Parameters,Orb::Vector{NOrb})
             break
         end
     end
-
-    # Fill the neutron density matrix ...
+        # Fill the neutron density matrix ...
     @inbounds for a in 1:a_max
         if (N - N_target) < 1e-3
             if ((N_target - N) - Float64(Orb[a].j + 1)) > 1e-7
@@ -41,8 +54,21 @@ function HFB_Density_Operator_Initialize(Params::Parameters,Orb::Vector{NOrb})
         end
     end
 
-    # Initialize pairing tensors Kappa ...
-    pKappa, nKappa = 0.5 .* diagm(ones(Float64,a_max)), 0.5 .* diagm(ones(Float64,a_max))
+    # Allocate the pairing tensor Kappa ...
+    @inbounds for a in 1:a_max
+        n_a, l_a = Orb[a].n, Orb[a].l
+        N_a = 2 * n_a + l_a
+        pK0, pdN0 = Params.Calc.Pairing.pK0, Params.Calc.Pairing.pdN0
+        nK0, ndN0 = Params.Calc.Pairing.nK0, Params.Calc.Pairing.ndN0
+        if abs(pK0) > (0.5 - 1e-8)
+            pK0 = 0.5 * pK0 / abs(pK0)
+        end
+        if abs(nK0) > (0.5 - 1e-8)  
+            nK0 = 0.5 * nK0 / abs(nK0)
+        end
+        pKappa[a,a] = pK0 * exp(-Float64((N_a - pN_valence)^2) / abs(pdN0)^2)
+        nKappa[a,a] = nK0 * exp(-Float64((N_a - nN_valence)^2) / abs(ndN0)^2)
+    end
 
     return pnMatrix(pRho,nRho), pnMatrix(pKappa,nKappa)
 end
@@ -77,41 +103,4 @@ function HFB_Density_Operator(Params::Parameters,U::pnMatrix,V::pnMatrix,Orb::Ve
     end
 
     return pnMatrix(pRho,nRho), pnMatrix(pKappa,nKappa)
-end
-
-function HFB_Mixing_Update(a_max::Int64,Rho::pnMatrix,Rho_old::pnMatrix,Kappa::pnMatrix,Kappa_old::pnMatrix)
-    # Basic parameters ...
-    q, q_min = 0.9, 1e-8
-
-    # Allocate finite differences for densities ...
-    dRho = pnMatrix(Rho.p .- Rho_old.p, Rho.n .- Rho_old.n)
-    dKappa = pnMatrix(Kappa.p .- Kappa_old.p, Kappa.n .- Kappa_old.n)
-
-    # Evaluate current finite difference D ...
-    D = (sum(abs.(dRho.p)) + sum(abs.(dKappa.p)) + sum(abs.(dRho.n)) + sum(abs.(dKappa.n))) / Float64(4*a_max^2)
-
-    # Iterate the quenching of proton densities ...
-    while q > q_min
-        # Perform trial step ...
-        pRho_trial, pKappa_trial = (1.0 - q) * Rho_old.p .+ q * Rho.p, (1.0 - q) * Kappa_old.p .+ q * Kappa.p
-        nRho_trial, nKappa_trial = (1.0 - q) * Rho_old.n .+ q * Rho.n, (1.0 - q) * Kappa_old.n .+ q * Kappa.n
-
-        # Symmetrize trial densities ...
-        pRho_trial .= 0.5 * (pRho_trial .+ pRho_trial')
-        pKappa_trial .= 0.5 * (pKappa_trial .+ pKappa_trial')
-        nRho_trial .= 0.5 * (nRho_trial .+ nRho_trial')
-        nKappa_trial .= 0.5 * (nKappa_trial .+ nKappa_trial')
-
-        D_trial = (sum(abs.(pRho_trial .- Rho_old.p)) + sum(abs.(pKappa_trial .- Kappa_old.p)) + sum(abs.(nRho_trial .- Rho_old.n)) + sum(abs.(nKappa_trial .- Kappa_old.n))) / Float64(4*a_max^2)
-
-        # Condition on accepting the current trial step ...
-        if D_trial / D > 1.1
-            q = 0.5 * q
-        else
-            return pnMatrix(pRho_trial,nRho_trial), pnMatrix(pKappa_trial,nKappa_trial)
-        end
-    end
-
-    # No improvement due to quenching ... return old densities ...
-    return pnMatrix(0.975 * Rho.p, 0.975 * Rho.n), pnMatrix(0.975 * Kappa.p, 0.975 * Kappa.n)
 end

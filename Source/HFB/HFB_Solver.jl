@@ -15,11 +15,7 @@ function HFB_Solver(Params::Parameters)
     @time VNNN, Orb_NNN = V3B_NO2B_Read(Params,Orb)
 
     # Solve HFB equations ...
-    if Params.Calc.HFB.Broyden == true
-        @time Lambda, SQE, U, V, SQE_C, u_C, v_C, C, Rho, Kappa, H, Delta, Iteration = HFB_Solve_Broyden(Params,Orb,Orb_NN,Orb_NNN,T,VNN,VNNN,epsilon)
-    else
-        @time Lambda, SQE, U, V, SQE_C, u_C, v_C, C, Rho, Kappa, H, Delta, Iteration = HFB_Solve(Params,Orb,Orb_NN,Orb_NNN,T,VNN,VNNN,epsilon)
-    end
+    @time Lambda, SQE, U, V, SQE_C, u_C, v_C, C, Rho, Kappa, H, Delta, Iteration = HFB_Solve(Params,Orb,Orb_NN,Orb_NNN,T,VNN,VNNN,epsilon)
 
     # Calculation of the total HFB mean-field ground-state energy ...
     @time E_HFB = HFB_Energy(Params,Rho,Kappa,Orb,Orb_NN,Orb_NNN,T,VNN,VNNN)
@@ -53,7 +49,7 @@ function HFB_Solve(Params::Parameters,Orb::Vector{NOrb},Orb_NN::NNOrb,Orb_NNN::N
 
     # Setup local iteration variables ...
     Iteration, Iteration_max = 0, 150
-    dE, dZ, dN = 0.1, 0.1, 0.1
+    dE, d2E, dZ, dN = 0.1, 0.1, 0.1, 0.1
 
     # Preallocate arrays ...
         # Matrices for U & V HFB ...
@@ -74,174 +70,8 @@ function HFB_Solve(Params::Parameters,Orb::Vector{NOrb},Orb_NN::NNOrb,Orb_NNN::N
     Z, N = 0.1, 0.1
 
     # Initial guess on chemical potentials lambda ...
-    Lambda = pnFloat(0.5,0.5)
-
-    # Initial guess on densities Rho & Kappa
-    Rho, Kappa = HFB_Density_Operator_Initialize(Params,Orb)
-
-    # Preallocate Rho_old, Kappa_old & SQE_old ...
-    Rho_old = pnMatrix(Rho.p, Rho.n)
-    Kappa_old = pnMatrix(Kappa.p, Kappa.n)
-    SQE_old = pnVector(SQE.p, SQE.n)
-
-    # Initialize particle numbers & chemical potentials for secant method ...
-    Z_1, Z_2 = 0.0, 0.0
-    N_1, N_2 = 0.0, 0.0
-    Lambda_1, Lambda_2 = pnFloat(0.75 * Lambda.p, 0.75 * Lambda.n), pnFloat(Lambda.p, Lambda.n)
-
-    # Solve the spherical HFB equations ... by the means of self-consistent iteration ...
-    println("\nStarting iteration of HFB equations ...\n")
-
-    while ((dE > epsilon) || (dZ > epsilon) || (dN > epsilon)) && (Iteration < Iteration_max)
-        # Perform several secant iterations for the chemical potentil Lambda ...
-        @inbounds for L in 1:Iteration_max
-            # Initialization of the secant method ...
-            if (L == 1) && (Iteration == 0)
-                # Allocate the single-particle fields H_1, H_2 and pairing fields Delta_1, Delta_2 ...
-                H_1, Delta_1 = HFB_Allocate(Params,Lambda_1,Rho_old,Kappa_old,Orb,Orb_NN,Orb_NNN,T,VNN,VNNN)
-                H_2, Delta_2 = HFB_Allocate(Params,Lambda_2,Rho_old,Kappa_old,Orb,Orb_NN,Orb_NNN,T,VNN,VNNN)
-
-                # Diagonalize the HFB equations ... basis is reordered as needed ...
-                SQE_1, U_1, V_1 = HFB_Diagonalize(Params,H_1,Delta_1,U,V,Orb)
-                SQE_2, U_2, V_2 = HFB_Diagonalize(Params,H_2,Delta_2,U_1,V_1,Orb)
-                
-                # Generate temporary densities Rho & Kappa ...
-                Rho_1, Kappa_1 = HFB_Density_Operator(Params,U_1,V_1,Orb)
-                Rho_2, Kappa_2 = HFB_Density_Operator(Params,U_2,V_2,Orb)
-
-                # Determine new average particle numbers ...
-                Z_1, N_1 = HFB_Particle_Number(Params,Rho_1,Orb)
-                Z_2, N_2 = HFB_Particle_Number(Params,Rho_2,Orb)
-
-                # Update average particle numbers ...
-                Z, N = Z_2, N_2
-
-                # Perform secant iteration to determine new optimal value of Lambda ...
-                Lambda = HFB_Lambda_Secant(Lambda_1,pnFloat(Z_target - Z_1, N_target - N_1),Lambda_2,pnFloat(Z_target - Z_2, N_target - N_2))
-
-                # Update chemical potentials ...
-                Lambda_1 = pnFloat(Lambda_2.p, Lambda_2.n)
-                Lambda_2 = pnFloat(Lambda.p, Lambda.n)
-
-                # Update single-quasiparticle energies ...
-                SQE = pnVector(SQE_2.p, SQE_2.n)
-
-                # Update amplitudes U & V ...
-                U, V = pnMatrix(U_2.p,U_2.n), pnMatrix(V_2.p,V_2.n)
-
-                # Update fields H & Delta ...
-                H, Delta = pnMatrix(H_2.p,H_2.n), pnMatrix(Delta_2.p,Delta_2.n)
-
-            end
-
-            # Allocate the single-particle field H and the pairing field Delta ...
-                # Smart re-allocation of H ... only Lambda is tweaked, Delta remains the same ...
-            H = pnMatrix(H.p .+ (Lambda_1.p - Lambda.p ) .* Eye, H.n .+ (Lambda_1.n - Lambda.n ) .* Eye)
-
-            # Diagonalize the HFB equations ... basis is reordered as needed ...
-            SQE, U, V = HFB_Diagonalize(Params,H,Delta,U,V,Orb)
-            
-            # Generate temporary densities Rho & Kappa ...
-            Rho_temp, Kappa_temp = HFB_Density_Operator(Params,U,V,Orb)
-
-            # Determine new average particle numbers ...
-            Z, N = HFB_Particle_Number(Params,Rho_temp,Orb)
-
-            # Update average particle numbers ...
-            Z_1, N_1 = Z_2, N_2
-            Z_2, N_2 = Z, N
-
-            # Perform secant iterations to determine new optimal value of Lambda ...
-            Lambda = HFB_Lambda_Secant(Lambda_1,pnFloat(Z_target - Z_1, N_target - N_1),Lambda_2,pnFloat(Z_target - Z_2, N_target - N_2))
-
-            # Update chemical potentials ...
-            Lambda_1 = pnFloat(Lambda_2.p, Lambda_2.n)
-            Lambda_2 = pnFloat(Lambda.p, Lambda.n)
-
-            # Evaluate iteration of the chemical potential Lambda ...
-            dZ, dN = abs(Z_target - Z), abs(N_target - N)
-
-            # Check finite differences for particle numbers ....
-            if dZ < epsilon && dN < epsilon
-                break
-            end
-        end
-
-        # Generate new densities Rho & Kappa ...
-        Rho, Kappa = HFB_Density_Operator(Params,U,V,Orb)
-
-        # Perform update of densities ...
-        Rho, Kappa = HFB_Mixing_Update(a_max,Rho,Rho_old,Kappa,Kappa_old)
-
-        # Allocate the single-particle field H and the pairing field Delta ...
-        H, Delta = HFB_Allocate(Params,Lambda,Rho,Kappa,Orb,Orb_NN,Orb_NNN,T,VNN,VNNN)
-
-        # Diagonalize the HFB equations ... basis is reordered as needed ...
-        SQE, U, V = HFB_Diagonalize(Params,H,Delta,U,V,Orb)
-
-        # Evaluate particle numbers ...
-        Z, N = HFB_Particle_Number(Params,Rho,Orb)
-
-        # Evaluate iteration of the single-quasiparticle energies ...
-        dE = (sum(abs.(SQE.p .- SQE_old.p )) + sum(abs.(SQE.n .- SQE_old.n))) / Float64(2 * a_max)
-        dZ, dN = abs(Z_target - Z), abs(N_target - N)
-
-        Iteration += 1
-
-        println("\n\nHFB iteration number:   " * string(Iteration) * "   Single-quasiparticle energy difference:   " * string(round(dE, sigdigits=8))
-                * "   Proton number difference:   " * string(round(dZ, sigdigits=8)) * "   Neutron number difference:   " * string(round(dN, sigdigits=8)))
-
-        # Store old values of SQE, Rho & Kappa ...
-        SQE_old = pnVector(SQE.p, SQE.n)
-        Rho_old = pnMatrix(Rho.p, Rho.n)
-        Kappa_old = pnMatrix(Kappa.p, Kappa.n)
-
-    end
-
-    # Perform final evaluation of resulting densities ...
-    Rho, Kappa = HFB_Density_Operator(Params,U,V,Orb)
-
-    println("\nHFB iteration with residual NN interaction has converged ...")
-
-    # Construct the canonical basis & evaluate approximate (BCS-like) amplitudes
-    # & single-quasiparticle energies u_C, v_C & SQE_C ...
-    #   U, V, Rho, Kappa, H, Delta ... remain expressed in the reference LHO basis ...
-    SQE_C, C, u_C, v_C = HFB_Canonical_Basis(Params,Rho,H,Delta,Orb)
-
-    return Lambda, SQE, U, V, SQE_C, u_C, v_C, C, Rho, Kappa, H, Delta, Iteration
-end
-
-function HFB_Solve_Broyden(Params::Parameters,Orb::Vector{NOrb},Orb_NN::NNOrb,Orb_NNN::NNNOrb,T::Matrix{Float64},VNN::NNInt,VNNN::Array{Vector{Vector{Float32}},4},epsilon::Float64)
-    # Read calculation parameters ...
-    A_target, Z_target, N_target = Float64(Params.Calc.A), Float64(Params.Calc.Z), Float64(Params.Calc.A - Params.Calc.Z)
-    hw = Params.Int.hw
-    N_max = Params.Calc.Nmax
-    a_max = div((N_max + 1) * (N_max + 2), 2)
-
-    # Setup local iteration variables ...
-    Iteration, Iteration_max = 0, 150
-    dE, dZ, dN = 0.1, 0.1, 0.1
-
-    # Preallocate arrays ...
-        # Matrices for U & V HFB ...
-    V = pnMatrix(zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max))
-    U = pnMatrix(zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max))
-         # Matrices for densities Rho & Kappa ...
-    Rho = pnMatrix(zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max))
-    Kappa = pnMatrix(zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max))
-        # Matrices for the single-particle field H & pairing field Delta ...
-    H = pnMatrix(zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max))
-    Delta = pnMatrix(zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max))
-        # Vectors for single-(quasi)particle energies ...
-    SQE = pnVector(zeros(Float64,a_max),zeros(Float64,a_max))
-        # Identity matrix ...
-    Eye = diagm(ones(Float64,a_max))
-
-    # Setup particle numbers ...
-    Z, N = 0.1, 0.1
-
-    # Initial guess on chemical potentials lambda ...
-    Lambda = pnFloat(0.5,0.5)
+        # By default set to -5 MeV ... can be adjusted in Pairing() parameters ...
+    Lambda = pnFloat(Params.Calc.Pairing.pL0, Params.Calc.Pairing.nL0)
 
     # Initial guess on densities Rho & Kappa
     Rho, Kappa = HFB_Density_Operator_Initialize(Params,Orb)
@@ -351,16 +181,25 @@ function HFB_Solve_Broyden(Params::Parameters,Orb::Vector{NOrb},Orb_NN::NNOrb,Or
         Z, N = HFB_Particle_Number(Params,Rho,Orb)
 
         # Evaluate iteration of the single-quasiparticle energies ...
+        d2E = abs(dE - (sum(abs.(SQE.p .- SQE_old.p )) + sum(abs.(SQE.n .- SQE_old.n))) / Float64(2 * a_max))
         dE = (sum(abs.(SQE.p .- SQE_old.p )) + sum(abs.(SQE.n .- SQE_old.n))) / Float64(2 * a_max)
         dZ, dN = abs(Z_target - Z), abs(N_target - N)
-
         Iteration += 1
 
-        println("\n\nHFB iteration number:   " * string(Iteration) * "   Single-quasiparticle energy difference:   " * string(round(dE, sigdigits=8))
-                * "   Proton number difference:   " * string(round(dZ, sigdigits=8)) * "   Neutron number difference:   " * string(round(dN, sigdigits=8)))
+        println("\n\nHFB iteration number:   " * string(Iteration) * "   dE = " * string(round(dE, sigdigits=8))
+                * " MeV,   dZ = " * string(round(dZ, sigdigits=8)) * ",   dN = " * string(round(dN, sigdigits=8)))
 
         # Store old values of SQE ...
         SQE_old = pnVector(SQE.p, SQE.n)
+
+        # Terminate the iteration if probably a degenerate solution was reached ...
+        if (Iteration > 50) && (d2E < 1e-8)
+            println("\nHFB iteration converged to a degenerate solution ... terminating the iteration ...")
+            break
+        elseif (Iteration > 75) && (d2E < 1e-6)
+            println("\nHFB iteration converged to a degenerate solution ... terminating the iteration ...")
+            break
+        end
 
     end
 

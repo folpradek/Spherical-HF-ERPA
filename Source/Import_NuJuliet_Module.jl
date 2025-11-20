@@ -1,6 +1,6 @@
 module NuJuliet
     # Import all needed packages ...
-    using BenchmarkTools, DelimitedFiles, LinearAlgebra, CGcoefficient, Hungarian, Base.Threads
+    using BenchmarkTools, DelimitedFiles, LinearAlgebra, CGcoefficient, Hungarian, Mmap
 
     # Matrix elements & general functions ...
     include("Import_Structures.jl")
@@ -60,6 +60,7 @@ module NuJuliet
     include("BCS/BCS_Solver.jl")
     include("BCS/BCS_Residual_Interaction.jl")
     include("BCS/BCS_Density_Operator.jl")
+    include("BCS/BCS_Chemical_Potential.jl")
     include("BCS/BCS_Particle_Number.jl")
     include("BCS/BCS_Allocate.jl")
     include("BCS/BCS_Energy.jl")
