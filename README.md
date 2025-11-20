@@ -22,6 +22,8 @@ To run the code, you have to download it, and have installed Julia [1] (v1.4 or 
 
 Sample script main_run.jl provides basic solver calls. You should localize your calculation scripts above "Source". Output files are always saved under "IO/"
 
+_Pdf file with more detailed instructions to run the solver will be included ..._
+
 [1] Julia language: https://julialang.org/
 
 [2] _NuHamil_ code: https://github.com/Takayuki-Miyagi/NuHamil-public
