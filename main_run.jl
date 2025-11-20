@@ -24,7 +24,7 @@ function run_main()
                 Ortho = true,
                 CMS = "CMS1+2B",
                 BMF = true,
-                Path = "A16_Z8_hw16.0_Nmax3_N2max6_N3max9",
+                Path = "A18_Z8_hw16.0_Nmax3_N2max6_N3max9",
                 #Format = "Bin",
                 #ERPA = Parameters_ERPA(OBDM = "Full", ScOBH = true, Sc3N = true),
                 #cV_res = 0.01
