@@ -20,7 +20,7 @@ To run the code, you have to download it, and have installed Julia [1] (v1.4 or 
   - Hungarian
   - Mmap
 
-Sample script main_run.jl provides basic solver calls. You should localize your calculation scripts above "Source". Output files are always saved under "IO/". Interaction input files for the interaction $\Delta \mathrm{N^{2}LO_{GO}} \,\,(394)$ in configuration space $N_{\textit{max}} = 3$, $N_{3\textit{max}} = 9$ & $\hbar \omega = 16$ MeV are included under "IO/NN.bin" & "IO/NNN.bin" so you can use these for some really elementary test runs.
+Sample script main_run.jl provides basic solver calls. You should localize your calculation scripts above "Source". Output files are always saved under "IO/". Interaction input files for the interaction $\Delta \mathrm{N^{2}LO_{GO}} (394)$ in configuration space $N_{\textit{max}} = 3$, $N_{3\textit{max}} = 9$ & $\hbar \omega = 16$ MeV are included under "IO/NN.bin" & "IO/NNN.bin" so you can use these for some really elementary test runs.
 
 _Pdf file with more detailed instructions to run the solver will be included ..._
 
