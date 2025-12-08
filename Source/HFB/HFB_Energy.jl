@@ -9,7 +9,7 @@ function HFB_Energy(Params::Parameters,Rho::pnMatrix,Kappa::pnMatrix,Orb::Vector
 
     #Calculate the HF energy ...
 
-    E_HFB = 0.0
+    E_HFB = [0.0, 0.0]
 
     println("\nCalculating total HFB ground-state energy ...")
 
@@ -146,7 +146,7 @@ function HFB_Energy(Params::Parameters,Rho::pnMatrix,Kappa::pnMatrix,Orb::Vector
                                                     ME111 = V3B_NO2B(a,b,c,1,d,e,f,1,0,1,P,VNNN,Orb,Orb_NNN)
                                                     ME113 = V3B_NO2B(a,b,c,1,d,e,f,1,0,3,P,VNNN,Orb,Orb_NNN)
 
-                                                    @views E_Delta_partial[thread_id][] += 0.25 * j_a_hat * j_d_hat / j_c_hat * (pKappa_ba * pKappa_de *
+                                                    @views E_Delta_partial[thread_id][] += 0.25 * j_a_hat * j_d_hat * (pKappa_ba * pKappa_de *
                                                                                             pRho_cf * ME113 + pKappa_ba * pKappa_de * nRho_cf * 1.0 / 3.0 *
                                                                                             (2.0 * ME111 + ME113) + nKappa_ba * nKappa_de * nRho_cf * ME113 +
                                                                                             nKappa_ba * nKappa_de * pRho_cf * 1.0 / 3.0 *(2.0 * ME111 + ME113))
@@ -165,10 +165,12 @@ function HFB_Energy(Params::Parameters,Rho::pnMatrix,Kappa::pnMatrix,Orb::Vector
         end
     end
 
-    E_HFB += sum(x[] for x in E_h_partial)
-    E_HFB += sum(x[] for x in E_Delta_partial)
+    E_HFB[1] += sum(x[] for x in E_h_partial)
+    E_HFB[2] += sum(x[] for x in E_Delta_partial)
 
-    println("\nHFB energy    ...   E_HFB = " * string(E_HFB) * " MeV")
+    println("\nHFB energy    ...   E_HFB = " * string(sum(E_HFB)) * " MeV")
+    println("\tMean-field energy    ...   E_MF  = " * string(E_HFB[1]) * " MeV")
+    println("\tPairing energy       ...   E_Par = " * string(E_HFB[2]) * " MeV")
 
     return E_HFB
 end

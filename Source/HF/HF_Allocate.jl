@@ -154,6 +154,5 @@ function HF_Allocate_Indices(Params::Parameters,Orb::Vector{NOrb})
         end
     end
 
-
     return ab, ab_count
 end

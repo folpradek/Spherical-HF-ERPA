@@ -45,6 +45,9 @@ function HFB(Params::Parameters)
     println("\nStarting spherical HFB calculation of designated nuclid ...")
 
     @time HFB_Solver(Params)
+
+    # Before exiting perform the Garbage Collection ...
+    GC.gc()
     
     println("\nAll calculations have finished ...\n")
 

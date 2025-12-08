@@ -145,7 +145,7 @@ function BCS_Energy(Params::Parameters,Rho::pnMatrix,Kappa::pnMatrix,Orb::Vector
                                                     ME111 = V3B_NO2B(a,b,c,1,d,e,f,1,0,1,P,VNNN,Orb,Orb_NNN)
                                                     ME113 = V3B_NO2B(a,b,c,1,d,e,f,1,0,3,P,VNNN,Orb,Orb_NNN)
 
-                                                    @views E_BCS_partial[thread_id][] += 0.25 * j_a_hat * j_d_hat / j_c_hat * (pKappa_ab * pKappa_de *
+                                                    @views E_BCS_partial[thread_id][] += 0.25 * j_a_hat * j_d_hat * (pKappa_ab * pKappa_de *
                                                                                             pRho_cf * ME113 + pKappa_ab * pKappa_de * nRho_cf * 1.0 / 3.0 *
                                                                                             (2.0 * ME111 + ME113) + nKappa_ab * nKappa_de * nRho_cf * ME113 +
                                                                                             nKappa_ab * nKappa_de * pRho_cf * 1.0 / 3.0 *(2.0 * ME111 + ME113))

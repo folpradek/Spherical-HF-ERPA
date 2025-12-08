@@ -14,7 +14,6 @@ function HFB_Broyden_Initialize_Mapping(Params::Parameters,m::Int64,Orb::Vector{
             if (l_a == l_b) && (j_a == j_b)
                 M_count += 1
                 Broyden_Map[a,b] = M_count 
-                #Broyden_Map[b,a] = M_count
             end
         end
     end
@@ -240,17 +239,17 @@ function HFB_Broyden_Update(Params::Parameters,Iteration::Int64,Rho::pnMatrix,Ka
     D_nRho, D_nKappa = norm(BroyVec.r_Rho.n), norm(BroyVec.r_Kappa.n)
 
 
-    # Evaluate the Broyden's hfit matrix beta ...
+    # Evaluate the Broyden's fit matrix beta ...
     beta_pRho, beta_pKappa, beta_nRho, beta_nKappa = HFB_Broyden_History_Update(Iteration,Broyden,BroyVec)
 
     # Perform several quenching iterations for densities ...
-    @inbounds for Quench in 1:3
+    @inbounds for Quench in 1:5
 
         # Quench pRho ...
         if Q_pRho == false
             alpha_r = alpha_pRho .* BroyVec.r_Rho.p
             X_beta = BroyVec.X_Rho.p * beta_pRho
-            dX_beta_max = 0.35 * norm(alpha_r)
+            dX_beta_max = 0.4 * norm(alpha_r)
             if dX_beta_max > 1e-8 && norm(X_beta) > dX_beta_max
                 X_beta .= X_beta .* (dX_beta_max / (norm(X_beta) + 1e-10))
             end
@@ -258,7 +257,7 @@ function HFB_Broyden_Update(Params::Parameters,Iteration::Int64,Rho::pnMatrix,Ka
             pRho_trial  = BroyVec.x_Rho.p .+ alpha_r .- X_beta
             D_pRho_trial = norm(pRho .- pRho_trial)
 
-            if ((D_pRho_trial / D_pRho) < 0.9) || (Quench == 3)
+            if ((D_pRho_trial / D_pRho) < 0.75) || (Quench == 5)
                 BroyVec.z_Rho.p  .= pRho_trial
                 Q_pRho = true
             else
@@ -270,7 +269,7 @@ function HFB_Broyden_Update(Params::Parameters,Iteration::Int64,Rho::pnMatrix,Ka
         if Q_pKappa == false
             alpha_r = alpha_pKappa .* BroyVec.r_Kappa.p
             X_beta = BroyVec.X_Kappa.p * beta_pKappa
-            dX_beta_max = 0.35 * norm(alpha_r)
+            dX_beta_max = 0.4 * norm(alpha_r)
             if dX_beta_max > 1e-8 && norm(X_beta) > dX_beta_max
                 X_beta .= X_beta .* (dX_beta_max / (norm(X_beta) + 1e-10))
             end
@@ -279,7 +278,7 @@ function HFB_Broyden_Update(Params::Parameters,Iteration::Int64,Rho::pnMatrix,Ka
 
             D_pKappa_trial = norm(pKappa .- pKappa_trial)
 
-            if ((D_pKappa_trial / D_pKappa) < 0.9) || (Quench == 3)
+            if ((D_pKappa_trial / D_pKappa) < 0.75) || (Quench == 5)
                 BroyVec.z_Kappa.p .= pKappa_trial
                 Q_pKappa = true
             else 
@@ -291,7 +290,7 @@ function HFB_Broyden_Update(Params::Parameters,Iteration::Int64,Rho::pnMatrix,Ka
         if Q_nRho == false
             alpha_r = alpha_nRho .* BroyVec.r_Rho.n
             X_beta = BroyVec.X_Rho.n * beta_nRho
-            dX_beta_max = 0.35 * norm(alpha_r)
+            dX_beta_max = 0.4 * norm(alpha_r)
             if dX_beta_max > 1e-8 && norm(X_beta) > dX_beta_max
                 X_beta .= X_beta .* (dX_beta_max / (norm(X_beta) + 1e-10))
             end
@@ -300,7 +299,7 @@ function HFB_Broyden_Update(Params::Parameters,Iteration::Int64,Rho::pnMatrix,Ka
 
             D_nRho_trial = norm(nRho .- nRho_trial)
 
-            if ((D_nRho_trial / D_nRho) < 0.9) || (Quench == 3)
+            if ((D_nRho_trial / D_nRho) < 0.75) || (Quench == 5)
                 BroyVec.z_Rho.n .= nRho_trial
                 Q_nRho = true
             else
@@ -312,7 +311,7 @@ function HFB_Broyden_Update(Params::Parameters,Iteration::Int64,Rho::pnMatrix,Ka
         if Q_nKappa == false
             alpha_r = alpha_nKappa .* BroyVec.r_Kappa.n
             X_beta = BroyVec.X_Kappa.n * beta_nKappa
-            dX_beta_max = 0.35 * norm(alpha_r)
+            dX_beta_max = 0.4 * norm(alpha_r)
             if dX_beta_max > 1e-8 && norm(X_beta) > dX_beta_max
                 X_beta .= X_beta .* (dX_beta_max / (norm(X_beta) + 1e-10))
             end
@@ -321,7 +320,7 @@ function HFB_Broyden_Update(Params::Parameters,Iteration::Int64,Rho::pnMatrix,Ka
 
             D_nKappa_trial = norm(nKappa .- nKappa_trial)
 
-            if ((D_nKappa_trial / D_nKappa) < 0.9) || (Quench == 3)
+            if ((D_nKappa_trial / D_nKappa) < 0.75) || (Quench == 5)
                 BroyVec.z_Kappa.n .= nKappa_trial
                 Q_nKappa = true
             else

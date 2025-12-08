@@ -108,6 +108,7 @@ function HFB_Allocate(Params::Parameters,Lambda::pnFloat,Rho::pnMatrix,Kappa::pn
             tid = Threads.threadid()
             pHSum_local, nHSum_local = 0.0, 0.0
 
+            # Normal Density-dependent part ...
             if (2*(n_a + n_b) + l_a + l_b) <= N_2max
 
                 # Normal Density-dependent part ...
@@ -165,6 +166,7 @@ function HFB_Allocate(Params::Parameters,Lambda::pnFloat,Rho::pnMatrix,Kappa::pn
                 end
 
                 # Anomal Density-dependent part ... Only 3-body NNN interaction part ...
+                #=
                 if (2*(n_d + n_e) + l_d + l_e) <= N_2max
                     A_NNN_Amp = 0.25 * sqrt(Float64((j_b + 1) * (j_e + 1))) * is_j_a_hat^2
                     @inbounds for c in 1:a_max
@@ -198,7 +200,37 @@ function HFB_Allocate(Params::Parameters,Lambda::pnFloat,Rho::pnMatrix,Kappa::pn
                         end
                     end
                 end
+                =#
 
+            end
+
+            # Anomal Density-dependent part ... Only 3-body NNN interaction part ..
+            if l_b == l_e && j_b == j_e &&(2*(n_b + n_e) + l_b + l_e) <= N_2max && (2*(n_a + n_b + n_e) + l_a + l_b + l_e) <= N_3max
+                pKappa_be, nKappa_be = Kappa.p[b,e], Kappa.n[b,e]
+                P = rem(l_a + l_b + l_e, 2) + 1
+                @inbounds for c in 1:a_max
+                    n_c, l_c, j_c = Orb[c].n, Orb[c].l, Orb[c].j
+                    A_NNN_Amp = 0.25 * sqrt(Float64((j_b + 1) * (j_c + 1)))# * is_j_a_hat^2
+                    @inbounds for f in 1:a_max
+                        n_f = Orb[f].n
+                        l_f = Orb[f].l
+                        if (2*(n_c + n_d + n_f) + l_c + l_d + l_f) <= N_3max && P == (rem(l_c + l_d + l_f,2) + 1) && l_c == l_f
+                            j_f = Orb[f].j
+                            if j_c == j_f
+                                pKappa_cf, nKappa_cf = Kappa.p[c,f], Kappa.n[c,f]
+
+                                ME111 = V3B_NO2B(b,e,a,1,c,f,d,1,0,1,P,VNNN,Orb,Orb_NNN)
+                                ME113 = V3B_NO2B(b,e,a,1,c,f,d,1,0,3,P,VNNN,Orb,Orb_NNN)
+
+                                pHSum_local += A_NNN_Amp * (ME113 * pKappa_be * pKappa_cf +
+                                        1.0 / 3.0 * (2.0 * ME111 + ME113) * nKappa_be * nKappa_cf)
+                                nHSum_local += A_NNN_Amp * (ME113 * nKappa_be * nKappa_cf +
+                                        1.0 / 3.0 * (2.0 * ME111 + ME113) * pKappa_be * pKappa_cf)
+
+                            end
+                        end
+                    end
+                end
             end
 
             pH_local[tid] += pHSum_local
@@ -269,23 +301,23 @@ function HFB_Allocate(Params::Parameters,Lambda::pnFloat,Rho::pnMatrix,Kappa::pn
                             P = rem(l_a + l_d + l_c, 2) + 1
                             j_c = Orb[c].j
 
-                            NNN_Amp = 0.5 * j_b_hat * j_a_hat / Float64(j_c + 1)^2
+                            NNN_Amp = 0.5 * j_b_hat / j_a_hat
 
                             @inbounds for f in 1:a_max
                                 n_f = Orb[f].n
                                 l_f = Orb[f].l
                                 if (2*(n_b + n_e + n_f) + l_b + l_e + l_f) <= N_3max && l_c == l_f && P == (rem(l_b + l_e + l_f,2) + 1)
                                     j_f = Orb[f].j
-                                    if j_e == j_f
+                                    if j_c == j_f
                                         pRho_cf, nRho_cf = Rho.p[c,f], Rho.n[c,f]
 
                                         ME111 = V3B_NO2B(a,d,c,1,b,e,f,1,0,1,P,VNNN,Orb,Orb_NNN)
                                         ME113 = V3B_NO2B(a,d,c,1,b,e,f,1,0,3,P,VNNN,Orb,Orb_NNN)
 
-                                        pDeltaSum_local += NNN_Amp * (ME113 * pKappa_be * pRho_cf +
-                                                    (2.0 * ME111 + ME113) / 3.0 * pKappa_be * nRho_cf)
-                                        nDeltaSum_local += NNN_Amp * (ME113 * nKappa_be * nRho_cf +
-                                                    (2.0 * ME111 + ME113) / 3.0 * nKappa_be * pRho_cf)
+                                        pDeltaSum_local += NNN_Amp * (ME113 * pRho_cf +
+                                                    (2.0 * ME111 + ME113) / 3.0 * nRho_cf) * pKappa_be
+                                        nDeltaSum_local += NNN_Amp * (ME113 * nRho_cf +
+                                                    (2.0 * ME111 + ME113) / 3.0 * pRho_cf) * nKappa_be
     
                                     end
                                 end
@@ -315,5 +347,19 @@ function HFB_Allocate(Params::Parameters,Lambda::pnFloat,Rho::pnMatrix,Kappa::pn
 
     end
 
-    return pnMatrix(pH, nH), pnMatrix(pDelta, nDelta)
+    return pnMatrix(pH,nH), pnMatrix(pDelta,nDelta)
+end
+
+function HFB_allocate_H1b(Params::Parameters,SQE::pnVector)
+    # Read parameters ...
+    N_max = Params.Calc.Nmax
+    N_2max = 2 * N_max
+    a_max = div((N_max + 1)*(N_max + 2),2)
+
+    # Allocate H_N
+    H_N = qpH1B(pnMatrix(diagm(SQE.p),diagm(SQE.n)),
+                pnMatrix(zeros(Float64,a_max,a_max),
+                zeros(Float64,a_max,a_max)))
+
+    return H_N
 end

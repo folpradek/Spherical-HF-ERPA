@@ -164,3 +164,15 @@ function JP_Ini(J_max::Int64)
     end
     return JP
 end
+
+function JP_initialize(J_max::Int64)
+    JP = Vector{Vector{Int64}}(undef,2*(J_max+1))
+    JP_count = 0
+    @inbounds for J in 0:J_max
+        @inbounds for P in 1:2
+            JP_count += 1
+            JP[JP_count] = [J, P]
+        end
+    end
+    return JP
+end

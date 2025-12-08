@@ -50,6 +50,9 @@ function BCS(Params::Parameters)
     println("\nStarting BCS calculation ...")
 
     @time BCS_Solver(Params,Params_ref)
+
+    # Before exiting perform the Garbage Collection ...
+    GC.gc()
     
     println("\nAll calculations have finished ...\n")
 

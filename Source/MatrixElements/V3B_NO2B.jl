@@ -279,7 +279,10 @@ function V3B_NO2B_Read(Params::Parameters,Orb::Vector{NOrb})
 
     end
 
+    # Deallocate NNN interaction memory map Int ...
     Int = nothing
+
+    # Perform the Garbage collection ...
     GC.gc()
 
     println("\nFinished loading of 3-body NO2B NNN interaction ...")

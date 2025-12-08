@@ -9,33 +9,56 @@ function HFB_Solver(Params::Parameters)
     T = T1B(Params.Int.Nmax,Orb,Params.Int.hw)
 
     # 2-body NN interaction & Orbitals ...
-    @time VNN, Orb_NN = V2B_Read(Params,Orb)
+    @time V_NN, Orb_NN = V2B_Read(Params,Orb)
 
     # 3-body NNN interaction & Orbitals ...
-    @time VNNN, Orb_NNN = V3B_NO2B_Read(Params,Orb)
+    @time V_NNN, Orb_NNN = V3B_NO2B_Read(Params,Orb)
 
     # Solve HFB equations ...
-    @time Lambda, SQE, U, V, SQE_C, u_C, v_C, C, Rho, Kappa, H, Delta, Iteration = HFB_Solve(Params,Orb,Orb_NN,Orb_NNN,T,VNN,VNNN,epsilon)
+    @time Lambda, SQE, U, V, SQE_C, u_C, v_C, C, Rho, Kappa, H, Delta, Iteration = HFB_Solve(Params,Orb,Orb_NN,Orb_NNN,T,V_NN,V_NNN,epsilon)
 
     # Calculation of the total HFB mean-field ground-state energy ...
-    @time E_HFB = HFB_Energy(Params,Rho,Kappa,Orb,Orb_NN,Orb_NNN,T,VNN,VNNN)
+    @time E_HFB = HFB_Energy(Params,Rho,Kappa,Orb,Orb_NN,Orb_NNN,T,V_NN,V_NNN)
 
     # Calculate the total HFB ground-state kinetic energy ...
-    T_HFB = Kinetic_Energy(Params,Rho,Orb,T)
+    @time T_HFB = Kinetic_Energy(Params,Rho,Orb,T)
 
     # Particle number fluctuation calculation ...
-    dA = HFB_Particle_Number_Dispersion(Params,Rho,Orb)
+    @time dA = HFB_Particle_Number_Dispersion(Params,Rho,Orb)
 
     # Calculation summary ...
-    HFB_Summary(Params,E_HFB,T_HFB,Lambda,dA,epsilon,Iteration)
+    @time HFB_Summary(Params,E_HFB,T_HFB,Lambda,dA,epsilon,Iteration)
 
     # Evaluate HFB charge radii & radial densities ...
     Summary_File = "IO/" * Params.Calc.Path * "/HFB/HFB_Summary.dat"
     Densities_File = "IO/" * Params.Calc.Path * "/HFB/Densities/HFB_Radial_Densities.dat"
-    OBDM_Export(Params,Summary_File,Densities_File,Rho,C,Orb)
+    @time OBDM_Export(Params,Summary_File,Densities_File,Rho,C,Orb)
 
     # Export of single-quasiparticle energies, amplitudes U & V & also possibly radial densities ...
-    HFB_SQS_Summary(Params,SQE,SQE_C,pnMatrix(C.p' * Rho.p * C.p,C.n' * Rho.n * C.n),Orb)
+    @time HFB_SQS_Summary(Params,SQE,SQE_C,pnMatrix(C.p' * Rho.p * C.p,C.n' * Rho.n * C.n),Orb)
+
+    return
+
+    # Allocate H1B ... 1-body HFB Hamiltonian in the quasiparticle basis ...
+    @time H_N = HFB_allocate_H1b(Params,SQE)
+
+    # Make density dependent residual 2-body interaction in the LHO basis ...
+    @time V_NN = H2b_res_no2b(Params,Orb,Orb_NN,Orb_NNN,V_NN,V_NNN,Rho)
+
+    # Deallocate V_NNN 3-body interaction ...
+    V_NNN = nothing
+
+    # Perform the Garbage Collection ...
+    GC.gc()
+
+    # Perform transformation of U and V to the canonical basis ...
+    U, V = pnMatrix(C.p' * U.p, C.n' * U.n), pnMatrix(C.p' * V.p, C.n' * V.n)
+
+    # Allocate H2B ... residual interaction Hamiltonian in the quasiparticle basis ...
+    @time H_NN = qpH2b(Params,Orb,Orb_NN,V_NN,C,U,V)
+
+    # Perform final export of HFB solution into binary files ...
+    @time HFB_Export(Params,Orb_NN,C,U,V,H_N,H_NN)
 
     return
 end
@@ -48,8 +71,9 @@ function HFB_Solve(Params::Parameters,Orb::Vector{NOrb},Orb_NN::NNOrb,Orb_NNN::N
     a_max = div((N_max + 1) * (N_max + 2), 2)
 
     # Setup local iteration variables ...
-    Iteration, Iteration_max = 0, 150
+    Iteration, Iteration_max = 0, 250
     dE, d2E, dZ, dN = 0.1, 0.1, 0.1, 0.1
+    Degeneracy = false
 
     # Preallocate arrays ...
         # Matrices for U & V HFB ...
@@ -65,6 +89,13 @@ function HFB_Solve(Params::Parameters,Orb::Vector{NOrb},Orb_NN::NNOrb,Orb_NNN::N
     SQE = pnVector(zeros(Float64,a_max),zeros(Float64,a_max))
         # Identity matrix ...
     Eye = diagm(ones(Float64,a_max))
+        # Arrays for degenerate solutions ...
+    Rho1 = pnMatrix(zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max))
+    Kappa1 = pnMatrix(zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max))
+    Lambda1 = pnFloat(0.0,0.0)
+    Rho2 = pnMatrix(zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max))
+    Kappa2 = pnMatrix(zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max))
+    Lambda2 = pnFloat(0.0,0.0)
 
     # Setup particle numbers ...
     Z, N = 0.1, 0.1
@@ -80,7 +111,7 @@ function HFB_Solve(Params::Parameters,Orb::Vector{NOrb},Orb_NN::NNOrb,Orb_NNN::N
     Broyden, BroyVec = HFB_Broyden_Initialize(Params,Rho,Kappa,Orb)
 
     # Preallocate SQE_old ...
-    SQE_old = pnVector(SQE.p, SQE.n)
+    SQE_old = pnVector(SQE.p,SQE.n)
 
     # Initialize particle numbers & chemical potentials for secant method ...
     Z_1, Z_2 = 0.0, 0.0
@@ -171,6 +202,8 @@ function HFB_Solve(Params::Parameters,Orb::Vector{NOrb},Orb_NN::NNOrb,Orb_NNN::N
         # Perform update of densities ...
         Rho, Kappa, BroyVec = HFB_Broyden_Update(Params,Iteration,Rho,Kappa,Broyden,BroyVec,Orb)
 
+        #display(diag(Kappa.n)[1:10])
+
         # Allocate the single-particle field H and the pairing field Delta ...
         H, Delta = HFB_Allocate(Params,Lambda,Rho,Kappa,Orb,Orb_NN,Orb_NNN,T,VNN,VNNN)
 
@@ -190,15 +223,42 @@ function HFB_Solve(Params::Parameters,Orb::Vector{NOrb},Orb_NN::NNOrb,Orb_NNN::N
                 * " MeV,   dZ = " * string(round(dZ, sigdigits=8)) * ",   dN = " * string(round(dN, sigdigits=8)))
 
         # Store old values of SQE ...
-        SQE_old = pnVector(SQE.p, SQE.n)
+        SQE_old = pnVector(SQE.p,SQE.n)
 
-        # Terminate the iteration if probably a degenerate solution was reached ...
-        if (Iteration > 50) && (d2E < 1e-8)
-            println("\nHFB iteration converged to a degenerate solution ... terminating the iteration ...")
+        # Resolve the problem of degenerate HFB solutions if they appear ...
+        if Degeneracy == true
+            Rho2, Kappa2 = pnMatrix(Rho.p,Rho.n), pnMatrix(Kappa.p,Kappa.n)
+            Lambda2 = pnFloat(Lambda.p,Lambda.n)
+            # Calculate the energies of degenerate HFB solutions ...
+            println("\nCalculating the energies of degenerate HFB solutions ...")
+            E1_HFB = HFB_Energy(Params,Rho1,Kappa1,Orb,Orb_NN,Orb_NNN,T,VNN,VNNN)
+            E2_HFB = HFB_Energy(Params,Rho2,Kappa2,Orb,Orb_NN,Orb_NNN,T,VNN,VNNN)
+
+            # Select the better degenerate solution ... by energy ...
+            if E1_HFB < E2_HFB
+                Rho, Kappa, Lambda = pnMatrix(Rho1.p,Rho1.n), pnMatrix(Kappa1.p,Kappa1.n), pnFloat(Lambda1.p,Lambda1.n)
+            else
+                Rho, Kappa, Lambda = pnMatrix(Rho2.p,Rho2.n), pnMatrix(Kappa2.p,Kappa2.n), pnFloat(Lambda2.p,Lambda2.n)
+            end
+
+            # Allocate the resulting fields H & Delta ...
+            H, Delta = HFB_Allocate(Params,Lambda,Rho,Kappa,Orb,Orb_NN,Orb_NNN,T,VNN,VNNN)
+
+            # Determine the resulting SQE & amplitudes U & V ...
+            SQE, U, V = HFB_Diagonalize(Params,H,Delta,U,V,Orb)
+
+            println("\nHFB iteration terminated due to degeneracy ...")
+            println("\tThe solution with lower energy was selected ...\n")
             break
-        elseif (Iteration > 75) && (d2E < 1e-6)
-            println("\nHFB iteration converged to a degenerate solution ... terminating the iteration ...")
-            break
+        end
+
+        # Chek for degenerate solutions ...
+        if d2E < epsilon * 1e-1 && Degeneracy == false
+            println("\nHFB iteration stucked at a degenerate solution ... Degenerate solutions will be analyzed ...\n")
+            Degeneracy = true
+
+            Rho1, Kappa1 = pnMatrix(Rho.p,Rho.n), pnMatrix(Kappa.p,Kappa.n)
+            Lambda1 = pnFloat(Lambda.p,Lambda.n)
         end
 
     end
@@ -247,16 +307,38 @@ function HFB_Diagonalize(Params::Parameters,H::pnMatrix,Delta::pnMatrix,U::pnMat
 
     # Set phases of U & V to match with previous iteration ...
     @inbounds for a in 1:a_max
-        pU_Overlap = dot(U_new.p[:,a],U.p[:,a])
-        pV_Overlap = dot(V_new.p[:,a],V.p[:,a])
-        nU_Overlap = dot(U_new.n[:,a],U.n[:,a])
-        nV_Overlap = dot(V_new.n[:,a],V.n[:,a])
-        if pU_Overlap < -1e-10; @views U_new.p[:,a] .= -1.0 .* U_new.p[:,a]; end
-        if pV_Overlap < -1e-10; @views V_new.p[:,a] .= -1.0 .* V_new.p[:,a]; end
-        if nU_Overlap < -1e-10; @views U_new.n[:,a] .= -1.0 .* U_new.n[:,a]; end
-        if nV_Overlap < -1e-10; @views V_new.n[:,a] .= -1.0 .* V_new.n[:,a]; end
-        #if pU_Overlap + pV_Overlap < -1e-8; @views U_new.p[:,a] .= -1.0 .* U_new.p[:,a]; @views V_new.p[:,a] .= -1.0 .* V_new.p[:,a]; end
-        #if nU_Overlap + nV_Overlap < -1e-8; @views U_new.n[:,a] .= -1.0 .* U_new.n[:,a]; @views V_new.n[:,a] .= -1.0 .* V_new.n[:,a]; end
+        pInd, pMax = 0, 0.0
+        nInd, nMax = 0, 0.0
+
+        # Find the most dominant pair of amplitudes U & V ...
+        @inbounds for b in 1:a_max
+            if (abs(U_new.p[b,a])^2 + abs(V_new.p[b,a])^2) > pMax
+                pInd = b
+                pMax = (abs(U_new.p[b,a])^2 + abs(V_new.p[b,a])^2)
+            end
+
+            if (abs(U_new.n[b,a])^2 + abs(V_new.n[b,a])^2) > nMax
+                nInd = b
+                nMax = (abs(U_new.n[b,a])^2 + abs(V_new.n[b,a])^2)
+            end
+        end
+
+
+        # Check phase change of U & V ...
+        if U_new.p[pInd,a] < 0.0
+            U_new.p[:,a] .*= -1.0
+        end
+        if V_new.p[pInd,a] < 0.0
+            V_new.p[:,a] .*= -1.0
+        end
+
+        if U_new.n[nInd,a] < 0.0
+            U_new.n[:,a] .*= -1.0
+        end
+        if V_new.n[nInd,a] < 0.0
+            V_new.n[:,a] .*= -1.0
+        end
+
     end
 
     return SQE, U_new, V_new

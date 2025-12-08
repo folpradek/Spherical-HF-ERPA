@@ -1,6 +1,6 @@
 module NuJuliet
     # Import all needed packages ...
-    using BenchmarkTools, DelimitedFiles, LinearAlgebra, CGcoefficient, Hungarian, Mmap
+    using BenchmarkTools, DelimitedFiles, LinearAlgebra, CGcoefficient, Hungarian, Mmap, Printf
 
     # Matrix elements & general functions ...
     include("Import_Structures.jl")
@@ -13,6 +13,11 @@ module NuJuliet
     include("MatrixElements/V2B.jl")
     include("MatrixElements/V3B_NO2B.jl")
     include("MatrixElements/V2B_Res.jl")
+    include("MatrixElements/qpH2B.jl")
+    include("MatrixElements/qpH2B_CT.jl")
+    include("MatrixElements/qpH2B_H40.jl")
+    include("MatrixElements/qpH2B_H31.jl")
+    include("MatrixElements/qpH2B_H22.jl")
 
     # HF + LO HF-MBPT solver ...
     include("HF/HF.jl")
@@ -81,10 +86,11 @@ module NuJuliet
     include("HFB/HFB_Export.jl")
 
     # pHF-RPA ... for testing purposes !!!
-    include("pHF_RPA/pHF_RPA_Solver.jl")
-    include("pHF_RPA/pHF_RPA.jl")
-    include("pHF_RPA/pHF_RPA_Allocate.jl")
-    include("pHF_RPA/pHF_RPA_Diagonalize.jl")
+        # placement is really temporary ...
+    include("Temp/pHF_RPA/pHF_RPA_Solver.jl")
+    include("Temp/pHF_RPA/pHF_RPA.jl")
+    include("Temp/pHF_RPA/pHF_RPA_Allocate.jl")
+    include("Temp/pHF_RPA/pHF_RPA_Diagonalize.jl")
 
 
     for n in names(@__MODULE__; all=true)

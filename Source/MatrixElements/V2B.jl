@@ -93,7 +93,7 @@ function V2B_Ini(Orb::Vector{NOrb},N_max::Int64)
 
 end
 
-function V2B_Index(a::Int64,b::Int64,c::Int64,d::Int64,J::Int64,P::Int64,t::Int64,Orb_NN::NNOrb)
+@inline function V2B_Index(a::Int64,b::Int64,c::Int64,d::Int64,J::Int64,P::Int64,t::Int64,Orb_NN::NNOrb)
     @views N = Orb_NN.N[t+1,P,J+1]
     t = Int8(t)
     P = Int8(P)
@@ -111,11 +111,10 @@ function V2B_Index(a::Int64,b::Int64,c::Int64,d::Int64,J::Int64,P::Int64,t::Int6
     return Ind
 end
 
-function V2B(a::Int64,b::Int64,c::Int64,d::Int64,J::Int64,t::Int64,V::Matrix{Vector{Float64}},Orb::Vector{NOrb},Orb_NN::NNOrb)
+@inline function V2B(a::Int64,b::Int64,c::Int64,d::Int64,J::Int64,t::Int64,V::Matrix{Vector{Float64}},Orb::Vector{NOrb},Orb_NN::NNOrb)
     P = rem(Orb[a].l + Orb[b].l, 2) + 1
 
     if t == 1
-
         if a >= b && c >= d
             @inbounds Ind = V2B_Index(a,b,c,d,J,P,1,Orb_NN)
             @views v = V[P,J+1][Ind]
