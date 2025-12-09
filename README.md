@@ -2,10 +2,10 @@
 
 Many-body nuclear structure solver written in Julia [1]. Currently, the code features these solvers:
 
-  - Spherical Hartree-Fock (**HF**) solver, including leading order Many-body Perturbation Theory (MBPT) corrections.
+  - Spherical Hartree-Fock (**HF**) solver, including leading order Many-body Perturbation Theory (**MBPT**) corrections.
   - Spherical Hartree-Fock Tamm-Dancoff & Random-Phase Approximation (**HF-TDA & HF-RPA**) solver.
   - Spherical HF-Renormalized RPA (**HF-RRPA**, also known as ERPA or IRPA) solver.
-  - Spherical HF-Bardeen-Cooper-Schriffer (**HF-BCS**) solver.
+  - Spherical HF-Bardeen-Cooper-Schrieffer (**HF-BCS**) solver.
   - Spherical Hartree-Fock-Bogoliubov (**HFB**) solver.
 
 With these one can study properties of closed-(sub)shell nuclei as well as basic ground-state properties of spherical open-shell nuclei.
@@ -16,6 +16,7 @@ To run the code, you have to download it, and have installed Julia [1] (v1.4 or 
   - LinearAlgebra
   - DelimitedFiles
   - BenchmarkTools
+  - Printf
   - CGcoefficient
   - Hungarian
   - Mmap
