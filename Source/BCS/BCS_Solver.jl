@@ -9,7 +9,7 @@ function BCS_Solver(Params::Parameters,Params_ref::Parameters)
     T = T1B(Params.Int.Nmax,Orb,Params.Int.hw)
 
     # 2-body NN interaction & Orbitals ...
-    @time VNN, Orb_NN = V2B_Read(Params,Orb)
+    @time VNN, Orb_NN = V2B_Read(Params_ref,Orb)
 
     # 3-body NNN interaction & Orbitals ...
     @time VNNN, Orb_NNN = V3B_NO2B_Read(Params,Orb)
@@ -191,7 +191,7 @@ function HF_BCS_Solve(Params::Parameters,Params_ref::Parameters,Orb::Vector{NOrb
             open(Out, "w") do devnull_io
                 redirect_stdout(devnull_io) do
                     redirect_stderr(devnull_io) do
-                        VNN_res, Orb_NN_res = BCS_V2B_Res(Params,Orb,Orb_NN,Orb_NNN,VNN,VNNN,C,Rho)
+                        VNN_res, Orb_NN_res = BCS_V2B_Res(Params_ref,Orb,Orb_NN,Orb_NNN,VNN,VNNN,C,Rho)
                         return VNN_res, Orb_NN_res
                     end
                 end
@@ -281,7 +281,7 @@ function HF_BCS_Solve(Params::Parameters,Params_ref::Parameters,Orb::Vector{NOrb
     h = pnMatrix(diagm(SPE.p),diagm(SPE.n))
 
     # Calculate the total HF mean-field + BCS pairing ground-state energy ...
-    @time E_HF, E_BCS = BCS_Energy(Params,pnMatrix(C.p * Rho.p * C.p', C.n * Rho.n * C.n'),pnMatrix(C.p * Kappa.p * C.p', C.n * Kappa.n * C.n'),Orb,Orb_NN,Orb_NNN,T,VNN,VNNN)
+    @time E_HF, E_BCS = BCS_Energy(Params_ref,pnMatrix(C.p * Rho.p * C.p', C.n * Rho.n * C.n'),pnMatrix(C.p * Kappa.p * C.p', C.n * Kappa.n * C.n'),Orb,Orb_NN,Orb_NNN,T,VNN,VNNN)
 
     return E_HF, E_BCS, Lambda, SPE, SQE, C, U, V, Rho, Kappa, h, Delta
 end
