@@ -14,7 +14,7 @@ function HF_RRPA_export(Params::Parameters,Orb::Vector{Orb1B},N_nu::Matrix{Int64
     # Calculate & export radial RRPA densities & radii ...
     Summary_File = "IO/" * Params.Calc.Path * "/RRPA/HF_RRPA_Summary.dat"
     Densities_File = "IO/" * Params.Calc.Path * "/RRPA/Densities/RRPA_Radial_Densities.dat"
-    @time OBDM_export(Params,Summary_File,Densities_File,O1B(C.p * Rho.p * C.p', C.n * Rho.n * C.n'),C,Orb)
+    @time OBDM_export(Params,Orb,Summary_File,Densities_File,O1B(C.p * Rho.p * C.p', C.n * Rho.n * C.n'),C)
 
     # Export of RRPA |X|^2 & |Y|^2 amplitudes, not plot ready ...
     HF_RRPA_amplitudes_export(Params,N_nu,E_RPA,X_RPA,Y_RPA)

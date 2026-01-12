@@ -25,7 +25,7 @@
     Base.@kwdef struct RRPA_Parameters
         Ortho::Bool = true
         Tol::Float64 = 1e-7
-        IMax::Int64 = 100
+        IMax::Int64 = 150
         ScV3N::Bool = true
         ScOBH::Bool = true
         dOBDM::Bool = false

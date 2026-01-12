@@ -544,19 +544,31 @@ function qpO2b_22_allocate_ind4(Params::Parameters,JP::Vector{Vector{Int64}},Orb
                         @inbounds for I in 0:J_max
 
                             # pnO2002 && pnO0220 ...
-                            if abs(j_a - j_b) <= 2*I && 2*I <= (j_a + j_b) && abs(j_c - j_d) <= 2*I && 2*I <= (j_c + j_d)
+                            if abs(j_a - j_c) <= 2*I && 2*I <= (j_a + j_c) && abs(j_b - j_d) <= 2*I && 2*I <= (j_b + j_d) &&
+                                (rem(l_a + l_c,2) + 1) == P && (rem(l_b + l_d,2) + 1) == P
+                            #if abs(j_a - j_b) <= 2*I && 2*I <= (j_a + j_b) && abs(j_c - j_d) <= 2*I && 2*I <= (j_c + j_d)
 
+                                #=
                                 Amp2002 = Float64((-1)^(J + I + div(j_b + j_c,2)) * (2*I + 1)) * f6j(j_a,j_c,2*J,j_d,j_b,2*I)
                                 Amp0220 = Amp2002
-
-                                # Norm factors?
-                                Amp2002 = sqrt(Float64((1 + kronecker_delta(a,b) * (-1)^(J)) * (1 + kronecker_delta(c,d) * (-1)^(J)))) * Amp2002
-                                Amp0220 = sqrt(Float64((1 + kronecker_delta(a,b) * (-1)^(J)) * (1 + kronecker_delta(c,d) * (-1)^(J)))) * Amp0220
             
                                 Bra_ab, Ket_cd = O2b_temp_index(a,b,I,P,Orb_NN_t), O2b_temp_index(c,d,I,P,Orb_NN_t)
 
                                 Opn2002Sum += Amp2002 * O_NN_t2.pn2002[P,I+1][Bra_ab,Ket_cd]
                                 Opn0220Sum += Amp0220 * O_NN_t2.pn0220[P,I+1][Bra_ab,Ket_cd]
+                                
+                                # gives the same results as the one below ...
+                                =#
+
+                                
+                                Amp2002 = Float64((-1)^(J + I + div(j_b + j_c,2)) * (2*I + 1)) * f6j(j_a,j_b,2*J,j_d,j_c,2*I)
+                                Amp0220 = Amp2002
+            
+                                Bra_ac, Ket_bd = O2b_temp_index(a,c,I,P,Orb_NN_t), O2b_temp_index(b,d,I,P,Orb_NN_t)
+
+                                Opn2002Sum += Amp2002 * O_NN_t2.pn2002[P,I+1][Bra_ac,Ket_bd]
+                                Opn0220Sum += Amp0220 * O_NN_t2.pn0220[P,I+1][Bra_ac,Ket_bd]
+                                
                             end
 
                             # pnO1111 ...
@@ -575,7 +587,6 @@ function qpO2b_22_allocate_ind4(Params::Parameters,JP::Vector{Vector{Int64}},Orb
                         @views O_NN.qp22.pn2002[P,J+1][Ind] = Opn2002Sum
                         @views O_NN.qp22.pn1111[P,J+1][Ind] = Opn1111Sum
                         @views O_NN.qp22.pn0220[P,J+1][Ind] = Opn0220Sum
-
                     end
 
                     # Case of pp & nn entries ... T = 1
@@ -605,9 +616,9 @@ function qpO2b_22_allocate_ind4(Params::Parameters,JP::Vector{Vector{Int64}},Orb
                             OnnSum += (OnnME1 + OnnME3)
                         end
 
-                        Amp = Float64((-1)^(J + 1))
-                        # Norm factors?
-                        Amp = sqrt(Float64((1 + kronecker_delta(a,b) * (-1)^(J)) * (1 + kronecker_delta(c,d) * (-1)^(J)))) * Amp
+                        Amp = Float64((-1)^(J + 1)) # My og and Suhonen ...
+                        #Amp = Float64((-1)^(J)) # ???
+
                         OppSum = Amp * OppSum
                         OnnSum = Amp * OnnSum
 
@@ -616,10 +627,7 @@ function qpO2b_22_allocate_ind4(Params::Parameters,JP::Vector{Vector{Int64}},Orb
                             if abs(j_a - j_d) <= 2*I && 2*I <= (j_a + j_d) && abs(j_b - j_c) <= 2*I &&
                             2*I <= (j_b + j_c) && (rem(l_a + l_d,2) + 1 == P) && (rem(l_b + l_c,2) + 1 == P)
 
-                                AmpR = 4.0 * Float64((-1)^(J) * (2*I + 1)) * f6j(j_a,j_b,2*J,j_c,j_d,2*I)
-
-                                # Norm factors?
-                                AmpR = sqrt(Float64((1 + kronecker_delta(a,d) * (-1)^(I)) * (1 + kronecker_delta(b,c) * (-1)^(I)))) * AmpR
+                                AmpR = 4.0 * Float64((-1)^(J) * (2*I + 1)) * f6j(j_a,j_b,2*J,j_c,j_d,2*I) # My og ... also in Suhonen ...
 
                                 Bra_ad, Ket_cb = O2b_temp_index(a,d,I,P,Orb_NN_t), O2b_temp_index(c,b,I,P,Orb_NN_t)
 
@@ -630,7 +638,6 @@ function qpO2b_22_allocate_ind4(Params::Parameters,JP::Vector{Vector{Int64}},Orb
 
                         @views O_NN.qp22.pp[P,J+1][Ind] = OppSum
                         @views O_NN.qp22.nn[P,J+1][Ind] = OnnSum
-
                     end
 
                 end

@@ -63,6 +63,7 @@ function HF_RRPA_solve(Params::Parameters,N_nu::Matrix{Int64},Orb_Phonon::Matrix
     # Iteration parameters ...
     eta, epsilon = 1.0, Params.Calc.RRPA.Tol
     Iteration, Iteration_max = 0, Params.Calc.RRPA.IMax
+    E_old, E_new, dE = 2.0, 1.0, 1.0
 
     # Import residual 2-body interaction ... HF basis ...
     println("\nImporting Residual 2-body interaction ...")
@@ -150,15 +151,23 @@ function HF_RRPA_solve(Params::Parameters,N_nu::Matrix{Int64},Orb_Phonon::Matrix
                 Sum += ME
             end
         end
+
+        # RRPA ground state energy ...
+        E_new = HF_RRPA_energy(Params,N_nu,N_Particle,Particle,N_Hole,Hole,E_RPA,Y_RPA)
+
+        dE = abs(E_new - E_old)
         
-        if abs(Sum - eta) < epsilon
+        if abs(Sum - eta) < epsilon && (Iteration > 35) && (E_new < E_old)
             println("\nHF-RRPA iteration finished - cycled degenerate solution found ...")
+            println("\tHThe solution with lower total energy was picked ...")
             break
-        elseif (abs(Sum) < 1e1 * epsilon) && (Iteration > 50)
-            println("\nHF-RRPA iteration has finished ... Solution converged with lesser precisions 1e-5 ...")
+        elseif (abs(Sum) < 1e1 * epsilon) && (Iteration > 50) && (E_new < E_old)
+            println("\nRRPA iteration has finished ... Solution converged with lesser precisions 1e1 * Tol ...")
+            println("\tHThe solution with lower total energy was picked ...")
             break
-        elseif (abs(Sum) < 1e2 * epsilon) && (Iteration > 75)
-            println("\nHF-RRPA iteration has finished ... Solution converged with lesser precisions 1e-4 ...")
+        elseif (abs(Sum) < 1e2 * epsilon) && (Iteration > 75) && (E_new < E_old)
+            println("\nRRPA iteration has finished ... Solution converged with lesser precisions 1e2 * Tol ...")
+            println("\tHThe solution with lower total energy was picked ...")
             break
         end
 

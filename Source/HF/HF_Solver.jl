@@ -26,7 +26,7 @@ function HF_solver(Params::Parameters)
     # Calculate & export radial HF densities & radii ...
     Summary_File = "IO/" * Params.Calc.Path * "/HF/HF_Summary.dat"
     Densities_File = "IO/" * Params.Calc.Path * "/HF/Densities/HF_Radial_Densities.dat"
-    @time OBDM_export(Params,Summary_File,Densities_File,Rho,C,Orb)
+    @time OBDM_export(Params,Orb,Summary_File,Densities_File,Rho,C)
 
     # Calculate & export radial HF potential ...
         # To be refined ... export non-local V^HF_lj 

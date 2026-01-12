@@ -31,10 +31,10 @@ function BCS_solver(Params::Parameters,Params_Ref::Parameters)
     # Evaluate BCS charge radii & radial densities ...
     Summary_File = "IO/" * Params.Calc.Path * "/BCS/BCS_Summary.dat"
     Densities_File = "IO/" * Params.Calc.Path * "/BCS/Densities/BCS_Radial_Densities.dat"
-    @time OBDM_export(Params_Ref,Summary_File,Densities_File,Rho,C)
+    @time OBDM_export(Params_Ref,Orb,Summary_File,Densities_File,Rho,C)
 
     # Export of single-quasiparticle energies, amplitudes U & V & also possibly radial densities ...
-    @time BCS_summary_SQS(Params,SPE,SQE,U,V,Orb)
+    @time BCS_summary_SQS(Params,SPE,SQE,U,V)
 
     if Params.Calc.BCS.BMF == true
         # Allocate H1B ... 1-body BCS Hamiltonian in the canonical & quasiparticle basis ...

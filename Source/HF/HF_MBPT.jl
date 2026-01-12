@@ -816,7 +816,7 @@ function HF_MBPT_density(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,N_P
     # Calculate & export radial HF-MBPT(3) densities & radii ...
     Summary_File = "IO/" * Params.Calc.Path * "/HF/HF_Summary.dat"
     Densities_File = "IO/" * Params.Calc.Path * "/HF/Densities/HFMBPT_Radial_Densities.dat"
-    OBDM_export(Params,Summary_File,Densities_File,O1B(C.p * D.p * Rho.p * D.p' * C.p', C.n * D.n * Rho.n * D.n' * C.n'),O1B(C.p * D.p, C.n * D.n),Orb)
+    OBDM_export(Params,Orb,Summary_File,Densities_File,O1B(C.p * D.p * Rho.p * D.p' * C.p', C.n * D.n * Rho.n * D.n' * C.n'),O1B(C.p * D.p, C.n * D.n))
 
     # Calculate & export HF-MBPT(3) occupation numbers ...
     HF_MBPT_occupation(Params,Rho_HF,Rho)
