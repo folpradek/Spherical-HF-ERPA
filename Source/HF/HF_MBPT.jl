@@ -13,12 +13,14 @@ end
 
 function HF_MBPT_energy(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,N_Particle::pnInteger,Particle::pnSVector,N_Hole::pnInteger,Hole::pnSVector,V_NN::O2B)
     # Read parameters ...
-    Output_File = Params.Calc.Path
-    
-    println("\nCalculating HF-MBPT(2) ground-state energy correction ... ")
-    # Calculate the MBPT(2) energy correction ...
+    IO = Params.Calc.Path
+
+    # Initialize the thread accumulators ...
     dE, dE_threads = 0.0, zeros(Float64,Threads.maxthreadid())
 
+    # Calculate the MBPT(2) energy correction ...
+    println("\nCalculating HF-MBPT(2) ground-state energy correction ... ")
+    
     # proton-proton contribution ...
     @inbounds Threads.@threads :static for p in 1:N_Particle.p
         Sum, Tid = 0.0, Threads.threadid()
@@ -127,16 +129,19 @@ function HF_MBPT_energy(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,N_Pa
         end
         dE_threads[Tid] += Sum
     end
+
+    # Get the total HFB-BMBPT(2) energy from the thread accumulators ...
     dE += sum(dE_threads)
 
-    # Print the final MBPT(2) energy correciton ...
+    # Print the total HF-MBPT(2) energy correction ...
     println("\tHF-MBPT(2) energy    ...   E^(2) = " * string(round(dE, sigdigits=9)) * " MeV")
 
-    # Perform export to summary file ...
-    Summary_File =  open(string("IO/", Output_File, "/HF/HF_Summary.dat"), "a")
-        println(Summary_File, "\nSpherical Hartree-Fock Leading Order Many-Body Perturbation Theory solution review:")
-        println(Summary_File, "\nE_0^(2) = " * string(round(dE, sigdigits=9)) * "\t MeV \t\t ... \t LO HF-MBPT(2) correction to ground state energy")
-    close(Summary_File)
+    # Write the total HF-MBPT(2) energy correction to the summary file ...
+    Summary =  open(string("IO/", IO, "/HF/HF_Summary.dat"), "a")
+        println(Summary, "\nSpherical Hartree-Fock Leading Order Many-Body Perturbation Theory solution review:")
+        println(Summary, "\nE_0^(2) = " * string(round(dE, sigdigits=9)) * "\t MeV \t\t ... \t LO HF-MBPT(2) correction to ground-state energy")
+        println(Summary, "\nE_0^(2) / A = " * string(round(dE / Float64(Params.Calc.A), sigdigits=9)) * "\t MeV \t\t ... \t LO HF-MBPT(2) correction to ground-state energy per nucleon")
+    close(Summary)
 
     return
 end

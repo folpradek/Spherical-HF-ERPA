@@ -1,4 +1,4 @@
-function QTDA_rM(Params::Parameters,Orb::Vector{NOrb},Orb_2qp::qpOrb2B,X_QDA::Matrix{Matrix{Float64}},qpTrOp::qpTr1B)
+function QTDA_rM(Params::Parameters,Orb::Vector{NOrb},Orb_2qp::qpOrb2B,X_QTDA::Matrix{Matrix{Float64}},qpTrOp::qpTr1B)
     # Read calculation parameters ...
     Orthogon = Params.Calc.QTDA.Ortho
 
@@ -6,36 +6,20 @@ function QTDA_rM(Params::Parameters,Orb::Vector{NOrb},Orb_2qp::qpOrb2B,X_QDA::Ma
     println("\nCalculating reduced transition matrix elements rM ...")
 
     # E0
-    J = 0
-    P = 1
-    N_ph = N_nu[J+1,P]
-    prME0_TDA = Vector{ComplexF64}(undef,N_ph)
-    prME0_RPA = Vector{ComplexF64}(undef,N_ph)
-    nrME0_TDA = Vector{ComplexF64}(undef,N_ph)
-    nrME0_RPA = Vector{ComplexF64}(undef,N_ph)
-    @inbounds for nu in 1:N_ph
-        pME0Sum_TDA = ComplexF64(0.0)
-        pME0Sum_RPA = ComplexF64(0.0)
-        nME0Sum_TDA = ComplexF64(0.0)
-        nME0Sum_RPA = ComplexF64(0.0)
-        @inbounds  for Ind_ph in 1:N_ph
-            ph = Orb_Phonon[J+1,P][Ind_ph]
-            p, h = Phonon[ph].p, Phonon[ph].h
-            t_ph = Phonon[ph].tz
-            if t_ph == -1
-                a_p = Particle.p[p].a
-                a_h = Hole.p[h].a
-            elseif t_ph == 1
-                a_p = Particle.n[p].a
-                a_h = Hole.n[h].a
-            end
+    J, P = 0, 1
+    N_qp = Orb_2qp.N[J+1,P]
+    pM_E0 = Vector{ComplexF64}(undef,N_qp)
+    nM_E0 = Vector{ComplexF64}(undef,N_qp)
+    @inbounds for nu in 1:N_qp
+        pM_E0Sum, nM_E0Sum = 0.0, 0.0
+        @inbounds  for i_qp in 1:N_qp
+
+            a, b, T_ab = Orb_2qp.qp[J+1,P][i_qp].a, Orb_2qp.qp[J+1,P][i_qp].b, Orb_2qp.qp[J+1,P][i_qp].T
+
 
             if t_ph == -1
-                ME0_TDA = TrOp.E0.p[a_p,a_h] * X_TDA[J+1,P][Ind_ph,nu]
-                pME0Sum_TDA += ME0_TDA
-
-                ME0_RPA = TrOp.E0.p[a_p,a_h] * (X_RPA[J+1,P][Ind_ph,nu] + Y_RPA[J+1,P][Ind_ph,nu])
-                pME0Sum_RPA += ME0_RPA
+                ME = qpTrOp.E0.qp22.p[a,b] * X_QTDA[J+1,P][i_qp,nu] / sqrt(1.0 + kron_delta(a,b))
+                pM_E0Sum += ME
             end
 
             if t_ph == 1

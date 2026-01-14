@@ -366,7 +366,7 @@ function qpO2b_40_allocate_ind4(Params::Parameters,JP::Vector{Vector{Int64}},Orb
                         OnnSum += OnnME
                     end
 
-                    Amp = -0.25 * Float64((-1)^J)
+                    Amp = -Float64((-1)^J) * sqrt(Float64((1 + kronecker_delta(a,b) * (-1)^J) * (1 + kronecker_delta(c,d) * (-1)^J)))
 
                     OppSum = Amp * OppSum
                     OnnSum = Amp * OnnSum

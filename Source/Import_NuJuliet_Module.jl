@@ -66,6 +66,7 @@ module NuJuliet
     include("BCS/BCS_Particle_Number.jl")
     include("BCS/BCS_Allocate.jl")
     include("BCS/BCS_Energy.jl")
+    include("BCS/BCS_BMBPT.jl")
     include("BCS/BCS_Export.jl")
 
 
@@ -80,6 +81,7 @@ module NuJuliet
     include("HFB/HFB_Allocate.jl")
     include("HFB/HFB_Canonical_Basis.jl")
     include("HFB/HFB_Energy.jl")
+    include("HFB/HFB_BMBPT.jl")
     include("HFB/HFB_Export.jl")
 
     # QTDA solver ...

@@ -561,7 +561,7 @@ function qpO2b_22_allocate_ind4(Params::Parameters,JP::Vector{Vector{Int64}},Orb
                                 =#
 
                                 
-                                Amp2002 = Float64((-1)^(J + I + div(j_b + j_c,2)) * (2*I + 1)) * f6j(j_a,j_b,2*J,j_d,j_c,2*I)
+                                Amp2002 = Float64((-1)^(J + I + div(j_b + j_c,2)) * (2*I + 1)) * f6j(j_a,j_b,2*J,j_d,j_c,2*I) * sqrt(Float64((1 + kronecker_delta(a,b) * (-1)^J) * (1 + kronecker_delta(c,d) * (-1)^J)))
                                 Amp0220 = Amp2002
             
                                 Bra_ac, Ket_bd = O2b_temp_index(a,c,I,P,Orb_NN_t), O2b_temp_index(b,d,I,P,Orb_NN_t)
@@ -616,7 +616,7 @@ function qpO2b_22_allocate_ind4(Params::Parameters,JP::Vector{Vector{Int64}},Orb
                             OnnSum += (OnnME1 + OnnME3)
                         end
 
-                        Amp = Float64((-1)^(J + 1)) # My og and Suhonen ...
+                        Amp = Float64((-1)^(J + 1)) * sqrt(Float64((1 + kronecker_delta(a,b) * (-1)^J) * (1 + kronecker_delta(c,d) * (-1)^J))) # My og and Suhonen ...
                         #Amp = Float64((-1)^(J)) # ???
 
                         OppSum = Amp * OppSum
@@ -627,7 +627,7 @@ function qpO2b_22_allocate_ind4(Params::Parameters,JP::Vector{Vector{Int64}},Orb
                             if abs(j_a - j_d) <= 2*I && 2*I <= (j_a + j_d) && abs(j_b - j_c) <= 2*I &&
                             2*I <= (j_b + j_c) && (rem(l_a + l_d,2) + 1 == P) && (rem(l_b + l_c,2) + 1 == P)
 
-                                AmpR = 4.0 * Float64((-1)^(J) * (2*I + 1)) * f6j(j_a,j_b,2*J,j_c,j_d,2*I) # My og ... also in Suhonen ...
+                                AmpR = 4.0 * Float64((-1)^(J) * (2*I + 1)) * f6j(j_a,j_b,2*J,j_c,j_d,2*I) * sqrt(Float64((1 + kronecker_delta(a,b) * (-1)^J) * (1 + kronecker_delta(c,d) * (-1)^J))) # My og ... also in Suhonen ...
 
                                 Bra_ad, Ket_cb = O2b_temp_index(a,d,I,P,Orb_NN_t), O2b_temp_index(c,b,I,P,Orb_NN_t)
 

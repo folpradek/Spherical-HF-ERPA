@@ -49,6 +49,9 @@ function HFB_solver(Params::Parameters)
 
         # Perform final export of HFB solution into binary files ...
         @time HFB_export(Params,Orb,Orb_NN,C,U,V,H_N,H_NN)
+
+        # Perform the HFB-BMBPT(2) calculation of correlation energy ...
+        @time HFB_BMBPT_energy(Params,Orb,Orb_NN,H_N,H_NN)
     end
 
     # Deallocate V_NN 2-body & V_NNN 3-body interaction ...
@@ -263,7 +266,7 @@ function HFB_solve(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,Orb_NNN::
         end
 
         # Check for degenerate solutions ...
-        if d2E < dE * 1e-3 && dE < 1e-1 && dZ < epsilon && dN < epsilon
+        if d2E < dE * 1e-4 && dE < 1e-1 && dZ < epsilon && dN < epsilon
             println("\nHFB iteration stucked at a degenerate solution ... Degenerate solutions will be analyzed ...")
             Degeneracy = true
             H_1, Delta_1, Lambda_1 = O1B(H.p,H.n), O1B(Delta.p,Delta.n), pnFloat(Lambda.p,Lambda.n)
@@ -329,10 +332,12 @@ function HFB_diagonalize(Params::Parameters,H::O1B,Delta::O1B,Orb::Vector{Orb1B}
         @views nV[:,a] .= nC[a_max+1:2*a_max,a+a_max]
     end
 
-    # Perform reordering - to match quantum numbers j & l & ascending in SQE ...
+    # Perform reordering - to match quantum numbers j & l ascending in E ...
     SQE, U_New, V_New = HFB_orbital_ordering(Params,pnVector(pSQE,nSQE),O1B(pU,nU),O1B(pV,nV),Orb)
 
     # Set phases of U & V to match with previous iteration ...
+
+    # Old algorithm ...
     @inbounds for a in 1:a_max
         # Setup local variables ...
         pInd, pMax = 0, 0.0
@@ -367,6 +372,46 @@ function HFB_diagonalize(Params::Parameters,H::O1B,Delta::O1B,Orb::Vector{Orb1B}
         end
 
     end
+    
+    #=
+    # Modified phase algorithm ...
+    @inbounds for a in 1:a_max
+        # Setup local variables ...
+        pInd, pMax, pType = 1, -Inf, :U
+        nInd, nMax, nType = 1, -Inf, :U
 
+        # Find the most dominant pair of amplitudes U & V ...
+        @inbounds for b in 1:a_max
+            if (abs(U_New.p[b,a])^2 + abs(V_New.p[b,a])^2) > pMax
+                pInd = b
+                if abs(V_New.p[b,a]) > abs(U_New.p[b,a])
+                    pType = :V
+                end
+                pMax = (abs(U_New.p[b,a])^2 + abs(V_New.p[b,a])^2)
+            end
+
+            if (abs(U_New.n[b,a])^2 + abs(V_New.n[b,a])^2) > nMax
+                nInd = b
+                if abs(V_New.n[b,a]) > abs(U_New.n[b,a])
+                    nType = :V
+                end
+                nMax = (abs(U_New.n[b,a])^2 + abs(V_New.n[b,a])^2)
+            end
+        end
+
+        # Check phase change of U & V ...
+        if (pType == :U && U_New.p[pInd,a] < 0.0) || (pType == :V && V_New.p[pInd,a] < 0.0)
+            @views U_New.p[:,a] .*= -1.0
+            @views V_New.p[:,a] .*= -1.0
+        end
+
+        if (nType == :U && U_New.n[nInd,a] < 0.0) || (nType == :V && V_New.n[nInd,a] < 0.0)
+            @views U_New.n[:,a] .*= -1.0
+            @views V_New.n[:,a] .*= -1.0
+        end
+
+    end
+    =#
+ 
     return SQE, U_New, V_New
 end

@@ -52,6 +52,9 @@ function BCS_solver(Params::Parameters,Params_Ref::Parameters)
 
         # Perform final export of BCS solution into binary files ...
         @time BCS_export(Params,Orb,Orb_NN,C,U_m,V_m,H_N,H_NN)
+
+        # Perform the HF-BCS-BMBPT(2) calculation of correlation energy ...
+        @time HF_BCS_BMBPT_energy(Params,Orb,Orb_NN,H_N,H_NN)
     end
 
     # Deallocate V_NN 2-body & V_NNN 3-body interaction ...
@@ -94,30 +97,34 @@ function HF_BCS_solve(Params::Parameters,Params_Ref::Parameters,Orb::Vector{Orb1
         # Read 2-body NN interaction with CM correction for reference nucleus ...
             # Note that further self-consistent HF-BCS iterations are considered
             # with respect to the target nucleus ... the target values of A ...
-        V_NN_Ref, Orb_NN_Ref = V2b_read(Params_Ref,Orb_HF)
+        #V_NN_Ref, Orb_NN_Ref = V2b_read(Params_Ref,Orb_HF)
+        V_NN_Ref, Orb_NN_Ref = V2b_read(Params,Orb_HF)
 
         # Call the HF Solver for reference closed-shell nucleus ...
         println("\nSolving the HF equations for reference closed-shell system ...")
         println("Reference nucleus:     A = " * string(Params_Ref.Calc.A) * ",     Z = " * string(Params_Ref.Calc.Z) * "\n")
-        @time h, C, Rho, Iteration_HF = HF_solve(Params_Ref,Orb_HF,Orb_NN_Ref,Orb_NNN,T,V_NN_Ref,V_NNN)
+        #@time h, C, Rho, Iteration_HF = HF_solve(Params_Ref,Orb_HF,Orb_NN_Ref,Orb_NNN,T,V_NN_Ref,V_NNN)
+        @time h, C, Rho, Iteration_HF = HF_solve(Params,Orb_HF,Orb_NN,Orb_NNN,T,V_NN,V_NNN)
 
         # Extract the HF SPEs ...
         SPE = pnVector(diag(h.p),diag(h.n))
 
         # Calculate the HF mean-field energy ... for comparison
         println("\nCalculating the HF mean-field ground-state energy ... sanity check ...")
-        @time E_HF = HF_energy(Params_Ref,Rho,Orb_HF,Orb_NN_Ref,Orb_NNN,T,V_NN_Ref,V_NNN)
+        #@time E_HF = HF_energy(Params_Ref,Rho,Orb_HF,Orb_NN_Ref,Orb_NNN,T,V_NN_Ref,V_NNN)
+        @time E_HF = HF_energy(Params,Rho,Orb_HF,Orb_NN,Orb_NNN,T,V_NN,V_NNN)
 
         # Make residual density-dependent NN interaction in canonical HF basis... J = 0 - s-wave only ...
         println("\nMaking density-depenent residual NN interaction ... s-wave channel (J = 0) ...")
-        @time V_NN_Res, Orb_NN_Res = BCS_V2b_res(Params_Ref,Orb,Orb_NN_Ref,Orb_NNN,V_NN_Ref,V_NNN,C,Rho)
+        #@time V_NN_Res, Orb_NN_Res = BCS_V2b_res(Params_Ref,Orb,Orb_NN_Ref,Orb_NNN,V_NN_Ref,V_NNN,C,Rho)
+        @time V_NN_Res, Orb_NN_Res = BCS_V2b_res(Params,Orb,Orb_NN,Orb_NNN,V_NN,V_NNN,C,Rho)
 
         # Drop V_NN_Ref and force Garbage Collection ...
         V_NN_Ref = nothing
         GC.gc()
 
         # Determine the initial value of chemical potential from the HF calculation ...
-        Lambda = HF_BCS_initialize_chemical_potential(Params,SPE,Orb_HF)
+        Lambda = HF_BCS_initialize_chemical_potential(Params_Ref,SPE,Orb_HF)
 
         return SPE, C, Rho, h, Lambda, V_NN_Res, Orb_NN_Res
     end
