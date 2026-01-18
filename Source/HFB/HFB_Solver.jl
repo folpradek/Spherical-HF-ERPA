@@ -42,7 +42,8 @@ function HFB_solver(Params::Parameters)
         @time V_NN = V2b_residual_no2b(Params,Orb,Orb_NN,Orb_NNN,Rho,V_NN,V_NNN)
 
         # Perform transformation of U and V to the canonical basis ...
-        U, V = O1B(C.p' * U.p, C.n' * U.n), O1B(C.p' * V.p, C.n' * V.n)
+            # I think there should be no transpose when transforming U matrix ,,,
+        U, V = O1B(C.p * U.p, C.n * U.n), O1B(C.p' * V.p, C.n' * V.n)
 
         # Allocate H_NN ... residual interaction 2-body Hamiltonian in the quasiparticle basis ...
         @time H_NN = qpO2b(Params,Orb,Orb_NN,V_NN,C,U,V)
@@ -298,6 +299,24 @@ function HFB_solve(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,Orb_NNN::
     # Perform final evaluation of resulting densities ...
     #Rho, Kappa = HFB_density_operator(Params,U,V,Orb)
 
+    # self-consistency check
+    #=
+    # Generate new densities Rho & Kappa ...
+    Rho, Kappa = HFB_density_operator(Params,U,V,Orb)
+
+    # Allocate the single-particle field H and the pairing field Delta ...
+    H, Delta = HFB_allocate(Params,Lambda,Rho,Kappa,Orb,Orb_NN,Orb_NNN,T,V_NN,V_NNN)
+
+    # Diagonalize the HFB equations ... basis is reordered as needed ...
+    SQE1, U, V = HFB_diagonalize(Params,H,Delta,Orb)
+
+    dE = (sum(abs.(SQE.p .- SQE1.p )) + sum(abs.(SQE.n .- SQE1.n))) / Float64(2 * a_max)
+
+    println("dE = " * string(dE))
+    =#
+
+
+
     # Construct the canonical basis & evaluate approximate (BCS-like) amplitudes
     # & single-quasiparticle energies u_C, v_C & SQE_C ...
     #   U, V, Rho, Kappa, H, Delta ... remain expressed in the reference LHO basis ...
@@ -338,6 +357,7 @@ function HFB_diagonalize(Params::Parameters,H::O1B,Delta::O1B,Orb::Vector{Orb1B}
     # Set phases of U & V to match with previous iteration ...
 
     # Old algorithm ...
+    #=
     @inbounds for a in 1:a_max
         # Setup local variables ...
         pInd, pMax = 0, 0.0
@@ -372,7 +392,8 @@ function HFB_diagonalize(Params::Parameters,H::O1B,Delta::O1B,Orb::Vector{Orb1B}
         end
 
     end
-    
+    =#
+
     #=
     # Modified phase algorithm ...
     @inbounds for a in 1:a_max
@@ -384,18 +405,18 @@ function HFB_diagonalize(Params::Parameters,H::O1B,Delta::O1B,Orb::Vector{Orb1B}
         @inbounds for b in 1:a_max
             if (abs(U_New.p[b,a])^2 + abs(V_New.p[b,a])^2) > pMax
                 pInd = b
-                if abs(V_New.p[b,a]) > abs(U_New.p[b,a])
+                if abs(U_New.p[b,a]) < 1e-8
                     pType = :V
                 end
-                pMax = (abs(U_New.p[b,a])^2 + abs(V_New.p[b,a])^2)
+                pMax = abs(U_New.p[b,a])^2 + abs(V_New.p[b,a])^2
             end
 
             if (abs(U_New.n[b,a])^2 + abs(V_New.n[b,a])^2) > nMax
                 nInd = b
-                if abs(V_New.n[b,a]) > abs(U_New.n[b,a])
+                if abs(U_New.n[b,a]) < 1e-8
                     nType = :V
                 end
-                nMax = (abs(U_New.n[b,a])^2 + abs(V_New.n[b,a])^2)
+                nMax = abs(U_New.n[b,a])^2 + abs(V_New.n[b,a])^2
             end
         end
 

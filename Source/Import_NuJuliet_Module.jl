@@ -89,6 +89,7 @@ module NuJuliet
     include("QTDA/QTDA_Solver.jl")
     include("QTDA/QTDA_Allocate.jl")
     include("QTDA/QTDA_Diagonalize.jl")
+    include("QTDA/QTDA_Transitions.jl")
     include("QTDA/QTDA_Export.jl")
 
 

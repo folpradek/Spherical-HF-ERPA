@@ -1,4 +1,4 @@
-function QTDA_export(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::qpOrb2B,E_QTDA::Matrix{Vector{Float64}},X_QTDA::Matrix{Matrix{Float64}})
+function QTDA_export(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::qpOrb2B,E_QTDA::Matrix{Vector{Float64}},X_QTDA::Matrix{Matrix{Float64}},rB_QTDA::ReducedTransition)
 
     # Export of QTDA summary ...
     @time QTDA_summary(Params,Orb_2qp)
@@ -13,7 +13,7 @@ function QTDA_export(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::qpOrb2B,E_QT
     #@time QTDA_amplitudes_export(Params,N_nu,E_RPA,X_RPA,Y_RPA)
 
     # Export oQTDA electric transitions ...
-    #@time QTDA_transition_export(Params,N_nu,E_TDA,E_RPA,rB_TDA,rB_RPA)
+    @time QTDA_transitions_export(Params,Orb_2qp,E_QTDA,rB_QTDA)
 
     # Export dimensions of phonon subspaces ...
     @time QTDA_phonon_space_export(Params,Orb_2qp)
@@ -58,7 +58,7 @@ function QTDA_summary(Params::Parameters,Orb_2qp::qpOrb2B)
         N_qp = 0
         @inbounds for J in 0:J_max
             @inbounds for P in 1:2
-                n_qp = Orb_2qp.N[J+1,P] * (2*J + 1)
+                n_qp = Orb_2qp.N[P,J+1] * (2*J + 1)
                 N_qp += n_qp
             end
         end
@@ -217,6 +217,72 @@ function QTDA_phonon_space_export(Params::Parameters,Orb_2qp::qpOrb2B)
     end
 
     println("\nDimensions of QTDA 1-phonon subspaces successfully exported ...")
+
+    return
+end
+
+
+
+
+# WIP
+
+function QTDA_transitions_export(Params::Parameters,Orb_2qp::qpOrb2B,E_QTDA::Matrix{Vector{Float64}},rB_QTDA::ReducedTransition)
+    # Read parameters ...
+    Orthogon = Params.Calc.QTDA.Ortho
+
+    # Set the export path ...
+    Output_File = "IO/" * Params.Calc.Path
+
+    println("\nPreparing export of QTDA 1-phonon electromagnetic transition intensities ...")
+
+    # QTDA E0 export ...
+    open(Output_File * "/QTDA/Transitions/E0/QTDA_E0.dat", "w") do Write_File
+        J, P = 0, 1
+        println(Write_File, "E\tB_ph\tB_is\tB_iv")
+        @inbounds for nu = 1:Orb_2qp.N[P,J+1]
+            println(Write_File, string(round(E_QTDA[P,J+1][nu], sigdigits=4)) * "\t" * string(round(rB_QTDA.E0.ph[nu],digits = 4)) * "\t" * string(round(rB_QTDA.E0.is[nu],digits = 4)) * "\t" * string(round(rB_QTDA.E0.iv[nu],digits = 4)))
+        end
+    end
+
+    if Orthogon == true && 1 == 2
+        # QTDA E1 export ...
+        open(Output_File * "/QTDA/Transitions/E1/QTDA_E1.dat", "w") do Write_File
+            J, P = 1, 2
+            println(Write_File, "E\tB_ph\tB_is\tB_iv")
+            @inbounds for nu in 1:Orb_2qp.N[P,J+1]
+                println(Write_File, string(round(E_QTDA[P,J+1][nu], sigdigits=4)) * "\t" * string(round(rB_QTDA.E1.ph[nu],digits = 4)) * "\t" * string(round(rB_QTDA.E1.is[nu],digits = 4)) * "\t" * string(round(rB_QTDA.E1.iv[nu],digits = 4)))
+            end
+        end
+    else
+        # QTDA E1 export ...
+        open(Output_File * "/QTDA/Transitions/E1/QTDA_E1.dat", "w") do Write_File
+            J, P = 1, 2
+            println(Write_File, "E\tB_E1_ph\tB_E1_is\tB_E1_iv")
+            @inbounds for nu in 1:Orb_2qp.N[P,J+1]
+                println(Write_File, string(round(E_QTDA[P,J+1][nu], sigdigits=4)) * "\t" * string(round(rB_QTDA.E1.ph[nu],digits = 4)) * "\t" * string(round(rB_QTDA.E1.is[nu],digits = 4)) * "\t" * string(round(rB_QTDA.E1.iv[nu],digits = 4)))
+            end
+        end
+    end
+
+    # QTDA E2 export ...
+    open(Output_File * "/QTDA/Transitions/E2/QTDA_E2.dat", "w") do Write_File
+        J, P = 2, 1
+        println(Write_File, "E\tB_ph\tB_is\tB_iv")
+        @inbounds for nu = 1:Orb_2qp.N[P,J+1]
+            println(Write_File, string(round(E_QTDA[P,J+1][nu], sigdigits=4)) * "\t" * string(round(rB_QTDA.E2.ph[nu],digits = 4)) * "\t" * string(round(rB_QTDA.E2.is[nu],digits = 4)) * "\t" * string(round(rB_QTDA.E2.iv[nu],digits = 4)))
+        end
+    end
+
+    # QTDA E3 export ...
+    open(Output_File * "/QTDA/Transitions/E3/QTDA_E3.dat", "w") do Write_File
+        J, P = 3, 2
+        println(Write_File, "E\tB_ph\tB_is\tB_iv")
+        @inbounds for nu = 1:1:Orb_2qp.N[P,J+1]
+            println(Write_File, string(round(E_QTDA[P,J+1][nu], sigdigits=4)) * "\t" * string(round(rB_QTDA.E3.ph[nu],digits = 4)) * "\t" * string(round(rB_QTDA.E3.is[nu],digits = 4)) * "\t" * string(round(rB_QTDA.E3.iv[nu],digits = 4)))
+        end
+    end
+
+    println("\nQTDA 1-phonon electromagnetic transition intensities succesfully exported ...")
 
     return
 end

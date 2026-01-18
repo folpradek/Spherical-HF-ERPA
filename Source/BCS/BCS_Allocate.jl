@@ -250,15 +250,15 @@ function BCS_allocate_amplitudes(Params::Parameters,Lambda::pnFloat,SPE::pnVecto
 
     # Calculate U & V from initial guess ... from the initial guess
     @inbounds for a in 1:a_max
-        # Correct Condon-Shortley phase factors ... actually irrelevant ...
+        # Correct Condon-Shortley phase factors ... (irrelevant ???)
         Amp = Float64((-1)^Orb[a].l)
 
         pME = (SPE.p[a] - Lambda.p) / sqrt(((SPE.p[a] - Lambda.p))^2 + Delta.p[a]^2)
-        pV[a] = Amp * sqrt(0.5 * (1.0 - pME))
+        pV[a] = sqrt(0.5 * (1.0 - pME))
         pU[a] = Amp * sqrt(0.5 * (1.0 + pME))
 
         nME = (SPE.n[a] - Lambda.n) / sqrt(((SPE.n[a] - Lambda.n))^2 + Delta.n[a]^2)
-        nV[a] = Amp * sqrt(0.5 * (1.0 - nME))
+        nV[a] = sqrt(0.5 * (1.0 - nME))
         nU[a] = Amp * sqrt(0.5 * (1.0 + nME))
     end
 

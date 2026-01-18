@@ -1,202 +1,111 @@
-function QTDA_rM(Params::Parameters,Orb::Vector{NOrb},Orb_2qp::qpOrb2B,X_QTDA::Matrix{Matrix{Float64}},qpTrOp::qpTr1B)
+function QTDA_rM(Params::Parameters,Orb_2qp::qpOrb2B,X_QTDA::Matrix{Matrix{Float64}},qpTrOp::qpTr1B)
     # Read calculation parameters ...
     Orthogon = Params.Calc.QTDA.Ortho
 
     # Evaluate the reduced transition metrix elements M^lambda ...
-    println("\nCalculating reduced transition matrix elements rM ...")
+    println("\nCalculating the QTDA 1-phonon reduced transition matrix elements rM^lambda ...")
 
     # E0
     J, P = 0, 1
-    N_qp = Orb_2qp.N[J+1,P]
+    N_qp = Orb_2qp.N[P,J+1]
     pM_E0 = Vector{ComplexF64}(undef,N_qp)
     nM_E0 = Vector{ComplexF64}(undef,N_qp)
     @inbounds for nu in 1:N_qp
         pM_E0Sum, nM_E0Sum = 0.0, 0.0
         @inbounds  for i_qp in 1:N_qp
-
-            a, b, T_ab = Orb_2qp.qp[J+1,P][i_qp].a, Orb_2qp.qp[J+1,P][i_qp].b, Orb_2qp.qp[J+1,P][i_qp].T
-
-
-            if t_ph == -1
-                ME = qpTrOp.E0.qp22.p[a,b] * X_QTDA[J+1,P][i_qp,nu] / sqrt(1.0 + kron_delta(a,b))
+            a, b, T_ab = Orb_2qp.i[P,J+1][i_qp].a, Orb_2qp.i[P,J+1][i_qp].b, Orb_2qp.i[P,J+1][i_qp].T
+            if T_ab == -1
+                ME = X_QTDA[P,J+1][i_qp,nu] * (qpTrOp.E0.qp20.p[a,b] + qpTrOp.E0.qp20.p[b,a]) / sqrt(1.0 + kronecker_delta(a,b))
                 pM_E0Sum += ME
             end
 
-            if t_ph == 1
-                ME0_TDA = TrOp.E0.n[a_p,a_h] * X_TDA[J+1,P][Ind_ph,nu]
-                nME0Sum_TDA += ME0_TDA
-
-                ME0_RPA = TrOp.E0.n[a_p,a_h] * (X_RPA[J+1,P][Ind_ph,nu] + Y_RPA[J+1,P][Ind_ph,nu])
-                nME0Sum_RPA += ME0_RPA
+            if T_ab == 1
+                ME = X_QTDA[P,J+1][i_qp,nu] * (qpTrOp.E0.qp20.n[a,b] + qpTrOp.E0.qp20.n[b,a]) / sqrt(1.0 + kronecker_delta(a,b))
+                nM_E0Sum += ME
             end
-
         end
-        prME0_TDA[nu] = pME0Sum_TDA
-        nrME0_TDA[nu] = nME0Sum_TDA
-        prME0_RPA[nu] = pME0Sum_RPA
-        nrME0_RPA[nu] = nME0Sum_RPA
+        pM_E0[nu] = pM_E0Sum
+        nM_E0[nu] = nM_E0Sum
     end
 
     # E1
-    J = 1
-    P = 2
-    N_ph = N_nu[J+1,P]
-    prME1_TDA = Vector{ComplexF64}(undef,N_ph)
-    prME1_RPA = Vector{ComplexF64}(undef,N_ph)
-    nrME1_TDA = Vector{ComplexF64}(undef,N_ph)
-    nrME1_RPA = Vector{ComplexF64}(undef,N_ph)
-    @inbounds  for nu in 1:N_ph
-        if (Orthogon == true && nu != 1) || (Orthogon == false)
-            pME1Sum_TDA = ComplexF64(0.0)
-            pME1Sum_RPA = ComplexF64(0.0)
-            nME1Sum_TDA = ComplexF64(0.0)
-            nME1Sum_RPA = ComplexF64(0.0)
-            @inbounds  for Ind_ph in 1:N_ph
-                ph = Orb_Phonon[J+1,P][Ind_ph]
-                p, h = Phonon[ph].p, Phonon[ph].h
-                t_ph = Phonon[ph].tz
-                if t_ph == -1
-                    a_p = Particle.p[p].a
-                    a_h = Hole.p[h].a
-                elseif t_ph == 1
-                    a_p = Particle.n[p].a
-                    a_h = Hole.n[h].a
-                end
-
-                if t_ph == -1
-                    ME1_TDA = TrOp.E1.p[a_p,a_h] * X_TDA[J+1,P][Ind_ph,nu] * -1.0
-                    pME1Sum_TDA += ME1_TDA
-
-                    ME1_RPA = TrOp.E1.p[a_p,a_h] * (-1.0 * X_RPA[J+1,P][Ind_ph,nu] + Y_RPA[J+1,P][Ind_ph,nu])
-                    pME1Sum_RPA += ME1_RPA
-                end
-
-                if t_ph == 1
-                    ME1_TDA = TrOp.E1.n[a_p,a_h] * X_TDA[J+1,P][Ind_ph,nu] * -1.0
-                    nME1Sum_TDA += ME1_TDA
-
-                    ME1_RPA = TrOp.E1.n[a_p,a_h] * (-1.0 * X_RPA[J+1,P][Ind_ph,nu] + Y_RPA[J+1,P][Ind_ph,nu])
-                    nME1Sum_RPA += ME1_RPA
-                end
-
+    J, P = 1, 2
+    N_qp = Orb_2qp.N[P,J+1]
+    pM_E1 = Vector{ComplexF64}(undef,N_qp)
+    nM_E1 = Vector{ComplexF64}(undef,N_qp)
+    @inbounds for nu in 1:N_qp
+        pM_E1Sum, nM_E1Sum = 0.0, 0.0
+        @inbounds  for i_qp in 1:N_qp
+            a, b, T_ab = Orb_2qp.i[P,J+1][i_qp].a, Orb_2qp.i[P,J+1][i_qp].b, Orb_2qp.i[P,J+1][i_qp].T
+            if T_ab == -1
+                ME = X_QTDA[P,J+1][i_qp,nu] * (qpTrOp.E1.qp20.p[a,b] + qpTrOp.E1.qp20.p[b,a]) / sqrt(1.0 + kronecker_delta(a,b))
+                pM_E1Sum += ME
             end
-            prME1_TDA[nu] = pME1Sum_TDA
-            nrME1_TDA[nu] = nME1Sum_TDA
-            prME1_RPA[nu] = pME1Sum_RPA
-            nrME1_RPA[nu] = nME1Sum_RPA
+
+            if T_ab == 1
+                ME = X_QTDA[P,J+1][i_qp,nu] * (qpTrOp.E1.qp20.n[a,b] + qpTrOp.E1.qp20.n[b,a]) / sqrt(1.0 + kronecker_delta(a,b))
+                nM_E1Sum += ME
+            end
         end
+        pM_E1[nu] = pM_E1Sum
+        nM_E1[nu] = nM_E1Sum
     end
 
     # E2
-    J = 2
-    P = 1
-    N_ph = N_nu[J+1,P]
-    prME2_TDA = Vector{ComplexF64}(undef,N_ph)
-    prME2_RPA = Vector{ComplexF64}(undef,N_ph)
-    nrME2_TDA = Vector{ComplexF64}(undef,N_ph)
-    nrME2_RPA = Vector{ComplexF64}(undef,N_ph)
-    @inbounds  for nu in 1:N_ph
-        pME2Sum_TDA = ComplexF64(0.0)
-        pME2Sum_RPA = ComplexF64(0.0)
-        nME2Sum_TDA = ComplexF64(0.0)
-        nME2Sum_RPA = ComplexF64(0.0)
-        @inbounds  for Ind_ph in 1:N_ph
-            ph = Orb_Phonon[J+1,P][Ind_ph]
-            p, h = Phonon[ph].p, Phonon[ph].h
-            t_ph = Phonon[ph].tz
-            if t_ph == -1
-                a_p = Particle.p[p].a
-                a_h = Hole.p[h].a
-            elseif t_ph == 1
-                a_p = Particle.n[p].a
-                a_h = Hole.n[h].a
+    J, P = 2, 1
+    N_qp = Orb_2qp.N[P,J+1]
+    pM_E2 = Vector{ComplexF64}(undef,N_qp)
+    nM_E2 = Vector{ComplexF64}(undef,N_qp)
+    @inbounds for nu in 1:N_qp
+        pM_E2Sum, nM_E2Sum = 0.0, 0.0
+        @inbounds  for i_qp in 1:N_qp
+            a, b, T_ab = Orb_2qp.i[P,J+1][i_qp].a, Orb_2qp.i[P,J+1][i_qp].b, Orb_2qp.i[P,J+1][i_qp].T
+            if T_ab == -1
+                ME = X_QTDA[P,J+1][i_qp,nu] * (qpTrOp.E2.qp20.p[a,b] + qpTrOp.E2.qp20.p[b,a]) / sqrt(1.0 + kronecker_delta(a,b))
+                pM_E2Sum += ME
             end
 
-            if t_ph == -1
-                ME2_TDA = TrOp.E2.p[a_p,a_h] * X_TDA[J+1,P][Ind_ph,nu]
-                pME2Sum_TDA += ME2_TDA
-
-                ME2_RPA = TrOp.E2.p[a_p,a_h] * (X_RPA[J+1,P][Ind_ph,nu] + Y_RPA[J+1,P][Ind_ph,nu])
-                pME2Sum_RPA += ME2_RPA
+            if T_ab == 1
+                ME = X_QTDA[P,J+1][i_qp,nu] * (qpTrOp.E2.qp20.n[a,b] + qpTrOp.E2.qp20.n[b,a]) / sqrt(1.0 + kronecker_delta(a,b))
+                nM_E2Sum += ME
             end
-
-            if t_ph == 1
-                ME2_TDA = TrOp.E2.n[a_p,a_h] * X_TDA[J+1,P][Ind_ph,nu]
-                nME2Sum_TDA += ME2_TDA
-
-                ME2_RPA = TrOp.E2.n[a_p,a_h] * (X_RPA[J+1,P][Ind_ph,nu] + Y_RPA[J+1,P][Ind_ph,nu])
-                nME2Sum_RPA += ME2_RPA
-            end
-
         end
-        prME2_TDA[nu] = pME2Sum_TDA
-        nrME2_TDA[nu] = nME2Sum_TDA
-        prME2_RPA[nu] = pME2Sum_RPA
-        nrME2_RPA[nu] = nME2Sum_RPA
+        pM_E2[nu] = pM_E2Sum
+        nM_E2[nu] = nM_E2Sum
     end
 
     # E3
     J = 3
     P = 2
-    N_ph = N_nu[J+1,P]
-    prME3_TDA = Vector{ComplexF64}(undef,N_ph)
-    prME3_RPA = Vector{ComplexF64}(undef,N_ph)
-    nrME3_TDA = Vector{ComplexF64}(undef,N_ph)
-    nrME3_RPA = Vector{ComplexF64}(undef,N_ph)
-    @inbounds  for nu in 1:N_ph
-        pME3Sum_TDA = ComplexF64(0.0)
-        pME3Sum_RPA = ComplexF64(0.0)
-        nME3Sum_TDA = ComplexF64(0.0)
-        nME3Sum_RPA = ComplexF64(0.0)
-        @inbounds  for Ind_ph in 1:N_ph
-            ph = Orb_Phonon[J+1,P][Ind_ph]
-            p, h = Phonon[ph].p, Phonon[ph].h
-            t_ph = Phonon[ph].tz
-            if t_ph == -1
-                a_p = Particle.p[p].a
-                a_h = Hole.p[h].a
-            elseif t_ph == 1
-                a_p = Particle.n[p].a
-                a_h = Hole.n[h].a
+    N_qp = Orb_2qp.N[P,J+1]
+    pM_E3 = Vector{ComplexF64}(undef,N_qp)
+    nM_E3 = Vector{ComplexF64}(undef,N_qp)
+    @inbounds for nu in 1:N_qp
+        pM_E3Sum, nM_E3Sum = 0.0, 0.0
+        @inbounds  for i_qp in 1:N_qp
+            a, b, T_ab = Orb_2qp.i[P,J+1][i_qp].a, Orb_2qp.i[P,J+1][i_qp].b, Orb_2qp.i[P,J+1][i_qp].T
+            if T_ab == -1
+                ME = X_QTDA[P,J+1][i_qp,nu] * (qpTrOp.E3.qp20.p[a,b] + qpTrOp.E3.qp20.p[b,a]) / sqrt(1.0 + kronecker_delta(a,b))
+                pM_E3Sum += ME
             end
 
-            if t_ph == -1
-                ME3_TDA = TrOp.E3.p[a_p,a_h] * X_TDA[J+1,P][Ind_ph,nu] * -1.0
-                pME3Sum_TDA += ME3_TDA
-
-                ME3_RPA = TrOp.E3.p[a_p,a_h] * (-1.0 * X_RPA[J+1,P][Ind_ph,nu] + Y_RPA[J+1,P][Ind_ph,nu])
-                pME3Sum_RPA += ME3_RPA
+            if T_ab == 1
+                ME =X_QTDA[P,J+1][i_qp,nu] * (qpTrOp.E3.qp20.n[a,b] + qpTrOp.E3.qp20.n[b,a]) / sqrt(1.0 + kronecker_delta(a,b))
+                nM_E3Sum += ME
             end
-
-            if t_ph == 1
-                ME3_TDA = TrOp.E3.n[a_p,a_h] * X_TDA[J+1,P][Ind_ph,nu] * -1.0
-                nME3Sum_TDA += ME3_TDA
-
-                ME3_RPA = TrOp.E3.n[a_p,a_h] * (-1.0 * X_RPA[J+1,P][Ind_ph,nu] + Y_RPA[J+1,P][Ind_ph,nu])
-                nME3Sum_RPA += ME3_RPA
-            end
-
         end
-        prME3_TDA[nu] = pME3Sum_TDA
-        nrME3_TDA[nu] = nME3Sum_TDA
-        prME3_RPA[nu] = pME3Sum_RPA
-        nrME3_RPA[nu] = nME3Sum_RPA
+        pM_E3[nu] = pM_E3Sum
+        nM_E3[nu] = nM_E3Sum
     end
 
-    rM0_TDA = pnCVector(prME0_TDA,nrME0_TDA)
-    rM1_TDA = pnCVector(prME1_TDA,nrME1_TDA)
-    rM2_TDA = pnCVector(prME2_TDA,nrME2_TDA)
-    rM3_TDA = pnCVector(prME3_TDA,nrME3_TDA)
+    rM_E0 = pnCVector(Complex.(pM_E0),Complex.(nM_E0))
+    rM_E1 = pnCVector(Complex.(pM_E1),Complex.(nM_E1))
+    rM_E2 = pnCVector(Complex.(pM_E2),Complex.(nM_E2))
+    rM_E3 = pnCVector(Complex.(pM_E3),Complex.(nM_E3))
 
-    rM0_RPA = pnCVector(prME0_RPA,nrME0_RPA)
-    rM1_RPA = pnCVector(prME1_RPA,nrME1_RPA)
-    rM2_RPA = pnCVector(prME2_RPA,nrME2_RPA)
-    rM3_RPA = pnCVector(prME3_RPA,nrME3_RPA)
+    rM_QTDA = ReducedMultipole(rM_E0,rM_E1,rM_E2,rM_E3)
 
-    rM_TDA = ReducedMultipole(rM0_TDA,rM1_TDA,rM2_TDA,rM3_TDA)
-    rM_RPA = ReducedMultipole(rM0_RPA,rM1_RPA,rM2_RPA,rM3_RPA)
-
-    println("\nReduced transition matrix elements rM calculated ...")
+    println("\nQTDA 1-phonon reduced transition matrix elements rM^lambda succesfully calculated ...")
 
     return rM_QTDA
 end
@@ -205,44 +114,41 @@ function QTDA_rB(Params::Parameters,Orb_2qp::qpOrb2B,rM::ReducedMultipole)
     # Read parameters ...
     Orthogon = Params.Calc.QTDA.Ortho
 
-    println("\nCalculating reduced transition intensities rB ...")
+    println("\nCalculating the QTDA 1-phonon reduced transition intensities rB^lambda ...")
 
     # E0
-    J = 0
-    P = 1
-    N_ph = N_nu[J+1,P]
+    J, P = 0, 1
+    N_qp = Orb_2qp.N[P,J+1]
 
-    rB_phE0 = zeros(Float64,N_ph)
-    rB_isE0 = zeros(Float64,N_ph)
-    rB_ivE0 = zeros(Float64,N_ph)
+    rB_phE0 = zeros(Float64,N_qp)
+    rB_isE0 = zeros(Float64,N_qp)
+    rB_ivE0 = zeros(Float64,N_qp)
 
-    @inbounds for nu in 1:N_ph
+    @inbounds for nu in 1:N_qp
         rB_phE0[nu] = abs(rM.E0.p[nu])^2
         rB_isE0[nu] = 0.25 * abs(rM.E0.p[nu] + rM.E0.n[nu])^2
         rB_ivE0[nu] = 0.25 * abs(rM.E0.p[nu] - rM.E0.n[nu])^2
     end
 
     # E1
-    J = 1
-    P = 2
-    N_ph = N_nu[J+1,P]
+    J, P = 1, 2
+    N_qp = Orb_2qp.N[P,J+1]
 
-    rB_phE1 = zeros(Float64,N_ph)
-    rB_isE1 = zeros(Float64,N_ph)
-    rB_ivE1 = zeros(Float64,N_ph)
+    rB_phE1 = zeros(Float64,N_qp)
+    rB_isE1 = zeros(Float64,N_qp)
+    rB_ivE1 = zeros(Float64,N_qp)
 
     if Orthogon == true
-        @inbounds for nu in 1:N_ph
+        @inbounds for nu in 1:N_qp
             rB_phE1[nu] = abs(rM.E1.p[nu])^2
             rB_isE1[nu] = 0.25 * abs(rM.E1.p[nu] + rM.E1.n[nu])^2
             rB_ivE1[nu] = 0.25 * abs(rM.E1.p[nu] - rM.E1.n[nu])^2
         end
     else
-        A = Params.Calc.A
-        Z = Params.Calc.Z
+        A, Z = Params.Calc.A, Params.Calc.Z
         e_p = Float64(A - Z) / Float64(A)
         e_n = Float64(Z) / Float64(A)
-        @inbounds for nu in 1:N_ph
+        @inbounds for nu in 1:N_qp
             rB_phE1[nu] = abs(rM.E1.p[nu])^2
             rB_isE1[nu] = 0.25 * abs(rM.E1.p[nu] + rM.E1.n[nu])^2
             rB_ivE1[nu] = abs(e_p * rM.E1.p[nu] - e_n * rM.E1.n[nu])^2
@@ -250,30 +156,28 @@ function QTDA_rB(Params::Parameters,Orb_2qp::qpOrb2B,rM::ReducedMultipole)
     end
 
     # E2
-    J = 2
-    P = 1
-    N_ph = N_nu[J+1,P]
+    J, P = 2, 1
+    N_qp = Orb_2qp.N[P,J+1]
 
-    rB_phE2 = zeros(Float64,N_ph)
-    rB_isE2 = zeros(Float64,N_ph)
-    rB_ivE2 = zeros(Float64,N_ph)
+    rB_phE2 = zeros(Float64,N_qp)
+    rB_isE2 = zeros(Float64,N_qp)
+    rB_ivE2 = zeros(Float64,N_qp)
 
-    @inbounds for nu in 1:N_ph
+    @inbounds for nu in 1:N_qp
         rB_phE2[nu] = abs(rM.E2.p[nu])^2
         rB_isE2[nu] = 0.25 * abs(rM.E2.p[nu] + rM.E2.n[nu])^2
         rB_ivE2[nu] = 0.25 * abs(rM.E2.p[nu] - rM.E2.n[nu])^2
     end
 
     # E3
-    J = 3
-    P = 2
-    N_ph = N_nu[J+1,P]
+    J, P = 3, 2
+    N_qp = Orb_2qp.N[P,J+1]
 
-    rB_phE3 = zeros(Float64,N_ph)
-    rB_isE3 = zeros(Float64,N_ph)
-    rB_ivE3 = zeros(Float64,N_ph)
+    rB_phE3 = zeros(Float64,N_qp)
+    rB_isE3 = zeros(Float64,N_qp)
+    rB_ivE3 = zeros(Float64,N_qp)
 
-    @inbounds for nu in 1:N_ph
+    @inbounds for nu in 1:N_qp
         rB_phE3[nu] = abs(rM.E3.p[nu])^2
         rB_isE3[nu] = 0.25 * abs(rM.E3.p[nu] + rM.E3.n[nu])^2
         rB_ivE3[nu] = 0.25 * abs(rM.E3.p[nu] - rM.E3.n[nu])^2
@@ -284,9 +188,9 @@ function QTDA_rB(Params::Parameters,Orb_2qp::qpOrb2B,rM::ReducedMultipole)
     rB_E2 = Transition(rB_phE2,rB_isE2,rB_ivE2)
     rB_E3 = Transition(rB_phE3,rB_isE3,rB_ivE3)
 
-    rB_ph = ReducedTransition(rB_E0,rB_E1,rB_E2,rB_E3)
+    rB = ReducedTransition(rB_E0,rB_E1,rB_E2,rB_E3)
 
-    println("\nReduced transition intensities rB evaluated ...")
+    println("\nQTDA 1-phonon reduced transition intensities rB have been succesfully calculated ...")
 
-    return rB_ph
+    return rB
 end

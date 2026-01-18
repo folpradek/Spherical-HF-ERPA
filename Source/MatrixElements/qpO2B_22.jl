@@ -1,8 +1,8 @@
 function qpO2b_22_allocate(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,Q_NN::qpO2B,O_NN::O2B,U::O1B,V::O1B)
-    println("\nAllocating (22) components of the given operator in the quasiparticle representation ...")
-
     # Preallocate arrays of allowed values of J & P ...
     JP = JP_initialize(Params.Calc.N2max + 1)
+
+    println("\nAllocating (22) components of the given operator in the quasiparticle representation ...")
 
     # Initialize temporary V & W interaction arrays ...
     Q_NN_t1, Q_NN_t2, Orb_NN_t = qpO2b_22_initialize(Params,Orb)
@@ -561,7 +561,7 @@ function qpO2b_22_allocate_ind4(Params::Parameters,JP::Vector{Vector{Int64}},Orb
                                 =#
 
                                 
-                                Amp2002 = Float64((-1)^(J + I + div(j_b + j_c,2)) * (2*I + 1)) * f6j(j_a,j_b,2*J,j_d,j_c,2*I) * sqrt(Float64((1 + kronecker_delta(a,b) * (-1)^J) * (1 + kronecker_delta(c,d) * (-1)^J)))
+                                Amp2002 = Float64((-1)^(J + I + div(j_b + j_c,2)) * (2*I + 1)) * f6j(j_a,j_b,2*J,j_d,j_c,2*I) * sqrt(Float64((1 + kronecker_delta(a,c) * (-1)^I) * (1 + kronecker_delta(b,d) * (-1)^I)))
                                 Amp0220 = Amp2002
             
                                 Bra_ac, Ket_bd = O2b_temp_index(a,c,I,P,Orb_NN_t), O2b_temp_index(b,d,I,P,Orb_NN_t)
@@ -574,7 +574,6 @@ function qpO2b_22_allocate_ind4(Params::Parameters,JP::Vector{Vector{Int64}},Orb
                             # pnO1111 ...
                             if abs(j_a - j_d) <= 2*I && 2*I <= (j_a + j_d) && abs(j_c - j_b) <= 2*I &&
                             2*I <= (j_c + j_b) && (rem(l_a + l_d,2) + 1 == P) && (rem(l_b + l_c,2) + 1 == P)
-
                                 Amp1111 = Float64((-1)^(J) * (2*I + 1)) * f6j(j_a,j_b,2*J,j_c,j_d,2*I)
 
                                 Bra_ad, Ket_cb = O2b_temp_index(a,d,I,P,Orb_NN_t), O2b_temp_index(c,b,I,P,Orb_NN_t)
@@ -617,7 +616,6 @@ function qpO2b_22_allocate_ind4(Params::Parameters,JP::Vector{Vector{Int64}},Orb
                         end
 
                         Amp = Float64((-1)^(J + 1)) * sqrt(Float64((1 + kronecker_delta(a,b) * (-1)^J) * (1 + kronecker_delta(c,d) * (-1)^J))) # My og and Suhonen ...
-                        #Amp = Float64((-1)^(J)) # ???
 
                         OppSum = Amp * OppSum
                         OnnSum = Amp * OnnSum
@@ -626,8 +624,7 @@ function qpO2b_22_allocate_ind4(Params::Parameters,JP::Vector{Vector{Int64}},Orb
                         @inbounds for I in 0:J_max
                             if abs(j_a - j_d) <= 2*I && 2*I <= (j_a + j_d) && abs(j_b - j_c) <= 2*I &&
                             2*I <= (j_b + j_c) && (rem(l_a + l_d,2) + 1 == P) && (rem(l_b + l_c,2) + 1 == P)
-
-                                AmpR = 4.0 * Float64((-1)^(J) * (2*I + 1)) * f6j(j_a,j_b,2*J,j_c,j_d,2*I) * sqrt(Float64((1 + kronecker_delta(a,b) * (-1)^J) * (1 + kronecker_delta(c,d) * (-1)^J))) # My og ... also in Suhonen ...
+                                AmpR = 4.0 * Float64((-1)^(J) * (2*I + 1)) * f6j(j_a,j_b,2*J,j_c,j_d,2*I) * sqrt(Float64((1 + kronecker_delta(a,d) * (-1)^I) * (1 + kronecker_delta(b,c) * (-1)^I))) # My og ... also in Suhonen ...
 
                                 Bra_ad, Ket_cb = O2b_temp_index(a,d,I,P,Orb_NN_t), O2b_temp_index(c,b,I,P,Orb_NN_t)
 

@@ -94,9 +94,10 @@ function HFB_Broyden_reconstruct(Params::Parameters,Rho::pnVector,Kappa::pnVecto
     @inbounds for a in 1:a_max
         @inbounds for b in 1:a_max
             i = Broyden.Map[a,b]
-            if i != 0
-                pRho[a,b], pKappa[a,b] = Rho.p[i], Kappa.p[i]
-                nRho[a,b], nKappa[a,b] = Rho.n[i], Kappa.n[i]
+            j = Broyden.Map[b,a]
+            if i != 0 && j != 0
+                pRho[a,b], pKappa[a,b] = 0.5 * (Rho.p[i] + Rho.p[j]), 0.5 * (Kappa.p[i] + Kappa.p[j])
+                nRho[a,b], nKappa[a,b] = 0.5 * (Rho.n[i] + Rho.n[j]), 0.5 * (Kappa.n[i] + Kappa.n[j])
             end
         end
     end
@@ -226,7 +227,7 @@ function HFB_Broyden_update(Params::Parameters,Iteration::Int64,Rho::O1B,Kappa::
     beta_max = Params.Calc.HFB.Broy_Bmax
         # Maximal number of damping quenches ... by default Quench_max = 3 ...
     Quench_max = Params.Calc.HFB.Broy_Qmax
-        # Maximal relative norm of trial change ... by default T_max = 0.9 ...
+        # Maximal relative norm of trial change ... by default T_max = 0.975 ...
     trial_max = Params.Calc.HFB.Broy_Tmax
 
     # Initialize quenching flags ...
@@ -280,15 +281,14 @@ function HFB_Broyden_update(Params::Parameters,Iteration::Int64,Rho::O1B,Kappa::
             dX_beta_max = beta_max * norm(alpha_r)
             if dX_beta_max > 1e-8 && norm(X_beta) > dX_beta_max
                 X_beta .= X_beta .* (dX_beta_max / (norm(X_beta) + 1e-10))
-            else
-                X_beta .= 0.0
             end
 
-            pRho_trial  = BroyVec.x_Rho.p .+ alpha_r .- X_beta
+            #pRho_trial = BroyVec.x_Rho.p .+ alpha_r #.- X_beta
+            pRho_trial = pRho
             D_pRho_trial = norm(pRho .- pRho_trial)
 
             if ((D_pRho_trial / D_pRho) < trial_max) || (Quench == Quench_max)
-                BroyVec.z_Rho.p  .= pRho_trial
+                BroyVec.z_Rho.p .= pRho_trial
                 Q_pRho = true
             else
                 alpha_pRho = 0.5 * alpha_pRho
@@ -302,11 +302,10 @@ function HFB_Broyden_update(Params::Parameters,Iteration::Int64,Rho::O1B,Kappa::
             dX_beta_max = beta_max * norm(alpha_r)
             if dX_beta_max > 1e-8 && norm(X_beta) > dX_beta_max
                 X_beta .= X_beta .* (dX_beta_max / (norm(X_beta) + 1e-10))
-            else
-                X_beta .= 0.0
             end
 
-            pKappa_trial = BroyVec.x_Kappa.p .+ alpha_r .- X_beta
+            #pKappa_trial = BroyVec.x_Kappa.p .+ alpha_r #.- X_beta
+            pKappa_trial = pKappa
 
             D_pKappa_trial = norm(pKappa .- pKappa_trial)
 
@@ -325,11 +324,10 @@ function HFB_Broyden_update(Params::Parameters,Iteration::Int64,Rho::O1B,Kappa::
             dX_beta_max = beta_max * norm(alpha_r)
             if dX_beta_max > 1e-8 && norm(X_beta) > dX_beta_max
                 X_beta .= X_beta .* (dX_beta_max / (norm(X_beta) + 1e-10))
-            else
-                X_beta .= 0.0
             end
 
-            nRho_trial = BroyVec.x_Rho.n .+ alpha_r .- X_beta
+            #nRho_trial = BroyVec.x_Rho.n .+ alpha_r #.- X_beta
+            nRho_trial = nRho
 
             D_nRho_trial = norm(nRho .- nRho_trial)
 
@@ -348,11 +346,10 @@ function HFB_Broyden_update(Params::Parameters,Iteration::Int64,Rho::O1B,Kappa::
             dX_beta_max = beta_max * norm(alpha_r)
             if dX_beta_max > 1e-8 && norm(X_beta) > dX_beta_max
                 X_beta .= X_beta .* (dX_beta_max / (norm(X_beta) + 1e-10))
-            else
-                X_beta .= 0.0
             end
 
-            nKappa_trial = BroyVec.x_Kappa.n .+ alpha_r .- X_beta
+            #nKappa_trial = BroyVec.x_Kappa.n .+ alpha_r #.- X_beta
+            nKappa_trial = nKappa
 
             D_nKappa_trial = norm(nKappa .- nKappa_trial)
 
