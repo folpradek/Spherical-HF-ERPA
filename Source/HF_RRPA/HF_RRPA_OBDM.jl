@@ -15,7 +15,7 @@ function HF_RRPA_OBDM_iteration(Params::Parameters,N_nu::Matrix{Int64},N_Particl
     # Iteration parameters ...
     delta, delta_odd, delta_even = 1.0, 1.0, 1.0
     epsilon, Tol_Float32 = Params.Calc.RRPA.Tol, 1e-8
-    Iteration, Iteration_max =  0, Params.Calc.RRPA.IMax
+    Iteration, Iteration_max =  0, Params.Calc.RRPA.Imax
 
     # Make Particle-Hole orbitals list ...
     ParticleHole = orbitals_ph_list(J_max,N_Particle,Particle,N_Hole,Hole)

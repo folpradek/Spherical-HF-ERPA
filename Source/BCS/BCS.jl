@@ -60,59 +60,66 @@ function BCS(Params::Parameters)
 end
 
 function BCS_reference(Params::Parameters)
-    # Initialize basic variables ...
-    Magic_Numbers = pnVector([2,8,20,28,50,82],[2,8,20,28,50,82,126])
-    N_target, Z_target = Params.Calc.A - Params.Calc.Z, Params.Calc.Z
-    N_ref, Z_ref = 0, 0
-    dN, dZ = 1000, 1000
+    # User specified reference closed-(sub)shell nucleus for BCS calculation ...
+    if Params.Calc.BCS.A0 > 0 && Params.Calc.BCS.Z0 > 0
+        # Set the parameters for reference mean-field calculation ...
+        CalcParams = Calculation_Parameters(
+                    A = Params.Calc.BCS.A0,
+                    Z = Params.Calc.BCS.Z0,
+                    hw = Params.Calc.hw,
+                    Nmax = Params.Calc.Nmax,
+                    N2max = Params.Calc.N2max,
+                    N3max = Params.Calc.N3max,                                                         
+                    CMS = Params.Calc.CMS,
+                    Path = Params.Calc.Path,
+                    HF = Params.Calc.HF,
+                    RPA = Params.Calc.RPA,
+                    RRPA = Params.Calc.RRPA,
+                    BCS = Params.Calc.BCS,
+                    HFB = Params.Calc.HFB,
+                    )
 
-    # This former approach causes problems ... due to weak pairing ...
-    #=
-        # Find the closest closed-shell (magic) proton number ...
-        @inbounds for Z in Magic_Numbers.p
-            if abs(Z_target - Z) < dZ
-                Z_ref, dZ = Z, abs(Z_target - Z)
+        return Parameters(Params.Int,CalcParams)
+
+    # Otherwise the closest closed-shell nucleus is picked ...
+    else
+        # Initialize basic variables ...
+        Magic_Numbers = pnVector([2,8,20,28,50,82],[2,8,20,28,50,82,126])
+        N_target, Z_target = Params.Calc.A - Params.Calc.Z, Params.Calc.Z
+        N_ref, Z_ref = 0, 0
+        dN, dZ = 1000, 1000
+
+        # Find the largest closed-shell (magic) proton number not exceeding Z_target ...
+        @inbounds for Z in Magic_Numbers.p 
+            if Z <= Z_target && (Z_target - Z) < dZ
+                Z_ref, dZ = Z, (Z_target - Z)
             end
         end
 
-        # Find the closest closed-shell (magic) neutron number ...
+        # Find the largest closed-shell (magic) neutron number not exceeding N_target ...
         @inbounds for N in Magic_Numbers.n
-            if abs(N_target - N) < dN
-                N_ref, dN = N, abs(N_target - N)
+            if N <= N_target && (N_target - N) < dN
+                N_ref, dN = N, (N_target - N)
             end
         end
-    =#
 
-    # Find the largest closed-shell (magic) proton number not exceeding Z_target ...
-    @inbounds for Z in Magic_Numbers.p 
-        if Z <= Z_target && (Z_target - Z) < dZ
-            Z_ref, dZ = Z, (Z_target - Z)
-        end
+        # Set the parameters for reference mean-field calculation ...
+        CalcParams = Calculation_Parameters(
+                    A = N_ref + Z_ref,
+                    Z = Z_ref,
+                    hw = Params.Calc.hw,
+                    Nmax = Params.Calc.Nmax,
+                    N2max = Params.Calc.N2max,
+                    N3max = Params.Calc.N3max,                                                         
+                    CMS = Params.Calc.CMS,
+                    Path = Params.Calc.Path,
+                    HF = Params.Calc.HF,
+                    RPA = Params.Calc.RPA,
+                    RRPA = Params.Calc.RRPA,
+                    BCS = Params.Calc.BCS,
+                    HFB = Params.Calc.HFB,
+                    )
+
+        return Parameters(Params.Int,CalcParams)
     end
-
-    # Find the largest closed-shell (magic) neutron number not exceeding N_target ...
-    @inbounds for N in Magic_Numbers.n
-        if N <= N_target && (N_target - N) < dN
-            N_ref, dN = N, (N_target - N)
-        end
-    end
-
-    # Set the parameters for reference mean-field calculation ...
-    CalcParams = Calculation_Parameters(
-                A = N_ref + Z_ref,
-                Z = Z_ref,
-                hw = Params.Calc.hw,
-                Nmax = Params.Calc.Nmax,
-                N2max = Params.Calc.N2max,
-                N3max = Params.Calc.N3max,                                                         
-                CMS = Params.Calc.CMS,
-                Path = Params.Calc.Path,
-                HF = Params.Calc.HF,
-                RPA = Params.Calc.RPA,
-                RRPA = Params.Calc.RRPA,
-                BCS = Params.Calc.BCS,
-                HFB = Params.Calc.HFB,
-                )
-
-    return Parameters(Params.Int,CalcParams)
 end

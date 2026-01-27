@@ -73,54 +73,44 @@ function BCS_summary_SQS(Params::Parameters,SPE::pnVector,SQE::pnVector,U::pnVec
     # Initialite occupation counters ...
     pn, nn = zeros(Int64,N_max+1,J_max+1), zeros(Int64,N_max+1,J_max+1)
 
-    # Precompute energy ordered s.p. states for print ...
-    Sort_pOrbs = sortperm(SPE.p, by = x -> real(x))
-    Sort_nOrbs = sortperm(SPE.n, by = x -> real(x))
-
     # Export orbitals ...
     println("\nExporting information on single-(quasi)particle orbits ...")
-    Summary_File =  open(string("IO/", Output_File, "/BCS/BCS_Summary.dat"), "a")
-        println(Summary_File,"\nProton single-(quasi)particle states")
-        println(Summary_File,"____________________________________________________________________")
-        println(Summary_File,"\tn\t\tl\t\t2j\t\tOcc\t\t\te\t\t\t\t\tU^2\t\t\t\tV^2\t\tE")
-        for Ind_a in 1:a_max
-            a = Sort_pOrbs[Ind_a]
+    Summary =  open(string("IO/", Output_File, "/BCS/BCS_Summary.dat"), "a")
+        println(Summary,"\nProton single-(quasi)particle states")
+        println(Summary,"____________________________________________________________________")
+        @printf(Summary, "%4s %4s %4s %4s %14s %14s %14s %14s", "n", "l", "2j", "O_a", "e", "U2", "V2", "E\n")
+        for a in 1:a_max
             l_a = Orb[a].l
             j_a = Orb[a].j
             n_a = pn[l_a+1,j_a+1]
             if Orb[a].pO == 1
-                O_a = "h"
+                O_a = 1.0
             else
-                O_a = "p"
+                O_a = 0.0
             end
-            Row = "\t" * string(n_a) * "\t\t" * string(l_a) * "\t\t" * string(j_a) * "\t\t" *  O_a * "\t\t" * string(round(SPE.p[a], sigdigits = 9)) * "\t\t\tMeV\t\t" *
-                    string(round(U.p[a]^2, sigdigits = 5)) * "\t\t" * string(round(V.p[a]^2, sigdigits = 5)) * "\t\t" * string(round(SQE.p[a], sigdigits = 9)) * "\t\t\tMeV"
-            println(Summary_File, Row)
+            @printf(Summary, "%4s %4s %4s %4d %14f %14f %14f %14f\tMeV\n",n_a, l_a, j_a, O_a, SPE.p[a], U.p[a]^2, V.p[a]^2, SQE.p[a])
             pn[l_a+1,j_a+1] += 1
         end
-        println(Summary_File,"____________________________________________________________________")
+        println(Summary,"____________________________________________________________________")
 
-        println(Summary_File,"\nNeutron single-(quasi)particle states")
-        println(Summary_File,"____________________________________________________________________")
-        println(Summary_File,"\tn\t\tl\t\t2j\t\tOcc\t\t\te\t\t\t\t\tU^2\t\t\t\tV^2\t\tE")
-        for Ind_a in 1:a_max
-            a = Sort_nOrbs[Ind_a]
+        println(Summary,"\nNeutron single-(quasi)particle states")
+        println(Summary,"____________________________________________________________________")
+        @printf(Summary, "%4s %4s %4s %4s %14s %14s %14s %14s", "n", "l", "2j", "O_a", "e", "U2", "V2", "E\n")
+        for a in 1:a_max
             l_a = Orb[a].l
             j_a = Orb[a].j
             n_a = nn[l_a+1,j_a+1]
             if Orb[a].nO == 1
-                O_a = "h"
+                O_a = 1.0
             else
-                O_a = "p"
+                O_a = 0.0
             end
-            Row = "\t" * string(n_a) * "\t\t" * string(l_a) * "\t\t" * string(j_a) * "\t\t" *  O_a * "\t\t" * string(round(SPE.n[a], sigdigits = 9)) * "\t\t\tMeV\t\t" *
-                    string(round(U.n[a]^2, sigdigits = 5)) * "\t\t" * string(round(V.n[a]^2, sigdigits = 5)) * "\t\t" * string(round(SQE.n[a], sigdigits = 9)) * "\t\t\tMeV"
-            println(Summary_File, Row)
+            @printf(Summary, "%4s %4s %4s %4d %14f %14f %14f %14f\tMeV\n",n_a, l_a, j_a, O_a, SPE.n[a], U.n[a]^2, V.n[a]^2, SQE.n[a])
             nn[l_a+1,j_a+1] += 1
         end
-        println(Summary_File,"____________________________________________________________________")
+        println(Summary,"____________________________________________________________________")
 
-    close(Summary_File)
+    close(Summary)
 
     return
 end

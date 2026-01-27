@@ -22,13 +22,13 @@ function HFB_canonical_basis(Params::Parameters,Rho::O1B,H::O1B,Delta::O1B,Orb::
 
     # Add a tiny deterministic diagonal splitting to lift accidental degeneracies ...
     @inbounds for i in 1:a_max
-        pRho[i,i] += 1e-10 * i
-        nRho[i,i] += 1e-10 * i
+        pRho[i,i] += 1e-13 * i
+        nRho[i,i] += 1e-13 * i
     end
 
     # Diagonalize 1-body HFB density matrix Rho ...
-    pn_C, pC = eigen(Symmetric(pRho))
-    nn_C, nC = eigen(Symmetric(nRho))
+    pn_C, pC = eigen(Symmetric(pRho), sortby = -)
+    nn_C, nC = eigen(Symmetric(nRho), sortby = -)
 
     # Clean numerical noise in C ...
     @inbounds for a in 1:a_max
@@ -65,7 +65,7 @@ function HFB_canonical_basis(Params::Parameters,Rho::O1B,H::O1B,Delta::O1B,Orb::
     SQE_C = HFB_canonical_basis_SQE(Params,O1B(pC,nC),H,Delta)
 
     # Reorder the single-quasiparticle orbitals ... u_C, v_C & SQE_C ...
-    SQE_C, u_C, v_C = HFB_canonical_basis_quasiparticle_reordering(Params,SQE_C,O1B(pu_C,nu_C),O1B(pv_C,nv_C),Orb)
+    SQE_C, u_C, v_C = HFB_canonical_basis_quasiparticle_reordering(Params,SQE_C,O1B(pC,nC),O1B(pu_C,nu_C),O1B(pv_C,nv_C),Orb)
 
     return SQE_C, O1B(pC,nC), u_C, v_C
 end

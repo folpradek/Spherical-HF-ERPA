@@ -39,14 +39,14 @@ function HFB_solver(Params::Parameters)
         @time H_N = HFB_allocate_H1b(Params,SQE)
 
         # Make density dependent residual 2-body interaction in the LHO basis ...
-        @time V_NN = V2b_residual_no2b(Params,Orb,Orb_NN,Orb_NNN,Rho,V_NN,V_NNN)
+        @time V_NN_new = V2b_residual_no2b(Params,Orb,Orb_NN,Orb_NNN,Rho,V_NN,V_NNN)
 
         # Perform transformation of U and V to the canonical basis ...
             # I think there should be no transpose when transforming U matrix ,,,
-        U, V = O1B(C.p * U.p, C.n * U.n), O1B(C.p' * V.p, C.n' * V.n)
+        U, V = O1B(C.p' * U.p, C.n' * U.n), O1B(C.p' * V.p, C.n' * V.n)
 
         # Allocate H_NN ... residual interaction 2-body Hamiltonian in the quasiparticle basis ...
-        @time H_NN = qpO2b(Params,Orb,Orb_NN,V_NN,C,U,V)
+        @time H_NN = qpO2b(Params,Orb,Orb_NN,V_NN_new,C,U,V)
 
         # Perform final export of HFB solution into binary files ...
         @time HFB_export(Params,Orb,Orb_NN,C,U,V,H_N,H_NN)
@@ -73,7 +73,7 @@ function HFB_solve(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,Orb_NNN::
     epsilon = Params.Calc.HFB.Tol
 
     # Setup local iteration variables ...
-    Iteration, Iteration_max, Convergence, Degeneracy = 0, Params.Calc.HFB.IMax, false, false
+    Iteration, Iteration_max, Convergence, Degeneracy = 0, Params.Calc.HFB.Imax, false, false
     dE, d2E, dZ, dN = 0.1, 0.1, 0.1, 0.1
 
     # Preallocate arrays ...
@@ -315,12 +315,13 @@ function HFB_solve(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,Orb_NNN::
     println("dE = " * string(dE))
     =#
 
-
-
     # Construct the canonical basis & evaluate approximate (BCS-like) amplitudes
     # & single-quasiparticle energies u_C, v_C & SQE_C ...
     #   U, V, Rho, Kappa, H, Delta ... remain expressed in the reference LHO basis ...
     SQE_C, C, u_C, v_C = HFB_canonical_basis(Params,Rho,H,Delta,Orb)
+
+    # Final re-ordering of the HFB solution ... descending in V ...
+    SQE, U, V = HFB_orbital_ordering(Params,SQE,U,V,Orb,Final_Ordering=true,C=C)
 
     return Lambda, SQE, U, V, SQE_C, u_C, v_C, C, Rho, Kappa, H, Delta, Convergence, Iteration
 end
@@ -356,77 +357,33 @@ function HFB_diagonalize(Params::Parameters,H::O1B,Delta::O1B,Orb::Vector{Orb1B}
 
     # Set phases of U & V to match with previous iteration ...
 
-    # Old algorithm ...
-    #=
-    @inbounds for a in 1:a_max
-        # Setup local variables ...
-        pInd, pMax = 0, 0.0
-        nInd, nMax = 0, 0.0
-
-        # Find the most dominant pair of amplitudes U & V ...
-        @inbounds for b in 1:a_max
-            if (abs(U_New.p[b,a])^2 + abs(V_New.p[b,a])^2) > pMax
-                pInd = b
-                pMax = (abs(U_New.p[b,a])^2 + abs(V_New.p[b,a])^2)
-            end
-
-            if (abs(U_New.n[b,a])^2 + abs(V_New.n[b,a])^2) > nMax
-                nInd = b
-                nMax = (abs(U_New.n[b,a])^2 + abs(V_New.n[b,a])^2)
-            end
-        end
-
-        # Check phase change of U & V ...
-        if U_New.p[pInd,a] < 0.0
-            @views U_New.p[:,a] .*= -1.0
-        end
-        if V_New.p[pInd,a] < 0.0
-            @views V_New.p[:,a] .*= -1.0
-        end
-
-        if U_New.n[nInd,a] < 0.0
-            @views U_New.n[:,a] .*= -1.0
-        end
-        if V_New.n[nInd,a] < 0.0
-            @views V_New.n[:,a] .*= -1.0
-        end
-
-    end
-    =#
-
     #=
     # Modified phase algorithm ...
     @inbounds for a in 1:a_max
         # Setup local variables ...
-        pInd, pMax, pType = 1, -Inf, :U
-        nInd, nMax, nType = 1, -Inf, :U
+        pInd, pMax = 1, -1.0
+        nInd, nMax = 1, -1.0
 
         # Find the most dominant pair of amplitudes U & V ...
         @inbounds for b in 1:a_max
             if (abs(U_New.p[b,a])^2 + abs(V_New.p[b,a])^2) > pMax
                 pInd = b
-                if abs(U_New.p[b,a]) < 1e-8
-                    pType = :V
-                end
                 pMax = abs(U_New.p[b,a])^2 + abs(V_New.p[b,a])^2
             end
 
             if (abs(U_New.n[b,a])^2 + abs(V_New.n[b,a])^2) > nMax
                 nInd = b
-                if abs(U_New.n[b,a]) < 1e-8
-                    nType = :V
-                end
                 nMax = abs(U_New.n[b,a])^2 + abs(V_New.n[b,a])^2
             end
         end
 
         # Check phase change of U & V ...
-        if (pType == :U && U_New.p[pInd,a] < 0.0) || (pType == :V && V_New.p[pInd,a] < 0.0)
+        if (U_New.p[pInd,a] > 1e-7 && rem(Orb[pInd].l,2) != 0) || (U_New.p[pInd,a] < 1e-7 && rem(Orb[pInd].l,2) == 0)
             @views U_New.p[:,a] .*= -1.0
             @views V_New.p[:,a] .*= -1.0
         end
 
-        if (nType == :U && U_New.n[nInd,a] < 0.0) || (nType == :V && V_New.n[nInd,a] < 0.0)
+        if (U_New.n[nInd,a] > 1e-7 && rem(Orb[nInd].l,2) != 0) || (U_New.n[nInd,a] < 1e-7 && rem(Orb[nInd].l,2) == 0)
             @views U_New.n[:,a] .*= -1.0
             @views V_New.n[:,a] .*= -1.0
         end

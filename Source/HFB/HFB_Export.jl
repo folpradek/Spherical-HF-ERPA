@@ -76,18 +76,13 @@ function HFB_summary_SQS(Params::Parameters,SQE::pnVector,SQE_C::pnVector,Rho_C:
     # Initialize temporary counters for radial numbers ...
     pn, nn = zeros(Int64,N_max+1,J_max+1), zeros(Int64,N_max+1,J_max+1)
 
-    # Precompute energy ordered s.p. states for print ...
-    Sort_pOrbs = sortperm(SQE.p, by = x -> real(x))
-    Sort_nOrbs = sortperm(SQE.n, by = x -> real(x))
-
     # Export orbitals ...
     println("\nExporting information on single-quasiparticle orbits ...")
     Summary =  open(string("IO/", Output_File, "/HFB/HFB_Summary.dat"), "a")
         println(Summary,"\nProton single-quasiparticle states")
         println(Summary,"_______________________________________________________________________________________________________")
-        @printf(Summary, "%4s %4s %4s %10s %14s %14s", "n", "l", "2j", "O_a", "E_C", "E_Q\n")
-        @inbounds for Ind_a in 1:a_max
-            a = Sort_pOrbs[Ind_a]
+        @printf(Summary, "%4s %4s %4s %10s %14s %14s", "n", "l", "2j", "O_a", "E_C", "E\n")
+        @inbounds for a in 1:a_max
             l_a = Orb[a].l
             j_a = Orb[a].j
             n_a = pn[l_a+1,j_a+1]
@@ -99,9 +94,8 @@ function HFB_summary_SQS(Params::Parameters,SQE::pnVector,SQE_C::pnVector,Rho_C:
 
         println(Summary,"\nNeutron single-quasiparticle states")
         println(Summary,"_______________________________________________________________________________________________________")
-        @printf(Summary, "%4s %4s %4s %10s %14s %14s", "n", "l", "2j", "O_a", "E_C", "E_Q\n")
-        @inbounds for Ind_a in 1:a_max
-            a = Sort_nOrbs[Ind_a]
+        @printf(Summary, "%4s %4s %4s %10s %14s %14s", "n", "l", "2j", "O_a", "E_C", "E\n")
+        @inbounds for a in 1:a_max
             l_a = Orb[a].l
             j_a = Orb[a].j
             n_a = nn[l_a+1,j_a+1]

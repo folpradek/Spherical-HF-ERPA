@@ -39,16 +39,16 @@ function QTDA_allocate(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,Orb_2
 
                 # 2-body part ...
                 if T_ab == -1 && T_cd == -1
-                    ME = qpO2b_22_pp(a,b,c,d,J,P,H_NN,Orb,Orb_NN)
+                    ME = qpO2b_22_pp(a,b,c,d,J,P,H_NN,Orb,Orb_NN) / sqrt(Float64((1 + kronecker_delta(a,b)) * (1 + kronecker_delta(c,d))))
                     ASum += ME
                 elseif T_ab == -1 && T_cd == 1
-                    ME = qpO2b_2002_pn(a,b,c,d,J,P,H_NN,Orb_NN)
+                    ME = qpO2b_2002_pn(a,b,c,d,J,P,H_NN,Orb_NN) / sqrt(Float64((1 + kronecker_delta(a,b)) * (1 + kronecker_delta(c,d))))
                     ASum += ME
                 elseif T_ab == 1 && T_cd == -1
-                    ME = qpO2b_0220_pn(c,d,a,b,J,P,H_NN,Orb_NN)
+                    ME = qpO2b_0220_pn(c,d,a,b,J,P,H_NN,Orb_NN) / sqrt(Float64((1 + kronecker_delta(a,b)) * (1 + kronecker_delta(c,d))))
                     ASum += ME
                 elseif T_ab == 1 && T_cd == 1
-                    ME = qpO2b_22_nn(a,b,c,d,J,P,H_NN,Orb,Orb_NN)
+                    ME = qpO2b_22_nn(a,b,c,d,J,P,H_NN,Orb,Orb_NN) / sqrt(Float64((1 + kronecker_delta(a,b)) * (1 + kronecker_delta(c,d))))
                     ASum += ME
                 end
                 # Allocate the MEs ...

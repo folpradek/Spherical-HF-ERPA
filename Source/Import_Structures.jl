@@ -13,7 +13,7 @@
 
     Base.@kwdef struct HF_Parameters
         Tol::Float64 = 1e-7
-        IMax::Int64 = 100
+        Imax::Int64 = 100
         BMF::Bool = true
         HRF::Bool = false
     end
@@ -25,7 +25,7 @@
     Base.@kwdef struct RRPA_Parameters
         Ortho::Bool = true
         Tol::Float64 = 1e-7
-        IMax::Int64 = 150
+        Imax::Int64 = 150
         ScV3N::Bool = true
         ScOBH::Bool = true
         dOBDM::Bool = false
@@ -34,8 +34,10 @@
     Base.@kwdef struct BCS_Parameters
         ScBCS::Bool = false
         Tol::Float64 = 1e-7
-        IMax::Int64 = 500
+        Imax::Int64 = 500
         q::Float64 = 0.05
+        A0::Int64 = 0
+        Z0::Int64 = 0
         pD0::Float64 = 0.5
         nD0::Float64 = 0.5
         BMF::Bool = true
@@ -44,7 +46,7 @@
 
     Base.@kwdef struct HFB_Parameters
         Tol::Float64 = 1e-7
-        IMax::Int64 = 150
+        Imax::Int64 = 150
         dLmax::Float64 = 0.5
         pL0::Float64 = -3.0
         nL0::Float64 = -3.0

@@ -62,7 +62,7 @@ function HF_RRPA_solve(Params::Parameters,N_nu::Matrix{Int64},Orb_Phonon::Matrix
 
     # Iteration parameters ...
     eta, epsilon = 1.0, Params.Calc.RRPA.Tol
-    Iteration, Iteration_max = 0, Params.Calc.RRPA.IMax
+    Iteration, Iteration_max = 0, Params.Calc.RRPA.Imax
     E_old, E_new, dE = 2.0, 1.0, 1.0
 
     # Import residual 2-body interaction ... HF basis ...

@@ -35,7 +35,7 @@ function BCS_solver(Params::Parameters,Params_Ref::Parameters)
     @time OBDM_export(Params_Ref,Orb,Summary_File,Densities_File,Rho,C)
 
     # Export of single-quasiparticle energies, amplitudes U & V & also possibly radial densities ...
-    @time BCS_summary_SQS(Params,SPE,SQE,U,V)
+    @time BCS_summary_SQS(Params_Ref,SPE,SQE,U,V)
 
     if Params.Calc.BCS.BMF == true
         # Allocate H1B ... 1-body BCS Hamiltonian in the canonical & quasiparticle basis ...
@@ -75,7 +75,7 @@ function HF_BCS_solve(Params::Parameters,Params_Ref::Parameters,Orb::Vector{Orb1
     epsilon = Params.Calc.BCS.Tol
 
     # Setup local iteration variables ...
-    Iteration, Iteration_max, Convergence = 0, Params.Calc.BCS.IMax, false
+    Iteration, Iteration_max, Convergence = 0, Params.Calc.BCS.Imax, false
     
     # Preallocate some arrays ...
         # BCS amplitudes U & V vectors ...
@@ -322,6 +322,8 @@ function HF_BCS_solve(Params::Parameters,Params_Ref::Parameters,Orb::Vector{Orb1
         end
 
     end
+
+    #Lambda = pnFloat(0.0,Lambda.n)
 
     # Determine the BCS SQEs ...
     SQE = BCS_allocate_SQE(Params,SPE,Lambda,Delta)

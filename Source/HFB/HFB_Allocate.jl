@@ -163,7 +163,7 @@ function HFB_allocate(Params::Parameters,Lambda::pnFloat,Rho::O1B,Kappa::O1B,Orb
             end
 
             # Anomal Density-dependent part ... Only 3-body NNN interaction part ..
-            if l_b == l_e && j_b == j_e &&(2*(n_b + n_e) + l_b + l_e) <= N_2max && (2*(n_a + n_b + n_e) + l_a + l_b + l_e) <= N_3max
+            if (2*(n_b + n_e) + l_b + l_e) <= N_2max && (2*(n_a + n_b + n_e) + l_a + l_b + l_e) <= N_3max && l_b == l_e && j_b == j_e
                 pKappa_be, nKappa_be = Kappa.p[b,e], Kappa.n[b,e]
                 P_abe = rem(l_a + l_b + l_e, 2) + 1
                 @inbounds for c in 1:a_max
@@ -181,9 +181,9 @@ function HFB_allocate(Params::Parameters,Lambda::pnFloat,Rho::O1B,Kappa::O1B,Orb
                                 ME113 = V3b_no2b(b,e,a,1,c,f,d,1,0,3,P_abe,V_NNN,Orb,Orb_NNN)
 
                                 pHSum_local += p3 * A_NNN_Amp * (ME113 * pKappa_be * pKappa_cf +
-                                        1.0 / 3.0 * (2.0 * ME111 + ME113) * nKappa_be * nKappa_cf)
+                                                (2.0 * ME111 + ME113) / 3.0 * nKappa_be * nKappa_cf)
                                 nHSum_local += p3 * A_NNN_Amp * (ME113 * nKappa_be * nKappa_cf +
-                                        1.0 / 3.0 * (2.0 * ME111 + ME113) * pKappa_be * pKappa_cf)
+                                                (2.0 * ME111 + ME113) / 3.0 * pKappa_be * pKappa_cf)
 
                             end
                         end
@@ -239,29 +239,25 @@ function HFB_allocate(Params::Parameters,Lambda::pnFloat,Rho::O1B,Kappa::O1B,Orb
                 n_e, l_e, j_e = Orb[e].n, Orb[e].l, Orb[e].j
 
                 j_b_hat = sqrt(Float64(j_b + 1))
-                NN_Amp = 0.5 * j_b_hat / j_a_hat
+                Amp = 0.5 * j_b_hat / j_a_hat
 
                 Tid = Threads.threadid()
                 pDelta2NSum_local, nDelta2NSum_local = 0.0, 0.0
                 pDelta3NSum_local, nDelta3NSum_local = 0.0, 0.0
 
-                if (l_b == l_e) && (j_b == j_e) && ((2*(n_b + n_e) + l_b + l_e) <= N_2max)
+                if (2*(n_b + n_e) + l_b + l_e) <= N_2max && (l_b == l_e) && (j_b == j_e)
                     pKappa_be, nKappa_be = Kappa.p[b,e], Kappa.n[b,e]
 
                     # 2-body NN interaction part ...
-                    pDelta2NSum_local += NN_Amp * pKappa_be * O2b_pp(a,d,b,e,0,1,V_NN,Orb,Orb_NN)
-                    nDelta2NSum_local += NN_Amp * nKappa_be * O2b_nn(a,d,b,e,0,1,V_NN,Orb,Orb_NN)
+                    pDelta2NSum_local += Amp * pKappa_be * O2b_pp(a,d,b,e,0,1,V_NN,Orb,Orb_NN)
+                    nDelta2NSum_local += Amp * nKappa_be * O2b_nn(a,d,b,e,0,1,V_NN,Orb,Orb_NN)
 
                     # 3-body NNN interaction part ...
                     @inbounds for c in 1:a_max
-                        n_c = Orb[c].n
-                        l_c = Orb[c].l
+                        n_c, l_c = Orb[c].n, Orb[c].l
                         if (2*(n_a + n_d + n_c) + l_a + l_d + l_c) <= N_3max
                             P_adc = rem(l_a + l_d + l_c, 2) + 1
                             j_c = Orb[c].j
-
-                            NNN_Amp = 0.5 * j_b_hat / j_a_hat
-
                             @inbounds for f in 1:a_max
                                 n_f = Orb[f].n
                                 l_f = Orb[f].l
@@ -273,12 +269,10 @@ function HFB_allocate(Params::Parameters,Lambda::pnFloat,Rho::O1B,Kappa::O1B,Orb
                                         ME111 = V3b_no2b(a,d,c,1,b,e,f,1,0,1,P_adc,V_NNN,Orb,Orb_NNN)
                                         ME113 = V3b_no2b(a,d,c,1,b,e,f,1,0,3,P_adc,V_NNN,Orb,Orb_NNN)
 
-                                        pDelta3NSum_local += NNN_Amp * (ME113 * pRho_cf +
+                                        pDelta3NSum_local += Amp * (ME113 * pRho_cf +
                                             (2.0 * ME111 + ME113) / 3.0 * nRho_cf) * pKappa_be
-                                        nDelta3NSum_local += NNN_Amp * (ME113 * nRho_cf +
+                                        nDelta3NSum_local += Amp * (ME113 * nRho_cf +
                                             (2.0 * ME111 + ME113) / 3.0 * pRho_cf) * nKappa_be
-
-    
                                     end
                                 end
                             end

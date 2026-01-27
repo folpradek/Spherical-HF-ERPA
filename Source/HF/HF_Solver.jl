@@ -83,7 +83,7 @@ function HF_solve(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,Orb_NNN::O
     N_max = Params.Calc.Nmax
     a_max = div((N_max + 1) * (N_max + 2), 2)
     epsilon = Params.Calc.HF.Tol
-    Iteration_max = Params.Calc.HF.IMax
+    Iteration_max = Params.Calc.HF.Imax
 
     # Initialize local iteration parameters ...
     dE, Iteration = 1.0, 0
