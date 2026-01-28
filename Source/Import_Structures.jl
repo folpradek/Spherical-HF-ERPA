@@ -47,6 +47,7 @@
     Base.@kwdef struct HFB_Parameters
         Tol::Float64 = 1e-7
         Imax::Int64 = 150
+        Pairing::String = "Full"
         dLmax::Float64 = 0.5
         pL0::Float64 = -3.0
         nL0::Float64 = -3.0

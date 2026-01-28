@@ -65,7 +65,7 @@ function HFB_summary(Params::Parameters,E_HFB::Vector{Float64},T_HFB::Float64,La
     return
 end
 
-function HFB_summary_SQS(Params::Parameters,SQE::pnVector,SQE_C::pnVector,Rho_C::O1B,Orb::Vector{Orb1B})
+function HFB_summary_SQS(Params::Parameters,SQE::pnVector,Rho::O1B,Orb::Vector{Orb1B})
     # Read parameters
     N_max = Params.Calc.Nmax
     N_2max = Params.Calc.N2max
@@ -81,26 +81,24 @@ function HFB_summary_SQS(Params::Parameters,SQE::pnVector,SQE_C::pnVector,Rho_C:
     Summary =  open(string("IO/", Output_File, "/HFB/HFB_Summary.dat"), "a")
         println(Summary,"\nProton single-quasiparticle states")
         println(Summary,"_______________________________________________________________________________________________________")
-        @printf(Summary, "%4s %4s %4s %10s %14s %14s", "n", "l", "2j", "O_a", "E_C", "E\n")
+        @printf(Summary, "%4s %4s %4s %10s %14s", "n", "l", "2j", "O_a", "E\n")
         @inbounds for a in 1:a_max
             l_a = Orb[a].l
             j_a = Orb[a].j
             n_a = pn[l_a+1,j_a+1]
-            @printf(Summary, "%4d %4d %4d %10.3f %14.5f %14.5f\tMeV\n",
-                    n_a, l_a, j_a,Rho_C.p[a,a],SQE_C.p[a],SQE.p[a])
+            @printf(Summary, "%4d %4d %4d %10.3f %14.5f\tMeV\n", n_a, l_a, j_a,Rho.p[a,a],SQE.p[a])
             pn[l_a+1,j_a+1] += 1
         end
         println(Summary,"_______________________________________________________________________________________________________")
 
         println(Summary,"\nNeutron single-quasiparticle states")
         println(Summary,"_______________________________________________________________________________________________________")
-        @printf(Summary, "%4s %4s %4s %10s %14s %14s", "n", "l", "2j", "O_a", "E_C", "E\n")
+        @printf(Summary, "%4s %4s %4s %10s %14s", "n", "l", "2j", "O_a", "E\n")
         @inbounds for a in 1:a_max
             l_a = Orb[a].l
             j_a = Orb[a].j
             n_a = nn[l_a+1,j_a+1]
-            @printf(Summary, "%4d %4d %4d %10.3f %14.5f %14.5f\tMeV\n",
-                    n_a, l_a, j_a,Rho_C.n[a,a],SQE_C.n[a],SQE.n[a])
+            @printf(Summary, "%4d %4d %4d %10.3f %14.5f\tMeV\n", n_a, l_a, j_a,Rho.n[a,a],SQE.n[a])
             nn[l_a+1,j_a+1] += 1
         end
         println(Summary,"_______________________________________________________________________________________________________")

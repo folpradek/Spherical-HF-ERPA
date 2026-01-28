@@ -59,10 +59,11 @@ function HF_SPS_summary(Params::Parameters,h::O1B,Orb::Vector{Orb1B})
     Summary =  open(string("IO/", Output_File, "/HF/HF_Summary.dat"), "a")
         println(Summary,"\nProton single-particle states")
         println(Summary,"____________________________________________________________________")
-        @printf(Summary, "%4s %4s %4s %4s %14s", "n", "l", "2j", "O_a", "E\n")
+        @printf(Summary, "%4s %4s %4s %8s %14s", "n", "l", "2j", "O_a", "E\n")
         @inbounds for Ind_a in 1:a_max
             a = Sort_pOrbs[Ind_a]
-            l_a, j_a = Orb[a].l, Orb[a].j
+            l_a = Orb[a].l
+            j_a = Orb[a].j
             n_a = pn[l_a+1,j_a+1]
             if Orb[a].pO == 1
                 O_a = 1.0
@@ -70,17 +71,18 @@ function HF_SPS_summary(Params::Parameters,h::O1B,Orb::Vector{Orb1B})
                 O_a = 0.0
             end
             E_a = pSPE[a]
-            @printf(Summary, "%4d %4d %4d %4d %14.5f\tMeV\n",n_a, l_a, j_a, O_a, E_a)
+            @printf(Summary, "%4d %4d %4d %8.3f %14.5f\tMeV\n",n_a, l_a, j_a, O_a, E_a)
             pn[l_a+1,j_a+1] += 1
         end
         println(Summary,"____________________________________________________________________")
 
         println(Summary,"\nNeutron single-particle states")
         println(Summary,"____________________________________________________________________")
-        @printf(Summary, "%4s %4s %4s %4s %14s", "n", "l", "2j", "O_a", "E\n")
+        @printf(Summary, "%4s %4s %4s %8s %14s", "n", "l", "2j", "O_a", "E\n")
         for Ind_a in 1:a_max
             a = Sort_nOrbs[Ind_a]
-            l_a, j_a = Orb[a].l, Orb[a].j
+            l_a = Orb[a].l
+            j_a = Orb[a].j
             n_a = nn[l_a+1,j_a+1]
             if Orb[a].nO == 1
                 O_a = 1.0
@@ -88,7 +90,7 @@ function HF_SPS_summary(Params::Parameters,h::O1B,Orb::Vector{Orb1B})
                 O_a = 0.0
             end
             E_a = nSPE[a]
-        @printf(Summary, "%4d %4d %4d %4d %14.5f\tMeV\n",n_a, l_a, j_a, O_a, E_a)
+        @printf(Summary, "%4d %4d %4d %8.3f %14.5f\tMeV\n",n_a, l_a, j_a, O_a, E_a)
             nn[l_a+1,j_a+1] += 1
         end
         println(Summary,"____________________________________________________________________")

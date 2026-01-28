@@ -193,6 +193,27 @@ function V2b_read(Params::Parameters,Orb::Vector{Orb1B})
         println("\nCMS 2-body correction added...")
     end
 
+    #=
+    # Enhance contact V_aabb^J=0 matrix elements ...
+    pG, nG = 0.0, -1.0
+    if abs(pG) > 1e-8 || abs(nG) > 1e-8
+        N_T1 = Orb_NN.N[2,1,1]
+        @inbounds for Bra in 1:N_T1
+            a, b = Orb_NN.Ind[2,1,1][Bra][1], Orb_NN.Ind[2,1,1][Bra][2]
+            if a == b
+                @inbounds for Ket in 1:Bra
+                    c, d = Orb_NN.Ind[2,1,1][Ket][1], Orb_NN.Ind[2,1,1][Ket][2]
+                    if c == d
+                        Ind = Bra + (Ket - 1) * N_T1 - div(Ket * (Ket - 1),2)
+                        V_NN.pp[1,1][Ind] += pG
+                        V_NN.nn[1,1][Ind] += nG
+                    end
+                end
+            end
+        end
+    end
+    =#
+
     return V_NN, Orb_NN
 end
 

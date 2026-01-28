@@ -78,7 +78,7 @@ function BCS_summary_SQS(Params::Parameters,SPE::pnVector,SQE::pnVector,U::pnVec
     Summary =  open(string("IO/", Output_File, "/BCS/BCS_Summary.dat"), "a")
         println(Summary,"\nProton single-(quasi)particle states")
         println(Summary,"____________________________________________________________________")
-        @printf(Summary, "%4s %4s %4s %4s %14s %14s %14s %14s", "n", "l", "2j", "O_a", "e", "U2", "V2", "E\n")
+        @printf(Summary, "%4s %4s %4s %8s %14s %14s %14s %14s", "n", "l", "2j", "O_a", "e", "U2", "V2", "E\n")
         for a in 1:a_max
             l_a = Orb[a].l
             j_a = Orb[a].j
@@ -88,14 +88,14 @@ function BCS_summary_SQS(Params::Parameters,SPE::pnVector,SQE::pnVector,U::pnVec
             else
                 O_a = 0.0
             end
-            @printf(Summary, "%4s %4s %4s %4d %14f %14f %14f %14f\tMeV\n",n_a, l_a, j_a, O_a, SPE.p[a], U.p[a]^2, V.p[a]^2, SQE.p[a])
+            @printf(Summary, "%4s %4s %4s %8.3f %14.5f %14.3f %14.3f %14.5f\tMeV\n",n_a, l_a, j_a, O_a, SPE.p[a], U.p[a]^2, V.p[a]^2, SQE.p[a])
             pn[l_a+1,j_a+1] += 1
         end
         println(Summary,"____________________________________________________________________")
 
         println(Summary,"\nNeutron single-(quasi)particle states")
         println(Summary,"____________________________________________________________________")
-        @printf(Summary, "%4s %4s %4s %4s %14s %14s %14s %14s", "n", "l", "2j", "O_a", "e", "U2", "V2", "E\n")
+        @printf(Summary, "%4s %4s %4s %8s %14s %14s %14s %14s", "n", "l", "2j", "O_a", "e", "U2", "V2", "E\n")
         for a in 1:a_max
             l_a = Orb[a].l
             j_a = Orb[a].j
@@ -105,7 +105,7 @@ function BCS_summary_SQS(Params::Parameters,SPE::pnVector,SQE::pnVector,U::pnVec
             else
                 O_a = 0.0
             end
-            @printf(Summary, "%4s %4s %4s %4d %14f %14f %14f %14f\tMeV\n",n_a, l_a, j_a, O_a, SPE.n[a], U.n[a]^2, V.n[a]^2, SQE.n[a])
+            @printf(Summary, "%4s %4s %4s %8.3f %14.5f %14.3f %14.3f %14.5f\tMeV\n",n_a, l_a, j_a, O_a, SPE.n[a], U.n[a]^2, V.n[a]^2, SQE.n[a])
             nn[l_a+1,j_a+1] += 1
         end
         println(Summary,"____________________________________________________________________")

@@ -136,16 +136,18 @@ function HFB_density_operator_initialize(Params::Parameters,Orb::Vector{Orb1B})
 
     # Allocate the density matrix Kappa ... using the identity Kappa Kappa^dag = Rho - Rho^2 ...
     @inbounds for a in 1:a_max
-        pKappa[a,a] = sqrt(pRho[a,a] - pRho[a,a]^2)
-        nKappa[a,a] = sqrt(nRho[a,a] - nRho[a,a]^2)
+        l_a = Orb[a].l
+        pKappa[a,a] = Float64((-1)^(l_a)) * sqrt(pRho[a,a] - pRho[a,a]^2)
+        nKappa[a,a] = Float64((-1)^(l_a)) * sqrt(nRho[a,a] - nRho[a,a]^2)
     end
 
     # Include small off-diagonal elements in Kappa ...
     @inbounds for a in 1:a_max
+        l_a = Orb[a].l
         @inbounds for b in 1:a_max
             if Orb[a].j == Orb[b].j && Orb[a].l == Orb[b].l && a != b
-                pKappa[a,b] += Float64((-1)^(Orb[a].l + Orb[b].l)) * sqrt(pKappa[a,a] * pKappa[b,b])
-                nKappa[a,b] += Float64((-1)^(Orb[a].l + Orb[b].l)) * sqrt(nKappa[a,a] * nKappa[b,b])
+                pKappa[a,b] += Float64((-1)^(l_a)) * sqrt(pKappa[a,a] * pKappa[b,b])
+                nKappa[a,b] += Float64((-1)^(l_a)) * sqrt(nKappa[a,a] * nKappa[b,b])
             end
         end
     end

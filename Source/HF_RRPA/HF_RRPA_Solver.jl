@@ -152,8 +152,20 @@ function HF_RRPA_solve(Params::Parameters,N_nu::Matrix{Int64},Orb_Phonon::Matrix
             end
         end
 
-        # RRPA ground state energy ...
-        E_new = HF_RRPA_energy(Params,N_nu,N_Particle,Particle,N_Hole,Hole,E_RPA,Y_RPA)
+        # Evaluate the RRPA ground-state energy ...
+            # To avoid spam, Terminal Output is supressed for this call ...
+        Out = "/dev/null"
+        if Sys.iswindows()
+            Out = "NUL"
+        end
+        open(Out, "w") do devnull_io
+            redirect_stdout(devnull_io) do
+                redirect_stderr(devnull_io) do
+                    E_new = HF_RRPA_energy(Params,N_nu,N_Particle,Particle,N_Hole,Hole,E_RPA,Y_RPA)
+                    return E_new
+                end
+            end
+        end
 
         dE = abs(E_new - E_old)
         

@@ -273,6 +273,7 @@ function HFB_allocate(Params::Parameters,Lambda::pnFloat,Rho::O1B,Kappa::O1B,Orb
                                             (2.0 * ME111 + ME113) / 3.0 * nRho_cf) * pKappa_be
                                         nDelta3NSum_local += Amp * (ME113 * nRho_cf +
                                             (2.0 * ME111 + ME113) / 3.0 * pRho_cf) * nKappa_be
+
                                     end
                                 end
                             end

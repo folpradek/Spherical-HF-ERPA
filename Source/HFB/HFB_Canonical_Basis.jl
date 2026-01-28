@@ -1,4 +1,4 @@
-function HFB_canonical_basis(Params::Parameters,Rho::O1B,H::O1B,Delta::O1B,Orb::Vector{Orb1B})
+function HFB_canonical_basis(Params::Parameters,Rho::O1B,Orb::Vector{Orb1B})
     # Read calculation parameters ...
     N_max = Params.Calc.Nmax
     a_max = div((N_max + 1) * (N_max + 2), 2)
@@ -44,52 +44,7 @@ function HFB_canonical_basis(Params::Parameters,Rho::O1B,H::O1B,Delta::O1B,Orb::
     end
 
     # Reorder the transformation matrix C & occupation probabilities n_C ...
-    pn_C, pC, nn_C, nC = HFB_canonical_basis_particle_reordering(Params,pnVector(pn_C,nn_C),O1B(pC,nC),Orb)
+    pC, nC = HFB_canonical_basis_particle_reordering(Params,O1B(pC,nC),Orb)
 
-    # Calculate canonical amplitudes v & u ...
-        # Allocate v_C ... from the occupation probabilities
-    pv_C, nv_C = abs.(pn_C) .+ 1e-14, abs.(nn_C) .+ 1e-14
-        # Calculate u_C ... from the normalization condition ... |u_k|^2 + |v_k|^2 = 1
-    pu_C, nu_C = abs.(ones(Float64,a_max) .- pv_C) .+ 1e-14, abs.(ones(Float64,a_max) .- nv_C) .+ 1e-14
-
-    # Proper normalization of u_C & v_C ... square-root ...
-    pu_C .= sqrt.(pu_C)
-    pv_C .= sqrt.(pv_C)
-    nu_C .= sqrt.(nu_C)
-    nv_C .= sqrt.(nv_C)
-
-    pu_C, pv_C = diagm(pu_C), diagm(pv_C)
-    nu_C, nv_C = diagm(nu_C), diagm(nv_C)
-
-    # Calculate the canonical single-quasiparticle energies (approximate to exact HFB SQE!)...
-    SQE_C = HFB_canonical_basis_SQE(Params,O1B(pC,nC),H,Delta)
-
-    # Reorder the single-quasiparticle orbitals ... u_C, v_C & SQE_C ...
-    SQE_C, u_C, v_C = HFB_canonical_basis_quasiparticle_reordering(Params,SQE_C,O1B(pC,nC),O1B(pu_C,nu_C),O1B(pv_C,nv_C),Orb)
-
-    return SQE_C, O1B(pC,nC), u_C, v_C
-end
-
-function HFB_canonical_basis_SQE(Params::Parameters,C::O1B,H::O1B,Delta::O1B)
-    # Read calculation parameters ...
-    N_max = Params.Calc.Nmax
-    a_max = div((N_max + 1) * (N_max + 2), 2)
-
-    # Preallocate vectors for single-quasiparticle energies in the canonical basis ...
-    pSQE_C, nSQE_C = zeros(Float64,a_max), zeros(Float64,a_max)
-
-    # Transform H & Delta into the canonical basis ...
-    pH_C, pDelta_C = C.p' * H.p * C.p, C.p' * Delta.p * C.p
-    nH_C, nDelta_C = C.n' * H.n * C.n, C.n' * Delta.n * C.n
-
-    # Calculate single-quasiparticle energies in the canonical basis ...
-    @inbounds for a in 1:a_max
-        pE_C = sqrt(pH_C[a,a]^2 + pDelta_C[a,a]^2)
-        nE_C = sqrt(nH_C[a,a]^2 + nDelta_C[a,a]^2)
-
-        pSQE_C[a] = pE_C
-        nSQE_C[a] = nE_C
-    end
-
-    return pnVector(pSQE_C,nSQE_C)
+    return O1B(pC,nC)
 end
