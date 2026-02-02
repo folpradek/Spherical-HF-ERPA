@@ -646,13 +646,10 @@ function O2b_transformation_index1(Params::Parameters,JP::Vector{Vector{Int64}},
                     OppSum += OppME
                     OpnSum += OpnME
                     OnnSum += OnnME
-
                 end
-
                 @views O_NN_t1.pp[P,J+1][Bra,Ket] = OppSum
                 @views O_NN_t1.pn[P,J+1][Bra,Ket] = OpnSum
                 @views O_NN_t1.nn[P,J+1][Bra,Ket] = OnnSum
-
             end
         end
     end
@@ -692,8 +689,6 @@ function O2b_transformation_index2(Params::Parameters,JP::Vector{Vector{Int64}},
 
             Orb_x = Orb_PreComp(a_max,j_b,l_b,Orb)
             @inbounds for Ket in 1:N
-                c = Orb_NN_t.Ind[P,J+1][Ket][1]
-                d = Orb_NN_t.Ind[P,J+1][Ket][2]
 
                 OppSum, OpnSum, OnnSum = 0.0, 0.0, 0.0
                 

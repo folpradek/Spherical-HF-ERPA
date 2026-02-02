@@ -11,9 +11,16 @@
         cRes::Float64 = 1.0
     end
 
+    Base.@kwdef struct HF_EFA_Parameters
+        A::Int64 = 0
+        Z::Int64 = 0
+        BMF::Bool = true
+    end
+
     Base.@kwdef struct HF_Parameters
         Tol::Float64 = 1e-7
         Imax::Int64 = 100
+        EFA::HF_EFA_Parameters = HF_EFA_Parameters()
         BMF::Bool = true
         HRF::Bool = false
     end

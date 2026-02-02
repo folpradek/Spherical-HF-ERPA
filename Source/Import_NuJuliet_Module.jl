@@ -29,6 +29,7 @@ module NuJuliet
     include("HF/HF_Energy.jl")
     include("HF/HF_Export.jl")
     include("HF/HF_MBPT.jl")
+    include("HF/HF_EFA.jl")
 
     # HF-RPA ...
     include("HF_RPA/HF_RPA_Solver.jl")

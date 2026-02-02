@@ -125,8 +125,6 @@ function HFB_solve(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,Orb_NNN::
     # Solve the spherical HFB equations ... by the means of self-consistent iteration ...
     println("\nStarting iteration of HFB equations ...")
 
-    CA = false
-
     while ((dE > epsilon) || (dZ > epsilon) || (dN > epsilon)) && (Iteration < Iteration_max)
         # Perform several secant iterations for the chemical potentil Lambda ...
         @inbounds for L in 1:Iteration_max
@@ -361,6 +359,7 @@ end
 
 function HFB_diagonalize(Params::Parameters,H::O1B,Delta::O1B,Orb::Vector{Orb1B})
     # Read parameters ...
+    Tol = min(1e-8,Params.Calc.HFB.Tol)
     N_max = Params.Calc.Nmax
     a_max = div((N_max + 1) * (N_max + 2), 2)
 
@@ -373,25 +372,38 @@ function HFB_diagonalize(Params::Parameters,H::O1B,Delta::O1B,Orb::Vector{Orb1B}
     nHFB = [H.n Delta.n; Delta.n -1.0 .* H.n]
 
     # Solve the HFB equations ...
-    pE, pC = eigen(Symmetric(pHFB),sortby=+)
-    nE, nC = eigen(Symmetric(nHFB),sortby=+)
+    pE, pW = eigen(Symmetric(pHFB),sortby=+)
+    nE, nW = eigen(Symmetric(nHFB),sortby=+)
 
     # Only positive energy solutions are extracted ...
     @inbounds for a in 1:a_max
         pSQE[a], nSQE[a] = pE[a+a_max], nE[a+a_max]
-        @views pU[:,a] .= pC[1:a_max,a+a_max]
-        @views pV[:,a] .= pC[a_max+1:2*a_max,a+a_max]
-        @views nU[:,a] .= nC[1:a_max,a+a_max]
-        @views nV[:,a] .= nC[a_max+1:2*a_max,a+a_max]
+        @views pU[:,a] .= pW[1:a_max,a+a_max]
+        @views pV[:,a] .= pW[a_max+1:2*a_max,a+a_max]
+        @views nU[:,a] .= nW[1:a_max,a+a_max]
+        @views nV[:,a] .= nW[a_max+1:2*a_max,a+a_max]
     end
 
-    # Perform reordering - to match quantum numbers j & l ascending in E ...
-    SQE, U, V = HFB_orbital_ordering(Params,pnVector(pSQE,nSQE),O1B(pU,nU),O1B(pV,nV),Orb)
+    # Remove numerical noise ...
+    @inbounds for a in 1:a_max
+        @inbounds for b in 1:a_max
+            if abs(pU[a,b]) < Tol
+                pU[a,b] = 0.0
+            end
+            if abs(pV[a,b]) < Tol
+                pV[a,b] = 0.0
+            end
+            if abs(nU[a,b]) < Tol
+                nU[a,b] = 0.0
+            end
+            if abs(nV[a,b]) < Tol
+                nV[a,b] = 0.0
+            end
+        end
+    end
 
-        # RM?
-        # Set phases of U & V to match with previous iteration ...
         #=
-            # Modified phase algorithm ...
+        # Set phases of U & V ...
             @inbounds for a in 1:a_max
                 # Setup local variables ...
                 pInd, pMax = 1, -1.0
@@ -399,30 +411,33 @@ function HFB_diagonalize(Params::Parameters,H::O1B,Delta::O1B,Orb::Vector{Orb1B}
 
                 # Find the most dominant pair of amplitudes U & V ...
                 @inbounds for b in 1:a_max
-                    if (abs(U_New.p[b,a])^2 + abs(V_New.p[b,a])^2) > pMax
+                    if (abs(pU[b,a])^2 + abs(pV[b,a])^2) > pMax
                         pInd = b
-                        pMax = abs(U_New.p[b,a])^2 + abs(V_New.p[b,a])^2
+                        pMax = abs(pU[b,a])^2 + abs(pV[b,a])^2
                     end
 
-                    if (abs(U_New.n[b,a])^2 + abs(V_New.n[b,a])^2) > nMax
+                    if (abs(nU[b,a])^2 + abs(nV[b,a])^2) > nMax
                         nInd = b
-                        nMax = abs(U_New.n[b,a])^2 + abs(V_New.n[b,a])^2
+                        nMax = abs(nU[b,a])^2 + abs(nV[b,a])^2
                     end
                 end
 
                 # Check phase change of U & V ...
-                if (U_New.p[pInd,a] > 1e-7 && rem(Orb[pInd].l,2) != 0) || (U_New.p[pInd,a] < 1e-7 && rem(Orb[pInd].l,2) == 0)
-                    @views U_New.p[:,a] .*= -1.0
-                    @views V_New.p[:,a] .*= -1.0
+                if (pU[pInd,a] > 1e-7 && rem(Orb[pInd].l,2) != 0) || (pU[pInd,a] < 1e-7 && rem(Orb[pInd].l,2) == 0)
+                    @views pU[:,a] .*= -1.0
+                    @views pV[:,a] .*= -1.0
                 end
 
-                if (U_New.n[nInd,a] > 1e-7 && rem(Orb[nInd].l,2) != 0) || (U_New.n[nInd,a] < 1e-7 && rem(Orb[nInd].l,2) == 0)
-                    @views U_New.n[:,a] .*= -1.0
-                    @views V_New.n[:,a] .*= -1.0
+                if (nU[nInd,a] > 1e-7 && rem(Orb[nInd].l,2) != 0) || (nU[nInd,a] < 1e-7 && rem(Orb[nInd].l,2) == 0)
+                    @views nU[:,a] .*= -1.0
+                    @views nV[:,a] .*= -1.0
                 end
 
             end
         =#
+
+    # Perform reordering - to match quantum numbers j & l ascending in E ...
+    SQE, U, V = HFB_orbital_ordering(Params,pnVector(pSQE,nSQE),O1B(pU,nU),O1B(pV,nV),Orb)
  
     return SQE, U, V
 end
@@ -560,6 +575,7 @@ function HFB_diagonalize_BCS(Params::Parameters,H::O1B,Delta::O1B,Orb::Vector{Or
     nU .= nC * nU
     nV .= nC * nV
 
+    #=
     # Perform sorting of quasiparticles ... ascending in energy ...
     pOrbs_sort = sortperm(pSQE)
     nOrbs_sort = sortperm(nSQE)
@@ -576,6 +592,11 @@ function HFB_diagonalize_BCS(Params::Parameters,H::O1B,Delta::O1B,Orb::Vector{Or
 
     # Perform reordering - to match quantum numbers j & l ...
     SQE, U, V = HFB_orbital_ordering(Params,pnVector(pSQE,nSQE),O1B(pU,nU),O1B(pV,nV),Orb)
+    =#
+    
+    SQE = pnVector(pSQE,nSQE)
+    U = O1B(pU,nU)
+    V = O1B(pV,nV)
 
     return SQE, U, V
 end

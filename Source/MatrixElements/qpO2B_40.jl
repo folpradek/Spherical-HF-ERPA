@@ -140,7 +140,7 @@ function qpO2b_40_allocate_ind1(Params::Parameters,JP::Vector{Vector{Int64}},Orb
 
     # Define function for the transformation MEs for the 1st index ...
     @inline function O2b_temp_transformation_ind1_MEs(J::Int64,P::Int64,i::Int64,a::Int64,b::Int64,c::Int64,d::Int64,T::O1B,O_NN::O2B,Orb::Vector{Orb1B},Orb_NN::Orb2B)
-        return @views T.p[i,a] * O2b_pp(i,b,c,d,J,P,O_NN,Orb,Orb_NN), T.p[i,a] * O2b_pn(i,b,c,d,J,P,O_NN,Orb_NN), T.n[i,a] * O2b_nn(i,b,c,d,J,P,O_NN,Orb,Orb_NN)
+        return T.p[i,a] * O2b_pp(i,b,c,d,J,P,O_NN,Orb,Orb_NN), T.p[i,a] * O2b_pn(i,b,c,d,J,P,O_NN,Orb_NN), T.n[i,a] * O2b_nn(i,b,c,d,J,P,O_NN,Orb,Orb_NN)
     end
 
     # Transformation of the 1st index ...
@@ -157,9 +157,7 @@ function qpO2b_40_allocate_ind1(Params::Parameters,JP::Vector{Vector{Int64}},Orb
             a = Orb_NN_t.Ind[P,J+1][Bra][1]
             b = Orb_NN_t.Ind[P,J+1][Bra][2]
             l_a, j_a = Orb[a].l, Orb[a].j
-            l_b = Orb[b].l
-            P_ab = rem(l_a + l_b,2) + 1
-
+            
             Orb_x = Orb_PreComp(a_max,j_a,l_a,Orb)
             @inbounds for Ket in 1:N
                 c = Orb_NN_t.Ind[P,J+1][Ket][1]
@@ -168,13 +166,11 @@ function qpO2b_40_allocate_ind1(Params::Parameters,JP::Vector{Vector{Int64}},Orb
                 OppSum, OpnSum, OnnSum = 0.0, 0.0, 0.0
 
                 @inbounds for i in Orb_x
-                    OppME, OpnME, OnnME = O2b_temp_transformation_ind1_MEs(J,P_ab,i,a,b,c,d,U,O_NN,Orb,Orb_NN)
-
+                    OppME, OpnME, OnnME = O2b_temp_transformation_ind1_MEs(J,P,i,a,b,c,d,U,O_NN,Orb,Orb_NN)
                     OppSum += OppME
                     OpnSum += OpnME
                     OnnSum += OnnME
                 end
-
                 @views O_NN_t1.pp[P,J+1][Bra,Ket] = OppSum
                 @views O_NN_t1.pn[P,J+1][Bra,Ket] = OpnSum
                 @views O_NN_t1.nn[P,J+1][Bra,Ket] = OnnSum
@@ -214,8 +210,8 @@ function qpO2b_40_allocate_ind2(Params::Parameters,JP::Vector{Vector{Int64}},Orb
 
             Orb_x = Orb_PreComp(a_max,j_b,l_b,Orb)
             @inbounds for Ket in 1:N
-                c = Orb_NN_t.Ind[P,J+1][Ket][1]
-                d = Orb_NN_t.Ind[P,J+1][Ket][2]
+                #c = Orb_NN_t.Ind[P,J+1][Ket][1]
+                #d = Orb_NN_t.Ind[P,J+1][Ket][2]
 
                 OppSum, OpnSum, OnnSum = 0.0, 0.0, 0.0
                 
@@ -297,11 +293,11 @@ function qpO2b_40_allocate_ind4(Params::Parameters,JP::Vector{Vector{Int64}},Orb
     a_max = div((N_max + 1)*(N_max + 2),2)
 
     # Define function for the transformation MEs for the 4th index ...
-        # Case of O ... T = 0
+        # Case of T = 0 ...
     @inline function O2b_temp_transformation_ind4_T0_MEs(P::Int64,J::Int64,Bra::Int64,Ket::Int64,i::Int64,d::Int64,T::O1B,O_NN_t::O2B_40_Temp)
         return @views T.n[i,d] * O_NN_t.pn[P,J+1][Bra,Ket]
     end
-        # Case of O ... T = 0
+        # Case of T = 1 ...
     @inline function O2b_temp_transformation_ind4_T1_MEs(P::Int64,J::Int64,Bra::Int64,Ket::Int64,i::Int64,d::Int64,T::O1B,O_NN_t::O2B_40_Temp)
         return @views T.p[i,d] * O_NN_t.pp[P,J+1][Bra,Ket], T.n[i,d] * O_NN_t.nn[P,J+1][Bra,Ket]
     end
@@ -354,6 +350,7 @@ function qpO2b_40_allocate_ind4(Params::Parameters,JP::Vector{Vector{Int64}},Orb
                     l_d, j_d = Orb[d].l, Orb[d].j
 
                     Bra_ab = O2b_temp_index(a,b,J,P,Orb_NN_t)
+
                     Orb_x = Orb_PreComp(a_max,j_d,l_d,Orb)
 
                     OppSum, OnnSum = 0.0, 0.0

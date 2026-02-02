@@ -17,6 +17,7 @@ end
 
 function HFB_particle_number_dispersion(Params::Parameters,Rho::O1B,Orb::Vector{Orb1B})
     # Read parameters ...
+    Tol = min(1e-6,Params.Calc.HFB.Tol)
     N_max = Params.Calc.Nmax
     a_max = div((N_max + 1)*(N_max + 2),2)
     dZ, dN = 0.0, 0.0
@@ -37,8 +38,22 @@ function HFB_particle_number_dispersion(Params::Parameters,Rho::O1B,Orb::Vector{
         dN += 2.0 * j_a_hat * Rho.n[a,a]
     end
 
+    # Check that dZ & dN are non-negative ...
+        # Case of proton number dispersion ...
+    if dZ < 0.0 
+        if abs(dZ) < Tol
+            dZ = 0.0
+        end
+    end
+        # Case of neutron number dispersion ...
+    if dN < 0.0 
+        if abs(dN) < Tol
+            dN = 0.0
+        end
+    end
+
     # Calculate square roots of dispersion numbers ...
-    dZ, dN = sqrt(dZ), sqrt(dN)
+    dZ, dN = sqrt(abs(dZ)), sqrt(abs(dN))
 
     println("\nHFB dispersion of nucleon numbers are ...")
     println("\tdZ = " * string(round(dZ,digits=5)))

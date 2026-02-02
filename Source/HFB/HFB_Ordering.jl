@@ -1,20 +1,15 @@
 function HFB_orbital_ordering(Params::Parameters,SQE::pnVector,U::O1B,V::O1B,Orb::Vector{Orb1B};Final_Ordering::Bool=false,C::O1B=O1B(zeros(Float64,1,1),zeros(Float64,1,1)))
     # Read parameters ...
+    Tol = 1e-6
     N_max = Params.Calc.Nmax
     a_max = div((N_max + 1) * (N_max + 2), 2)
 
     # Read input arrays ...
-    pU, pV, pSQE =  U.p, V.p, SQE.p
-    nU, nV, nSQE =  U.n, V.n, SQE.n
+    pU, pV, pSQE =  deepcopy(U.p), deepcopy(V.p), deepcopy(SQE.p)
+    nU, nV, nSQE =  deepcopy(U.n), deepcopy(V.n), deepcopy(SQE.n)
 
-    # This is effectively needed for correct beyond HFB ...
-    if Final_Ordering == true
-        # Transform to the canonical basis ...
-        pU .= C.p' * pU
-        pV .= C.p' * pV
-        nU .= C.n' * nU
-        nV .= C.n' * nV
-
+    # Final reordering by occupation numbers ...
+    if Final_Ordering == true && Params.Calc.HFB.Pairing != "BCS"
         # Reorder ... descending in U ...
         pU_norm, nU_norm = zeros(Float64,a_max), zeros(Float64,a_max)
 
@@ -36,56 +31,19 @@ function HFB_orbital_ordering(Params::Parameters,SQE::pnVector,U::O1B,V::O1B,Orb
         @views nU .= nU[:,nOrbs_sort]
         @views nV .= nV[:,nOrbs_sort]
 
-        # Transform back the reference basis ...
-        pU .= C.p * pU
-        pV .= C.p * pV
-        nU .= C.n * nU
-        nV .= C.n * nV
-
         #=
-        # Protons ...
-        @inbounds for a in a_max:1
-            l_a, j_a, E_a = Float64(Orb[a].l), Float64(Orb[a].j), pSQE[a]
-            if pU_norm[a] > 0.9 && E_a > 15.0
-                pInd, E = 0, E_a
-                @inbounds for b in 1:a
-                    l_b, j_b, E_b = Float64(Orb[b].l), Float64(Orb[b].j), pSQE[b]
-                    if l_a == l_b && j_a == j_b && pU_norm[b] > 0.9 && E_b > 15.0
-                        if E_b < E
-                            pInd = b
-                            E = E_b
-                        end
-                    end
-                end
-                if pInd != 0
-                    pSQE[a], pSQE[pInd] = pSQE[pInd], pSQE[a]
-                    pU[:,a], pU[:,pInd] = pU[:,pInd], pU[:,a]
-                    pV[:,a], pV[:,pInd] = pV[:,pInd], pV[:,a]
-                end
-            end
-        end
+        pOrbs_sort = sortperm(pSQE)
+        nOrbs_sort = sortperm(nSQE)
 
-        # Neutrons ...
-        @inbounds for a in a_max:1
-            l_a, j_a, E_a = Float64(Orb[a].l), Float64(Orb[a].j), nSQE[a]
-            if nU_norm[a] > 0.9 && E_a > 15.0
-                nInd, E = 0, E_a
-                @inbounds for b in 1:a
-                    l_b, j_b, E_b = Float64(Orb[b].l), Float64(Orb[b].j), nSQE[b]
-                    if l_a == l_b && j_a == j_b && nU_norm[b] > 0.9 && E_b > 15.0
-                        if E_b < E
-                            nInd = b
-                            E = E_b
-                        end
-                    end
-                end
-                if nInd != 0
-                    nSQE[a], nSQE[nInd] = nSQE[nInd], nSQE[a]
-                    nU[:,a], nU[:,nInd] = nU[:,nInd], nU[:,a]
-                    nV[:,a], nV[:,nInd] = nV[:,nInd], nV[:,a]
-                end
-            end
-        end
+        # Proton single-quasiparticle orbitals ...
+        @views pSQE .= pSQE[pOrbs_sort]
+        @views pU .= pU[:,pOrbs_sort]
+        @views pV .= pV[:,pOrbs_sort]
+
+        # Neutron single-quasiparticle orbitals ...
+        @views nSQE .= nSQE[nOrbs_sort]
+        @views nU .= nU[:,nOrbs_sort]
+        @views nV .= nV[:,nOrbs_sort]
         =#
 
     end
@@ -116,7 +74,7 @@ function HFB_orbital_ordering(Params::Parameters,SQE::pnVector,U::O1B,V::O1B,Orb
         pl, pj = pl_values[a], pj_values[a]
         nl, nj = nl_values[a], nj_values[a]
         @inbounds for b in 1:a_max
-            if pOrb_mask[b] == false && abs(Float64(Orb[b].l) - pl) < 1e-7 && abs(Float64(Orb[b].j) - pj) < 1e-7
+            if pOrb_mask[b] == false && abs(Float64(Orb[b].l) - pl) < Tol && abs(Float64(Orb[b].j) - pj) < Tol
                 pOrb_order[b] = a
                 pOrb_mask[b] = true
                 break
@@ -124,7 +82,7 @@ function HFB_orbital_ordering(Params::Parameters,SQE::pnVector,U::O1B,V::O1B,Orb
         end
 
         @inbounds for b in 1:a_max
-            if nOrb_mask[b] == false && abs(Float64(Orb[b].l) - nl) < 1e-7 && abs(Float64(Orb[b].j) - nj) < 1e-7
+            if nOrb_mask[b] == false && abs(Float64(Orb[b].l) - nl) < Tol && abs(Float64(Orb[b].j) - nj) < Tol
                 nOrb_order[b] = a
                 nOrb_mask[b] = true
                 break
@@ -146,11 +104,12 @@ end
 
 function HFB_canonical_basis_particle_reordering(Params::Parameters,C::O1B,Orb::Vector{Orb1B})
     # Read calculation parameters ...
+    Tol = 1e-6
     N_max = Params.Calc.Nmax
     a_max = div((N_max + 1) * (N_max + 2), 2)
 
     # Read needed arrays ...
-    pC, nC = C.p, C.n
+    pC, nC = deepcopy(C.p), deepcopy(C.n)
 
     # Preallocate temporary arrays ...
     pOrb_order, nOrb_order = Vector{Int64}(undef,a_max), Vector{Int64}(undef,a_max)
@@ -178,7 +137,7 @@ function HFB_canonical_basis_particle_reordering(Params::Parameters,C::O1B,Orb::
         pl, pj = pl_values[a], pj_values[a]
         nl, nj = nl_values[a], nj_values[a]
         @inbounds for b in 1:a_max
-            if (pOrb_mask[b] == false) && (abs(Float64(Orb[b].l) - pl) < 1e-3) && (abs(Float64(Orb[b].j) - pj) < 1e-3)
+            if (pOrb_mask[b] == false) && (abs(Float64(Orb[b].l) - pl) < Tol) && (abs(Float64(Orb[b].j) - pj) < Tol)
                 pOrb_order[b] = a
                 pOrb_mask[b] = true
                 break
@@ -186,7 +145,7 @@ function HFB_canonical_basis_particle_reordering(Params::Parameters,C::O1B,Orb::
         end
 
         @inbounds for b in 1:a_max
-            if (nOrb_mask[b] == false) && (abs(Float64(Orb[b].l) - nl) < 1e-3) && (abs(Float64(Orb[b].j) - nj) < 1e-3)
+            if (nOrb_mask[b] == false) && (abs(Float64(Orb[b].l) - nl) < Tol) && (abs(Float64(Orb[b].j) - nj) < Tol)
                 nOrb_order[b] = a
                 nOrb_mask[b] = true
                 break
@@ -198,5 +157,5 @@ function HFB_canonical_basis_particle_reordering(Params::Parameters,C::O1B,Orb::
     @views pC .= pC[:,pOrb_order]
     @views nC .= nC[:,nOrb_order]
 
-    return pC, nC
+    return O1B(pC,nC)
 end

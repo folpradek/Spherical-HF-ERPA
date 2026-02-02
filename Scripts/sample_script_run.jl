@@ -29,9 +29,9 @@ function sample_script_run()
                 N3max = 9,
                 #CMS = "CMS1+2B",
                 #Path = "A16_Z8_hw16.0_Nmax3_N2max6_N3max9",
-                #HF = HF_Parameters(Tol = 1e-7, IMax = 100, BMF = true, HRF = false),
+                #HF = HF_Parameters(Tol = 1e-7, Imax = 100, BMF = true, HRF = false, EFA = HF_EFA_Parameters(A = 0, Z = 0, BMF = false)),
                 #RPA = RPA_Parameters(Ortho = true),
-                #RRPA = RRPA_Parameters(Ortho = true, Tol = 1e-7, IMax = 100, ScV3N = true, ScOBH = true, dOBDM = false)
+                #RRPA = RRPA_Parameters(Ortho = true, Tol = 1e-7, Imax = 100, ScV3N = true, ScOBH = true, dOBDM = false)
                 )
 
     # HF calculation call ...
@@ -53,7 +53,7 @@ function sample_script_run()
                 #CMS = "CMS1+2B",
                 #Path = "ScBCS_A18_Z8_hw16.0_Nmax3_N2max6_N3max9",
                 #HF = HF_Parameters(Tol = 1e-7, IMax = 100),
-                #BCS = BCS_Parameters(ScBCS = true, Tol = 1e-7, IMax = 500, q = 0.05, pD0 = 0.5, nD0 = 0.5, BMF = false, HRF = false)
+                #BCS = BCS_Parameters(ScBCS = true, Tol = 1e-7, Imax = 500, q = 0.05, pD0 = 0.5, nD0 = 0.5, BMF = false, HRF = false)
                 )
 
     # HF-BCS calculation call ...
@@ -68,7 +68,7 @@ function sample_script_run()
                 N3max = 9,
                 #CMS = "CMS1+2B",
                 #Path = "HFB_A18_Z8_hw16.0_Nmax3_N2max6_N3max9",
-                #HFB = HFB_Parameters(Tol = 1e-8, IMax = 150, dLmax = 0.5, BMF = true, HRF = false),
+                #HFB = HFB_Parameters(Tol = 1e-8, Imax = 150, Pairing = "Full", dLmax = 0.5, BMF = true, HRF = false),
                 #QTDA = QTDA_Parameters(Ortho = true)
                 )
 

@@ -4,7 +4,7 @@ function HFB_canonical_basis(Params::Parameters,Rho::O1B,Orb::Vector{Orb1B})
     a_max = div((N_max + 1) * (N_max + 2), 2)
 
     # Allocate density matrices ...
-    pRho, nRho = Rho.p, Rho.n
+    pRho, nRho = deepcopy(Rho.p), deepcopy(Rho.n)
 
     # Symmetrize density matrices ...
     pRho .= 0.5 .* (pRho .+ pRho')
@@ -22,29 +22,29 @@ function HFB_canonical_basis(Params::Parameters,Rho::O1B,Orb::Vector{Orb1B})
 
     # Add a tiny deterministic diagonal splitting to lift accidental degeneracies ...
     @inbounds for i in 1:a_max
-        pRho[i,i] += 1e-13 * i
-        nRho[i,i] += 1e-13 * i
+        pRho[i,i] += 1e-13 * Float64(a_max-i)
+        nRho[i,i] += 1e-13 * Float64(a_max-i)
     end
 
     # Diagonalize 1-body HFB density matrix Rho ...
-    pn_C, pC = eigen(Symmetric(pRho), sortby = -)
-    nn_C, nC = eigen(Symmetric(nRho), sortby = -)
+    pn_C, pC = eigen(Symmetric(pRho),sortby=-)
+    nn_C, nC = eigen(Symmetric(nRho),sortby=-)
 
     # Clean numerical noise in C ...
     @inbounds for a in 1:a_max
         @inbounds for b in 1:a_max
             pCME, nCME = abs(pC[a,b]), abs(nC[a,b])
-            if pCME < 1e-11
+            if pCME < 1e-10
                 pC[a,b] = 0.0
             end
-            if nCME < 1e-11
+            if nCME < 1e-10
                 nC[a,b] = 0.0
             end
         end
     end
 
-    # Reorder the transformation matrix C & occupation probabilities n_C ...
-    pC, nC = HFB_canonical_basis_particle_reordering(Params,O1B(pC,nC),Orb)
+    # Reorder the transformation matrix C ...
+    C = HFB_canonical_basis_particle_reordering(Params,O1B(pC,nC),Orb)
 
-    return O1B(pC,nC)
+    return C
 end

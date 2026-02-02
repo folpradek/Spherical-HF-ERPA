@@ -41,6 +41,11 @@ function HF(Params::Parameters)
     mkdir("IO/" * Params.Calc.Path * "/HF")
     mkdir("IO/" * Params.Calc.Path * "/HF/Densities")
 
+    if Params.Calc.HF.EFA.A != 0 && Params.Calc.HF.EFA.Z != 0
+        mkdir("IO/" * Params.Calc.Path * "/HF-EFA")
+        mkdir("IO/" * Params.Calc.Path * "/HF-EFA/Densities")
+    end
+
     # Start calculations
     println("\nStarting spherical Hartree-Fock calculation ...")
 
