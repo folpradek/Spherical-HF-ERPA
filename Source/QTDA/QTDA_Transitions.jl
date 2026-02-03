@@ -39,12 +39,12 @@ function QTDA_rM(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::qpOrb2B,X_QTDA::
             a, b, T_ab = Orb_2qp.i[P,J+1][i_qp].a, Orb_2qp.i[P,J+1][i_qp].b, Orb_2qp.i[P,J+1][i_qp].T
             j_a, j_b = Orb[a].j, Orb[b].j
             if T_ab == -1
-                ME = X_QTDA[P,J+1][i_qp,nu] * (qpTrOp.E1.qp20.p[a,b] - qpTrOp.E1.qp20.p[b,a]) / sqrt(1.0 + kronecker_delta(a,b))
+                ME = X_QTDA[P,J+1][i_qp,nu] * (qpTrOp.E1.qp20.p[a,b] + 0.0*qpTrOp.E1.qp20.p[b,a]) / sqrt(1.0 + kronecker_delta(a,b))
                 pM_E1Sum += ME
             end
 
             if T_ab == 1
-                ME = X_QTDA[P,J+1][i_qp,nu] * (qpTrOp.E1.qp20.n[a,b] - qpTrOp.E1.qp20.n[b,a]) / sqrt(1.0 + kronecker_delta(a,b))
+                ME = X_QTDA[P,J+1][i_qp,nu] * (qpTrOp.E1.qp20.n[a,b] + 0.0*qpTrOp.E1.qp20.n[b,a]) / sqrt(1.0 + kronecker_delta(a,b))
                 nM_E1Sum += ME
             end
         end
@@ -88,12 +88,12 @@ function QTDA_rM(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::qpOrb2B,X_QTDA::
             a, b, T_ab = Orb_2qp.i[P,J+1][i_qp].a, Orb_2qp.i[P,J+1][i_qp].b, Orb_2qp.i[P,J+1][i_qp].T
             j_a, j_b = Orb[a].j, Orb[b].j
             if T_ab == -1
-                ME = X_QTDA[P,J+1][i_qp,nu] * (qpTrOp.E3.qp20.p[a,b] - qpTrOp.E3.qp20.p[b,a]) / sqrt(1.0 + kronecker_delta(a,b))
+                ME = X_QTDA[P,J+1][i_qp,nu] * (qpTrOp.E3.qp20.p[a,b] + 0.0*qpTrOp.E3.qp20.p[b,a]) / sqrt(1.0 + kronecker_delta(a,b))
                 pM_E3Sum += ME
             end
 
             if T_ab == 1
-                ME = X_QTDA[P,J+1][i_qp,nu] * (qpTrOp.E3.qp20.n[a,b] - qpTrOp.E3.qp20.n[b,a]) / sqrt(1.0 + kronecker_delta(a,b))
+                ME = X_QTDA[P,J+1][i_qp,nu] * (qpTrOp.E3.qp20.n[a,b] + 0.0*qpTrOp.E3.qp20.n[b,a]) / sqrt(1.0 + kronecker_delta(a,b))
                 nM_E3Sum += ME
             end
         end

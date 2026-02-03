@@ -214,24 +214,24 @@
 
     # Quasiparticle 2-body NN operator structures ...
     struct qpO40
-        pp::Matrix{Vector{Float64}}
-        pn::Matrix{Vector{Float64}}
-        nn::Matrix{Vector{Float64}}
+        pp::Matrix{Matrix{Float64}}
+        pn::Matrix{Matrix{Float64}}
+        nn::Matrix{Matrix{Float64}}
     end
 
     struct qpO31
-        pp::Matrix{Vector{Float64}}
-        pn2011::Matrix{Vector{Float64}}
-        pn1120::Matrix{Vector{Float64}}
-        nn::Matrix{Vector{Float64}}
+        pp::Matrix{Matrix{Float64}}
+        pn2011::Matrix{Matrix{Float64}}
+        pn1120::Matrix{Matrix{Float64}}
+        nn::Matrix{Matrix{Float64}}
     end
 
     struct qpO22
-        pp::Matrix{Vector{Float64}}
-        pn2002::Matrix{Vector{Float64}}
-        pn1111::Matrix{Vector{Float64}}
-        pn0220::Matrix{Vector{Float64}}
-        nn::Matrix{Vector{Float64}}
+        pp::Matrix{Matrix{Float64}}
+        pn2002::Matrix{Matrix{Float64}}
+        pn1111::Matrix{Matrix{Float64}}
+        pn0220::Matrix{Matrix{Float64}}
+        nn::Matrix{Matrix{Float64}}
     end
 
     struct qpO2B

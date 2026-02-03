@@ -315,11 +315,10 @@ function qpO2b_40_allocate_ind4(Params::Parameters,JP::Vector{Vector{Int64}},Orb
         N_T0, N_T1 = Orb_NN.N[1,P,J+1], Orb_NN.N[2,P,J+1]
 
         @inbounds for Bra in 1:max(N_T0,N_T1)
-            @inbounds for Ket in 1:Bra
+            @inbounds for Ket in 1:max(N_T0,N_T1)
 
                 # Case of pn interaction ... T = 0
-                if Bra <= N_T0
-                    Ind = Bra + (Ket - 1) * N_T0 - div(Ket * (Ket - 1),2)
+                if Bra <= N_T0 && Ket <= N_T0
                     a, b = Orb_NN.Ind[1,P,J+1][Bra][1], Orb_NN.Ind[1,P,J+1][Bra][2]
                     c, d = Orb_NN.Ind[1,P,J+1][Ket][1], Orb_NN.Ind[1,P,J+1][Ket][2]
                     l_d, j_d = Orb[d].l, Orb[d].j
@@ -339,12 +338,12 @@ function qpO2b_40_allocate_ind4(Params::Parameters,JP::Vector{Vector{Int64}},Orb
                     Amp = Float64((-1)^J)
                     OpnSum = Amp * OpnSum
 
-                    @views O_NN.qp40.pn[P,J+1][Ind] = OpnSum
+                    @views O_NN.qp40.pn[P,J+1][Bra,Ket] = OpnSum
+
                 end
 
                 # Case of pp & nn interaction ... T = 1
-                if Bra <= N_T1
-                    Ind = Bra + (Ket - 1) * N_T1 - div(Ket * (Ket - 1),2)
+                if Bra <= N_T1 && Ket <= N_T1
                     a, b = Orb_NN.Ind[2,P,J+1][Bra][1], Orb_NN.Ind[2,P,J+1][Bra][2]
                     c, d = Orb_NN.Ind[2,P,J+1][Ket][1], Orb_NN.Ind[2,P,J+1][Ket][2]
                     l_d, j_d = Orb[d].l, Orb[d].j
@@ -368,8 +367,8 @@ function qpO2b_40_allocate_ind4(Params::Parameters,JP::Vector{Vector{Int64}},Orb
                     OppSum = Amp * OppSum
                     OnnSum = Amp * OnnSum
 
-                    @views O_NN.qp40.pp[P,J+1][Ind] = OppSum
-                    @views O_NN.qp40.nn[P,J+1][Ind] = OnnSum
+                    @views O_NN.qp40.pp[P,J+1][Bra,Ket] = OppSum
+                    @views O_NN.qp40.nn[P,J+1][Bra,Ket] = OnnSum
                 end
 
             end
@@ -378,6 +377,14 @@ function qpO2b_40_allocate_ind4(Params::Parameters,JP::Vector{Vector{Int64}},Orb
     end
 
     return O_NN
+end
+
+@inline function qpO2b_40_index(a::Int64,b::Int64,c::Int64,d::Int64,J::Int64,P::Int64,T::Int64,Orb_NN::Orb2B)
+    Bra_key = (Int8(T),Int8(P),Int8(J),Int16(a),Int16(b))
+    Ket_key = (Int8(T),Int8(P),Int8(J),Int16(c),Int16(d))
+    Bra = Int64(Orb_NN.Dic[Bra_key])
+    Ket = Int64(Orb_NN.Dic[Ket_key])
+    return Bra, Ket
 end
 
 @inline function qpO2b_40_pp(a::Int64,b::Int64,c::Int64,d::Int64,J::Int64,P::Int64,O_NN::qpO2B,Orb::Vector{Orb1B},Orb_NN::Orb2B)
@@ -402,12 +409,13 @@ end
         exp = div(Orb[a].j + Orb[b].j + Orb[c].j + Orb[d].j, 2)
         Amp = isodd(exp) ? -1.0 : 1.0
     end
-    @inbounds Ind = O2b_index(a_s,b_s,c_s,d_s,J,P,1,Orb_NN)
-    return Amp * O_NN.qp40.pp[P,J+1][Ind]
+    @inbounds Bra, Ket = qpO2b_40_index(a_s,b_s,c_s,d_s,J,P,1,Orb_NN)
+    return Amp * O_NN.qp40.pp[P,J+1][Bra,Ket]
 end
 
 @inline function qpO2b_40_pn(a::Int64,b::Int64,c::Int64,d::Int64,J::Int64,P::Int64,O_NN::qpO2B,Orb_NN::Orb2B)
-    @inbounds return O_NN.qp40.pn[P,J+1][O2b_index(a,b,c,d,J,P,0,Orb_NN)]
+    @inbounds Bra, Ket = qpO2b_40_index(a,b,c,d,J,P,0,Orb_NN)
+    @inbounds return O_NN.qp40.pn[P,J+1][Bra,Ket]
 end
 
 @inline function qpO2b_40_nn(a::Int64,b::Int64,c::Int64,d::Int64,J::Int64,P::Int64,O_NN::qpO2B,Orb::Vector{Orb1B},Orb_NN::Orb2B)
@@ -432,6 +440,6 @@ end
         exp = div(Orb[a].j + Orb[b].j + Orb[c].j + Orb[d].j, 2)
         Amp = isodd(exp) ? -1.0 : 1.0
     end
-    @inbounds Ind = O2b_index(a_s,b_s,c_s,d_s,J,P,1,Orb_NN)
-    return Amp * O_NN.qp40.nn[P,J+1][Ind]
+    @inbounds Bra, Ket = qpO2b_40_index(a_s,b_s,c_s,d_s,J,P,1,Orb_NN)
+    return Amp * O_NN.qp40.nn[P,J+1][Bra,Ket]
 end

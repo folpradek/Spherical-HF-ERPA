@@ -47,11 +47,21 @@ function HFB_solver(Params::Parameters)
         # Allocate H_NN ... residual interaction 2-body Hamiltonian in the quasiparticle basis ...
         @time H_NN = qpO2b(Params,Orb,Orb_NN,V_NN,C,U,V)
 
+        # Deallocate V_NN 2-body & V_NNN 3-body interaction ...
+        V_NN = nothing
+        V_NNN = nothing
+
+        # Perform the Garbage Collection ...
+        GC.gc()
+
         # Perform final export of HFB solution into binary files ...
-        @time HFB_export(Params,Orb,Orb_NN,C,U,V,H_N,H_NN)
+        #@time HFB_export(Params,Orb,Orb_NN,C,U,V,H_N,H_NN)
 
         # Perform the HFB-BMBPT(2) calculation of correlation energy ...
         @time HFB_BMBPT_energy(Params,Orb,Orb_NN,H_N,H_NN)
+
+        # Deallocate 2-body quasiparticle Hamiltonian H_NN ...
+        H_NN = nothing
     end
 
     # Deallocate V_NN 2-body & V_NNN 3-body interaction ...
@@ -359,7 +369,7 @@ end
 
 function HFB_diagonalize(Params::Parameters,H::O1B,Delta::O1B,Orb::Vector{Orb1B})
     # Read parameters ...
-    Tol = min(1e-8,Params.Calc.HFB.Tol)
+    Tol = 1e-13
     N_max = Params.Calc.Nmax
     a_max = div((N_max + 1) * (N_max + 2), 2)
 

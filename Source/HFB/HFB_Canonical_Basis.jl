@@ -34,10 +34,10 @@ function HFB_canonical_basis(Params::Parameters,Rho::O1B,Orb::Vector{Orb1B})
     @inbounds for a in 1:a_max
         @inbounds for b in 1:a_max
             pCME, nCME = abs(pC[a,b]), abs(nC[a,b])
-            if pCME < 1e-10
+            if pCME < 1e-13
                 pC[a,b] = 0.0
             end
-            if nCME < 1e-10
+            if nCME < 1e-13
                 nC[a,b] = 0.0
             end
         end

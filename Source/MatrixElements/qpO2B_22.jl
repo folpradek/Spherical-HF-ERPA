@@ -509,133 +509,105 @@ function qpO2b_22_allocate_ind4(Params::Parameters,JP::Vector{Vector{Int64}},Orb
                 println("\t\tCalculating   ...   J = " * string(J) * "/" * string(N_2max+1) * "\tP = -")
             end
 
-            N_T0, N_T1 = Orb_NN.N[1,P,J+1], Orb_NN.N[2,P,J+1]
+            N = Orb_NN.N[1,P,J+1]
 
-            @inbounds Threads.@threads for Bra in 1:max(N_T0,N_T1)
-                @inbounds for Ket in 1:Bra
+            @inbounds Threads.@threads for Bra in 1:N
+                @inbounds for Ket in 1:N
 
-                    # Case of pn entries ... T = 0
-                    if Bra <= N_T0
-                        Ind = Bra + (Ket - 1) * N_T0 - div(Ket * (Ket - 1),2)
-                        a, b = Orb_NN.Ind[1,P,J+1][Bra][1], Orb_NN.Ind[1,P,J+1][Bra][2]
-                        c, d = Orb_NN.Ind[1,P,J+1][Ket][1], Orb_NN.Ind[1,P,J+1][Ket][2]
-                        j_a, j_b, j_c, j_d = Orb[a].j, Orb[b].j, Orb[c].j, Orb[d].j
-                        l_a, l_b, l_c, l_d = Orb[a].l, Orb[b].l, Orb[c].l, Orb[d].l
+                    a, b = Orb_NN.Ind[1,P,J+1][Bra][1], Orb_NN.Ind[1,P,J+1][Bra][2]
+                    c, d = Orb_NN.Ind[1,P,J+1][Ket][1], Orb_NN.Ind[1,P,J+1][Ket][2]
+                    j_a, j_b, j_c, j_d = Orb[a].j, Orb[b].j, Orb[c].j, Orb[d].j
+                    l_a, l_b, l_c, l_d = Orb[a].l, Orb[b].l, Orb[c].l, Orb[d].l
 
-                        Bra_ab = O2b_temp_index(a,b,J,P,Orb_NN_t)
+                    Orb_x = Orb_PreComp(a_max,j_d,l_d,Orb)
 
-                        Orb_x = Orb_PreComp(a_max,j_d,l_d,Orb)
+                    Opn2002Sum, Opn1111Sum, Opn0220Sum = 0.0, 0.0, 0.0
+                    OppSum, OnnSum = 0.0, 0.0
 
-                        Opn2002Sum, Opn1111Sum, Opn0220Sum = 0.0, 0.0, 0.0
+                    OppSum2, OnnSum2 = 0.0, 0.0
 
-                        @inbounds for i in Orb_x
-                            Ket_ci = O2b_temp_index(c,i,J,P,Orb_NN_t)
+                    @inbounds for i in Orb_x
+                        Ket_ci = O2b_temp_index(c,i,J,P,Orb_NN_t)
 
-                            Opn1111ME1 = O2b_temp_transformation_ind4_MEs(P,J,Bra,Ket_ci,i,d,U.n,O_NN_t1.pn1111[1])
-                            Opn1111ME2 = O2b_temp_transformation_ind4_MEs(P,J,Bra,Ket_ci,i,d,V.n,O_NN_t1.pn1111[4])
+                        Opn1111ME1 = O2b_temp_transformation_ind4_MEs(P,J,Bra,Ket_ci,i,d,U.n,O_NN_t1.pn1111[1])
+                        Opn1111ME2 = O2b_temp_transformation_ind4_MEs(P,J,Bra,Ket_ci,i,d,V.n,O_NN_t1.pn1111[4])
 
-                            Opn1111Sum += (Opn1111ME1 + Opn1111ME2)
+                        Opn1111Sum += (Opn1111ME1 + Opn1111ME2)
 
-                        end
 
-                        Amp11 = Float64((-1)^(J))
-                        Opn1111Sum = Amp11 * Opn1111Sum
+                        OppME1 = O2b_temp_transformation_ind4_MEs(P,J,Bra,Ket_ci,i,d,U.p,O_NN_t1.pp[1])
+                        OppME3 = O2b_temp_transformation_ind4_MEs(P,J,Bra,Ket_ci,i,d,V.p,O_NN_t1.pp[3])
 
-                        @inbounds for I in 0:J_max
+                        OnnME1 = O2b_temp_transformation_ind4_MEs(P,J,Bra,Ket_ci,i,d,U.n,O_NN_t1.nn[1])
+                        OnnME3 = O2b_temp_transformation_ind4_MEs(P,J,Bra,Ket_ci,i,d,V.n,O_NN_t1.nn[3])
 
-                            # pnO2002 && pnO0220 ...
-                            if abs(j_a - j_c) <= 2*I && 2*I <= (j_a + j_c) && abs(j_b - j_d) <= 2*I && 2*I <= (j_b + j_d) &&
-                                (rem(l_a + l_c,2) + 1) == P && (rem(l_b + l_d,2) + 1) == P
-                            #if abs(j_a - j_b) <= 2*I && 2*I <= (j_a + j_b) && abs(j_c - j_d) <= 2*I && 2*I <= (j_c + j_d)
 
-                                #=
-                                Amp2002 = Float64((-1)^(J + I + div(j_b + j_c,2)) * (2*I + 1)) * f6j(j_a,j_c,2*J,j_d,j_b,2*I)
-                                Amp0220 = Amp2002
-            
-                                Bra_ab, Ket_cd = O2b_temp_index(a,b,I,P,Orb_NN_t), O2b_temp_index(c,d,I,P,Orb_NN_t)
+                        OppME2 = O2b_temp_transformation_ind4_MEs(P,J,Bra,Ket_ci,i,d,V.p,O_NN_t1.pp[2])
+                        OnnME2 = O2b_temp_transformation_ind4_MEs(P,J,Bra,Ket_ci,i,d,V.n,O_NN_t1.nn[2])
 
-                                Opn2002Sum += Amp2002 * O_NN_t2.pn2002[P,I+1][Bra_ab,Ket_cd]
-                                Opn0220Sum += Amp0220 * O_NN_t2.pn0220[P,I+1][Bra_ab,Ket_cd]
-                                
-                                # gives the same results as the one below ...
-                                =#
+                        OppSum += (OppME1 + OppME3)
+                        OnnSum += (OnnME1 + OnnME3)
 
-                                
-                                Amp2002 = Float64((-1)^(J + I + div(j_b + j_c,2)) * (2*I + 1)) * f6j(j_a,j_b,2*J,j_d,j_c,2*I) * sqrt(Float64((1 + kronecker_delta(a,c) * (-1)^I) * (1 + kronecker_delta(b,d) * (-1)^I)))
-                                Amp0220 = Amp2002
-            
-                                Bra_ac, Ket_bd = O2b_temp_index(a,c,I,P,Orb_NN_t), O2b_temp_index(b,d,I,P,Orb_NN_t)
-
-                                Opn2002Sum += Amp2002 * O_NN_t2.pn2002[P,I+1][Bra_ac,Ket_bd]
-                                Opn0220Sum += Amp0220 * O_NN_t2.pn0220[P,I+1][Bra_ac,Ket_bd]
-                                
-                            end
-
-                            # pnO1111 ...
-                            if abs(j_a - j_d) <= 2*I && 2*I <= (j_a + j_d) && abs(j_c - j_b) <= 2*I &&
-                            2*I <= (j_c + j_b) && (rem(l_a + l_d,2) + 1 == P) && (rem(l_b + l_c,2) + 1 == P)
-                                Amp1111 = Float64((-1)^(J) * (2*I + 1)) * f6j(j_a,j_b,2*J,j_c,j_d,2*I)
-
-                                Bra_ad, Ket_cb = O2b_temp_index(a,d,I,P,Orb_NN_t), O2b_temp_index(c,b,I,P,Orb_NN_t)
-
-                                Opn1111Sum += Amp1111 * O_NN_t2.pn1111[2][P,I+1][Bra_ad,Ket_cb]
-                            end
-
-                        end
-
-                        @views O_NN.qp22.pn2002[P,J+1][Ind] = Opn2002Sum
-                        @views O_NN.qp22.pn1111[P,J+1][Ind] = Opn1111Sum
-                        @views O_NN.qp22.pn0220[P,J+1][Ind] = Opn0220Sum
+                        OppSum2 += OppME2
+                        OnnSum2 += OnnME2
                     end
 
-                    # Case of pp & nn entries ... T = 1
-                    if Bra <= N_T1
-                        Ind = Bra + (Ket - 1) * N_T1 - div(Ket * (Ket - 1),2)
-                        a, b = Orb_NN.Ind[2,P,J+1][Bra][1], Orb_NN.Ind[2,P,J+1][Bra][2]
-                        c, d = Orb_NN.Ind[2,P,J+1][Ket][1], Orb_NN.Ind[2,P,J+1][Ket][2]
-                        j_a, j_b, j_c, j_d = Orb[a].j, Orb[b].j, Orb[c].j, Orb[d].j
-                        l_a, l_b, l_c, l_d = Orb[a].l, Orb[b].l, Orb[c].l, Orb[d].l
+                    Amp11 = Float64((-1)^(J))
+                    Opn1111Sum = Amp11 * Opn1111Sum
 
-                        Bra_ab = O2b_temp_index(a,b,J,P,Orb_NN_t)
+                    @inbounds for I in 0:J_max
+                        # pnO2002 && pnO0220 ...
+                        if abs(j_a - j_c) <= 2*I && 2*I <= (j_a + j_c) && abs(j_b - j_d) <= 2*I && 2*I <= (j_b + j_d) &&
+                            (rem(l_a + l_c,2) + 1) == P && (rem(l_b + l_d,2) + 1) == P
 
-                        Orb_x = Orb_PreComp(a_max,j_d,l_d,Orb)
+                            Amp2002 = Float64((-1)^(J + I + div(j_b + j_c,2)) * (2*I + 1)) * f6j(j_a,j_b,2*J,j_d,j_c,2*I) * sqrt(Float64((1 + kronecker_delta(a,c) * (-1)^I) * (1 + kronecker_delta(b,d) * (-1)^I)))
+                            Amp0220 = Amp2002
+        
+                            Bra_ac, Ket_bd = O2b_temp_index(a,c,I,P,Orb_NN_t), O2b_temp_index(b,d,I,P,Orb_NN_t)
 
-                        OppSum, OnnSum = 0.0, 0.0
-
-                        @inbounds for i in Orb_x
-                            Ket_ci = O2b_temp_index(c,i,J,P,Orb_NN_t)
-
-                            OppME1 = O2b_temp_transformation_ind4_MEs(P,J,Bra,Ket_ci,i,d,U.p,O_NN_t1.pp[1])
-                            OppME3 = O2b_temp_transformation_ind4_MEs(P,J,Bra,Ket_ci,i,d,V.p,O_NN_t1.pp[3])
-
-                            OnnME1 = O2b_temp_transformation_ind4_MEs(P,J,Bra,Ket_ci,i,d,U.n,O_NN_t1.nn[1])
-                            OnnME3 = O2b_temp_transformation_ind4_MEs(P,J,Bra,Ket_ci,i,d,V.n,O_NN_t1.nn[3])
-
-                            OppSum += (OppME1 + OppME3)
-                            OnnSum += (OnnME1 + OnnME3)
+                            Opn2002Sum += Amp2002 * O_NN_t2.pn2002[P,I+1][Bra_ac,Ket_bd]
+                            Opn0220Sum += Amp0220 * O_NN_t2.pn0220[P,I+1][Bra_ac,Ket_bd]
+                            
                         end
 
-                        Amp = Float64((-1)^(J + 1)) * sqrt(Float64((1 + kronecker_delta(a,b) * (-1)^J) * (1 + kronecker_delta(c,d) * (-1)^J))) # My og and Suhonen ...
 
-                        OppSum = Amp * OppSum
-                        OnnSum = Amp * OnnSum
+                        # pnO1111 ...
+                        if abs(j_a - j_d) <= 2*I && 2*I <= (j_a + j_d) && abs(j_c - j_b) <= 2*I &&
+                        2*I <= (j_c + j_b) && (rem(l_a + l_d,2) + 1 == P) && (rem(l_b + l_c,2) + 1 == P)
+                            Amp1111 = Float64((-1)^(J) * (2*I + 1)) * f6j(j_a,j_b,2*J,j_c,j_d,2*I)
 
-                        # NNO22 ...
-                        @inbounds for I in 0:J_max
-                            if abs(j_a - j_d) <= 2*I && 2*I <= (j_a + j_d) && abs(j_b - j_c) <= 2*I &&
-                            2*I <= (j_b + j_c) && (rem(l_a + l_d,2) + 1 == P) && (rem(l_b + l_c,2) + 1 == P)
-                                AmpR = 4.0 * Float64((-1)^(J) * (2*I + 1)) * f6j(j_a,j_b,2*J,j_c,j_d,2*I) * sqrt(Float64((1 + kronecker_delta(a,d) * (-1)^I) * (1 + kronecker_delta(b,c) * (-1)^I))) # My og ... also in Suhonen ...
+                            Bra_ad, Ket_cb = O2b_temp_index(a,d,I,P,Orb_NN_t), O2b_temp_index(c,b,I,P,Orb_NN_t)
 
-                                Bra_ad, Ket_cb = O2b_temp_index(a,d,I,P,Orb_NN_t), O2b_temp_index(c,b,I,P,Orb_NN_t)
-
-                                OppSum += AmpR * O_NN_t2.pp[2][P,I+1][Bra_ad,Ket_cb]
-                                OnnSum += AmpR * O_NN_t2.nn[2][P,I+1][Bra_ad,Ket_cb]
-                            end
+                            Opn1111Sum += Amp1111 * O_NN_t2.pn1111[2][P,I+1][Bra_ad,Ket_cb]
                         end
 
-                        @views O_NN.qp22.pp[P,J+1][Ind] = OppSum
-                        @views O_NN.qp22.nn[P,J+1][Ind] = OnnSum
                     end
+
+                    @views O_NN.qp22.pn2002[P,J+1][Bra,Ket] = Opn2002Sum
+                    @views O_NN.qp22.pn1111[P,J+1][Bra,Ket] = Opn1111Sum
+                    @views O_NN.qp22.pn0220[P,J+1][Bra,Ket] = Opn0220Sum
+
+                    Amp = Float64((-1)^(J + 1)) * sqrt(Float64((1 + kronecker_delta(a,b) * (-1)^J) * (1 + kronecker_delta(c,d) * (-1)^J))) # My og and Suhonen ...
+
+                    OppSum = Amp * OppSum
+                    OnnSum = Amp * OnnSum
+
+                    # NNO22 ...
+                    @inbounds for I in max(div(abs(j_a - j_d),2), div(abs(j_b - j_c),2)):min(div(j_a + j_d,2), div(j_b + j_c,2))
+                        if (rem(l_a + l_d,2) + 1 == P) && (rem(l_b + l_c,2) + 1 == P)
+
+                            AmpR = 4.0 * Float64((-1)^(J) * (2*I + 1)) * f6j(j_a,j_b,2*J,j_c,j_d,2*I) * sqrt(Float64((1 + kronecker_delta(a,d) * (-1)^I) * (1 + kronecker_delta(b,c) * (-1)^I))) # My og ... also in Suhonen ...
+
+                            Bra_ad, Ket_cb = O2b_temp_index(a,d,I,P,Orb_NN_t), O2b_temp_index(c,b,I,P,Orb_NN_t)
+
+                            OppSum += AmpR * O_NN_t2.pp[2][P,I+1][Bra_ad,Ket_cb]
+                            OnnSum += AmpR * O_NN_t2.nn[2][P,I+1][Bra_ad,Ket_cb]
+                        end
+                    end
+
+                    @views O_NN.qp22.pp[P,J+1][Bra,Ket] = OppSum + OppSum2
+                    @views O_NN.qp22.nn[P,J+1][Bra,Ket] = OnnSum + OnnSum2
+
 
                 end
             end
@@ -645,66 +617,35 @@ function qpO2b_22_allocate_ind4(Params::Parameters,JP::Vector{Vector{Int64}},Orb
     return O_NN
 end
 
-@inline function qpO2b_22_pp(a::Int64,b::Int64,c::Int64,d::Int64,J::Int64,P::Int64,O_NN::qpO2B,Orb::Vector{Orb1B},Orb_NN::Orb2B)
-    if a < b
-        a_s, b_s = b, a
-        exp_ab = J + 1 + div(Orb[a].j + Orb[b].j, 2)
-        Sign_ab = isodd(exp_ab) ? -1.0 : 1.0
-    else
-        a_s, b_s = a, b
-        Sign_ab = 1
-    end
-    if c < d
-        c_s, d_s = d, c
-        exp_cd = J + 1 + div(Orb[c].j + Orb[d].j, 2)
-        Sign_cd = isodd(exp_cd) ? -1.0 : 1.0
-    else
-        c_s, d_s = c, d
-        Sign_cd = 1
-    end
-    Amp = Sign_ab * Sign_cd
-    if (a < b) && (c < d)
-        exp = div(Orb[a].j + Orb[b].j + Orb[c].j + Orb[d].j, 2)
-        Amp = isodd(exp) ? -1.0 : 1.0
-    end
-    @inbounds Ind = O2b_index(a_s,b_s,c_s,d_s,J,P,1,Orb_NN)
-    return Amp * O_NN.qp22.pp[P,J+1][Ind]
+@inline function qpO2b_22_index(a::Int64,b::Int64,c::Int64,d::Int64,J::Int64,P::Int64,Orb_NN::Orb2B)
+    Bra_key = (Int8(0),Int8(P),Int8(J),Int16(a),Int16(b))
+    Ket_key = (Int8(0),Int8(P),Int8(J),Int16(c),Int16(d))
+    Bra = Int64(Orb_NN.Dic[Bra_key])
+    Ket = Int64(Orb_NN.Dic[Ket_key])
+    return Bra, Ket
+end
+
+@inline function qpO2b_22_pp(a::Int64,b::Int64,c::Int64,d::Int64,J::Int64,P::Int64,O_NN::qpO2B,Orb_NN::Orb2B)
+    @inbounds Bra, Ket = qpO2b_22_index(a,b,c,d,J,P,Orb_NN)
+    @inbounds return O_NN.qp22.pp[P,J+1][Bra,Ket]
 end
 
 @inline function qpO2b_2002_pn(a::Int64,b::Int64,c::Int64,d::Int64,J::Int64,P::Int64,O_NN::qpO2B,Orb_NN::Orb2B)
-    @inbounds return O_NN.qp22.pn2002[P,J+1][O2b_index(a,b,c,d,J,P,0,Orb_NN)]
+    @inbounds Bra, Ket = qpO2b_22_index(a,b,c,d,J,P,Orb_NN)
+    @inbounds return O_NN.qp22.pn2002[P,J+1][Bra,Ket]
 end
 
 @inline function qpO2b_1111_pn(a::Int64,b::Int64,c::Int64,d::Int64,J::Int64,P::Int64,O_NN::qpO2B,Orb_NN::Orb2B)
-    @inbounds return O_NN.qp22.pn1111[P,J+1][O2b_index(a,b,c,d,J,P,0,Orb_NN)]
+    @inbounds Bra, Ket = qpO2b_22_index(a,b,c,d,J,P,Orb_NN)
+    @inbounds return O_NN.qp22.pn1111[P,J+1][Bra,Ket]
 end
 
 @inline function qpO2b_0220_pn(a::Int64,b::Int64,c::Int64,d::Int64,J::Int64,P::Int64,O_NN::qpO2B,Orb_NN::Orb2B)
-    @inbounds return O_NN.qp22.pn0220[P,J+1][O2b_index(a,b,c,d,J,P,0,Orb_NN)]
+    @inbounds Bra, Ket = qpO2b_22_index(a,b,c,d,J,P,Orb_NN)
+    @inbounds return O_NN.qp22.pn0220[P,J+1][Bra,Ket]
 end
 
-@inline function qpO2b_22_nn(a::Int64,b::Int64,c::Int64,d::Int64,J::Int64,P::Int64,O_NN::qpO2B,Orb::Vector{Orb1B},Orb_NN::Orb2B)
-    if a < b
-        a_s, b_s = b, a
-        exp_ab = J + 1 + div(Orb[a].j + Orb[b].j, 2)
-        Sign_ab = isodd(exp_ab) ? -1.0 : 1.0
-    else
-        a_s, b_s = a, b
-        Sign_ab = 1
-    end
-    if c < d
-        c_s, d_s = d, c
-        exp_cd = J + 1 + div(Orb[c].j + Orb[d].j, 2)
-        Sign_cd = isodd(exp_cd) ? -1.0 : 1.0
-    else
-        c_s, d_s = c, d
-        Sign_cd = 1
-    end
-    Amp = Sign_ab * Sign_cd
-    if (a < b) && (c < d)
-        exp = div(Orb[a].j + Orb[b].j + Orb[c].j + Orb[d].j, 2)
-        Amp = isodd(exp) ? -1.0 : 1.0
-    end
-    @inbounds Ind = O2b_index(a_s,b_s,c_s,d_s,J,P,1,Orb_NN)
-    return Amp * O_NN.qp22.nn[P,J+1][Ind]
+@inline function qpO2b_22_nn(a::Int64,b::Int64,c::Int64,d::Int64,J::Int64,P::Int64,O_NN::qpO2B,Orb_NN::Orb2B)
+    @inbounds Bra, Ket = qpO2b_22_index(a,b,c,d,J,P,Orb_NN)
+    @inbounds return O_NN.qp22.nn[P,J+1][Bra,Ket]
 end

@@ -66,11 +66,9 @@ function HFB_BMBPT_energy(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,H_
                     l_d, j_d, E_d = Orb[d].l, Orb[d].j, H_N.qp11.p[d,d]
                     if (rem(l_c + l_d,2) + 1) == P
                         Denom = -1.0 / (E_a + E_b + E_c + E_d) / 24.0
-                        @inbounds for J in div(abs(j_a - j_b),2):div(j_a + j_b,2)
-                            if div(abs(j_c - j_d),2) <= J && J <= div(j_c + j_d,2)
-                                ME = Float64(2*J + 1) * Denom * abs(qpO2b_40_pp(a,b,c,d,J,P,H_NN,Orb,Orb_NN))^2
-                                Sum += ME
-                            end
+                        @inbounds for J in max(div(abs(j_a - j_b),2),div(abs(j_c - j_d),2)):min(div(j_a + j_b,2),div(j_c + j_d,2))
+                            ME = Float64(2*J + 1) * Denom * abs(qpO2b_40_pp(a,b,c,d,J,P,H_NN,Orb,Orb_NN))^2
+                            Sum += ME
                         end
                     end
                 end
@@ -85,11 +83,9 @@ function HFB_BMBPT_energy(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,H_
                     l_d, j_d, E_d = Orb[d].l, Orb[d].j, H_N.qp11.n[d,d]
                     if (rem(l_c + l_d,2) + 1) == P
                         Denom = -1.0 / (E_a + E_b + E_c + E_d) / 4.0
-                        @inbounds for J in div(abs(j_a - j_b),2):div(j_a + j_b,2)
-                            if div(abs(j_c - j_d),2) <= J && J <= div(j_c + j_d,2)
-                                ME = Float64(2*J + 1) * Denom * abs(qpO2b_40_pn(a,b,c,d,J,P,H_NN,Orb_NN))^2
-                                Sum += ME
-                            end
+                        @inbounds for J in max(div(abs(j_a - j_b),2),div(abs(j_c - j_d),2)):min(div(j_a + j_b,2),div(j_c + j_d,2))
+                            ME = Float64(2*J + 1) * Denom * abs(qpO2b_40_pn(a,b,c,d,J,P,H_NN,Orb_NN))^2
+                            Sum += ME
                         end
                     end
                 end
@@ -104,11 +100,9 @@ function HFB_BMBPT_energy(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,H_
                     l_d, j_d, E_d = Orb[d].l, Orb[d].j, H_N.qp11.n[d,d]
                     if (rem(l_c + l_d,2) + 1) == P
                         Denom = -1.0 / (E_a + E_b + E_c + E_d) / 24.0
-                        @inbounds for J in div(abs(j_a - j_b),2):div(j_a + j_b,2)
-                            if div(abs(j_c - j_d),2) <= J && J <= div(j_c + j_d,2)
-                                ME = Float64(2*J + 1) * Denom * abs(qpO2b_40_nn(a,b,c,d,J,P,H_NN,Orb,Orb_NN))^2
-                                Sum += ME
-                            end
+                        @inbounds for J in max(div(abs(j_a - j_b),2),div(abs(j_c - j_d),2)):min(div(j_a + j_b,2),div(j_c + j_d,2))
+                            ME = Float64(2*J + 1) * Denom * abs(qpO2b_40_nn(a,b,c,d,J,P,H_NN,Orb,Orb_NN))^2
+                            Sum += ME
                         end
                     end
                 end
@@ -118,10 +112,10 @@ function HFB_BMBPT_energy(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,H_
     end
 
     # Get the total HFB-BMBPT(2) energy from the thread accumulators ...
-    dE = 2.0 * sum(dE_threads)
+    dE = 4.0 * sum(dE_threads)
 
     # Print the total HFB-BMBPT(2) energy correction ...
-    println("\tHFB-BMBPT(2) energy    ...   E^(2) = " * string(round(dE, sigdigits=9)) * " MeV")
+    println("\tHFB-BMBPT(2) energy    ...   E^(2) = " * string(round(dE, sigdigits=9)) * " MeV\n")
 
     # Write the total HFB-BMBPT(2) energy correction to the summary file ...
     Summary =  open(string("IO/" * IO * "/HFB/HFB_Summary.dat"), "a")

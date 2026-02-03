@@ -1,6 +1,6 @@
 function HFB_orbital_ordering(Params::Parameters,SQE::pnVector,U::O1B,V::O1B,Orb::Vector{Orb1B};Final_Ordering::Bool=false,C::O1B=O1B(zeros(Float64,1,1),zeros(Float64,1,1)))
     # Read parameters ...
-    Tol = 1e-6
+    Tol = 1e-3
     N_max = Params.Calc.Nmax
     a_max = div((N_max + 1) * (N_max + 2), 2)
 
@@ -31,20 +31,21 @@ function HFB_orbital_ordering(Params::Parameters,SQE::pnVector,U::O1B,V::O1B,Orb
         @views nU .= nU[:,nOrbs_sort]
         @views nV .= nV[:,nOrbs_sort]
 
-        #=
-        pOrbs_sort = sortperm(pSQE)
-        nOrbs_sort = sortperm(nSQE)
+            # To ensure the Residual Hamiltonian is correctly built ...
+            #=
+            pOrbs_sort = sortperm(pSQE)
+            nOrbs_sort = sortperm(nSQE)
 
-        # Proton single-quasiparticle orbitals ...
-        @views pSQE .= pSQE[pOrbs_sort]
-        @views pU .= pU[:,pOrbs_sort]
-        @views pV .= pV[:,pOrbs_sort]
+            # Proton single-quasiparticle orbitals ...
+            @views pSQE .= pSQE[pOrbs_sort]
+            @views pU .= pU[:,pOrbs_sort]
+            @views pV .= pV[:,pOrbs_sort]
 
-        # Neutron single-quasiparticle orbitals ...
-        @views nSQE .= nSQE[nOrbs_sort]
-        @views nU .= nU[:,nOrbs_sort]
-        @views nV .= nV[:,nOrbs_sort]
-        =#
+            # Neutron single-quasiparticle orbitals ...
+            @views nSQE .= nSQE[nOrbs_sort]
+            @views nU .= nU[:,nOrbs_sort]
+            @views nV .= nV[:,nOrbs_sort]
+            =#
 
     end
 
@@ -104,7 +105,7 @@ end
 
 function HFB_canonical_basis_particle_reordering(Params::Parameters,C::O1B,Orb::Vector{Orb1B})
     # Read calculation parameters ...
-    Tol = 1e-6
+    Tol = 1e-3
     N_max = Params.Calc.Nmax
     a_max = div((N_max + 1) * (N_max + 2), 2)
 

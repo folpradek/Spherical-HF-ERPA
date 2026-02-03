@@ -403,81 +403,58 @@ function qpO2b_31_allocate_ind4(Params::Parameters,JP::Vector{Vector{Int64}},Orb
         else
             println("\tCalculating   ...   J = " * string(J) * "/" * string(N_2max+1) * "\tP = -")
         end
-        N_T0, N_T1 = Orb_NN.N[1,P,J+1], Orb_NN.N[2,P,J+1]
+        N = Orb_NN.N[1,P,J+1]
 
-        @inbounds for Bra in 1:max(N_T0,N_T1)
-            @inbounds for Ket in 1:Bra
+        @inbounds for Bra in 1:N
+            @inbounds for Ket in 1:N
 
-                # Case of pn interaction ... T = 0
-                if Bra <= N_T0
-                    Ind = Bra + (Ket - 1) * N_T0 - div(Ket * (Ket - 1),2)
-                    a, b = Orb_NN.Ind[1,P,J+1][Bra][1], Orb_NN.Ind[1,P,J+1][Bra][2]
-                    c, d = Orb_NN.Ind[1,P,J+1][Ket][1], Orb_NN.Ind[1,P,J+1][Ket][2]
-                    l_d, j_d = Orb[d].l, Orb[d].j
+                #a, b = Orb_NN.Ind[1,P,J+1][Bra][1], Orb_NN.Ind[1,P,J+1][Bra][2]
+                c, d = Orb_NN.Ind[1,P,J+1][Ket][1], Orb_NN.Ind[1,P,J+1][Ket][2]
+                l_d, j_d = Orb[d].l, Orb[d].j
 
-                    Bra_ab = O2b_temp_index(a,b,J,P,Orb_NN_t)
+                Orb_x = Orb_PreComp(a_max,j_d,l_d,Orb)
 
-                    Orb_x = Orb_PreComp(a_max,j_d,l_d,Orb)
+                OppSum, OnnSum = 0.0, 0.0
+                Opn2011Sum, Opn1120Sum = 0.0, 0.0
 
-                    Opn2011Sum, Opn1120Sum = 0.0, 0.0
+                @inbounds for i in Orb_x
+                    Ket_ci = O2b_temp_index(c,i,J,P,Orb_NN_t)
 
-                    @inbounds for i in Orb_x
-                        Ket_ci = O2b_temp_index(c,i,J,P,Orb_NN_t)
+                    Opn2011ME1 = O2b_temp_transformation_ind4_MEs(P,J,Bra,Ket_ci,i,c,U.n,O_NN_t1.pn2011[1])
+                    Opn2011ME2 = O2b_temp_transformation_ind4_MEs(P,J,Bra,Ket_ci,i,c,V.n,O_NN_t1.pn2011[2])
+                    Opn1120ME1 = O2b_temp_transformation_ind4_MEs(P,J,Bra,Ket_ci,i,c,V.n,O_NN_t1.pn1120[1])
+                    Opn1120ME2 = O2b_temp_transformation_ind4_MEs(P,J,Bra,Ket_ci,i,c,V.n,O_NN_t1.pn1120[2])
 
-                        Opn2011ME1 = O2b_temp_transformation_ind4_MEs(P,J,Bra,Ket_ci,i,c,U.n,O_NN_t1.pn2011[1])
-                        Opn2011ME2 = O2b_temp_transformation_ind4_MEs(P,J,Bra,Ket_ci,i,c,V.n,O_NN_t1.pn2011[2])
-                        Opn1120ME1 = O2b_temp_transformation_ind4_MEs(P,J,Bra,Ket_ci,i,c,V.n,O_NN_t1.pn1120[1])
-                        Opn1120ME2 = O2b_temp_transformation_ind4_MEs(P,J,Bra,Ket_ci,i,c,V.n,O_NN_t1.pn1120[2])
+                    Opn2011Sum += (Opn2011ME1 + Opn2011ME2)
+                    Opn1120Sum += (Opn1120ME1 + Opn1120ME2)
 
-                        Opn2011Sum += (Opn2011ME1 + Opn2011ME2)
-                        Opn1120Sum += (Opn1120ME1 + Opn1120ME2)
-                    end
 
-                    Amp = Float64((-1)^J)
+                    OppME1 = O2b_temp_transformation_ind4_MEs(P,J,Bra,Ket_ci,i,c,U.p,O_NN_t1.pp[1])
+                    OppME2 = O2b_temp_transformation_ind4_MEs(P,J,Bra,Ket_ci,i,c,V.p,O_NN_t1.pp[2])
 
-                    Opn2011Sum = Amp * Opn2011Sum
-                    Opn1120Sum = Amp * Opn1120Sum
+                    OnnME1 = O2b_temp_transformation_ind4_MEs(P,J,Bra,Ket_ci,i,c,U.n,O_NN_t1.nn[1])
+                    OnnME2 = O2b_temp_transformation_ind4_MEs(P,J,Bra,Ket_ci,i,c,V.n,O_NN_t1.nn[2])
 
-                    @views O_NN.qp31.pn2011[P,J+1][Ind] = Opn2011Sum
-                    @views O_NN.qp31.pn1120[P,J+1][Ind] = Opn1120Sum
+                    OppSum += (OppME1 - OppME2)
+                    OnnSum += (OnnME1 - OnnME2)
                 end
 
-                # Case of pp & nn interaction ... T = 1
-                if Bra <= N_T1
-                    Ind = Bra + (Ket - 1) * N_T1 - div(Ket * (Ket - 1),2)
-                    a, b = Orb_NN.Ind[2,P,J+1][Bra][1], Orb_NN.Ind[2,P,J+1][Bra][2]
-                    c, d = Orb_NN.Ind[2,P,J+1][Ket][1], Orb_NN.Ind[2,P,J+1][Ket][2]
-                    l_d, j_d = Orb[d].l, Orb[d].j
+                Amp = Float64((-1)^J)
 
-                    Bra_ab = O2b_temp_index(a,b,J,P,Orb_NN_t)
+                Opn2011Sum = Amp * Opn2011Sum
+                Opn1120Sum = Amp * Opn1120Sum
 
-                    Orb_x = Orb_PreComp(a_max,j_d,l_d,Orb)
+                @views O_NN.qp31.pn2011[P,J+1][Bra,Ket] = Opn2011Sum
+                @views O_NN.qp31.pn1120[P,J+1][Bra,Ket] = Opn1120Sum
 
-                    OppSum, OnnSum = 0.0, 0.0
 
-                    @inbounds for i in Orb_x
-                        Ket_ci = O2b_temp_index(c,i,J,P,Orb_NN_t)
+                Amp = 0.5 * Float64((-1)^(J + 1))
 
-                        OppME1 = O2b_temp_transformation_ind4_MEs(P,J,Bra,Ket_ci,i,c,U.p,O_NN_t1.pp[1])
-                        OppME2 = O2b_temp_transformation_ind4_MEs(P,J,Bra,Ket_ci,i,c,V.p,O_NN_t1.pp[2])
+                OppSum = Amp * OppSum
+                OnnSum = Amp * OnnSum
 
-                        OnnME1 = O2b_temp_transformation_ind4_MEs(P,J,Bra,Ket_ci,i,c,U.n,O_NN_t1.nn[1])
-                        OnnME2 = O2b_temp_transformation_ind4_MEs(P,J,Bra,Ket_ci,i,c,V.n,O_NN_t1.nn[2])
-
-                        OppSum += (OppME1 - OppME2)
-                        OnnSum += (OnnME1 - OnnME2)
-                    end
-
-                    Amp = 0.5 * Float64((-1)^(J + 1))
-
-                    OppSum = Amp * OppSum
-                    OnnSum = Amp * OnnSum
-
-                    @views O_NN.qp31.pp[P,J+1][Ind] = OppSum
-                    @views O_NN.qp31.nn[P,J+1][Ind] = OnnSum
-
-                end
-
+                @views O_NN.qp31.pp[P,J+1][Bra,Ket] = OppSum
+                @views O_NN.qp31.nn[P,J+1][Bra,Ket] = OnnSum
             end
         end
 
@@ -486,62 +463,30 @@ function qpO2b_31_allocate_ind4(Params::Parameters,JP::Vector{Vector{Int64}},Orb
     return O_NN
 end
 
-@inline function qpO2b_31_pp(a::Int64,b::Int64,c::Int64,d::Int64,J::Int64,P::Int64,O_NN::qpO2B,Orb::Vector{Orb1B},Orb_NN::Orb2B)
-    if a < b
-        a_s, b_s = b, a
-        exp_ab = J + 1 + div(Orb[a].j + Orb[b].j, 2)
-        Sign_ab = isodd(exp_ab) ? -1.0 : 1.0
-    else
-        a_s, b_s = a, b
-        Sign_ab = 1
-    end
-    if c < d
-        c_s, d_s = d, c
-        exp_cd = J + 1 + div(Orb[c].j + Orb[d].j, 2)
-        Sign_cd = isodd(exp_cd) ? -1.0 : 1.0
-    else
-        c_s, d_s = c, d
-        Sign_cd = 1
-    end
-    Amp = Sign_ab * Sign_cd
-    if (a < b) && (c < d)
-        exp = div(Orb[a].j + Orb[b].j + Orb[c].j + Orb[d].j, 2)
-        Amp = isodd(exp) ? -1.0 : 1.0
-    end
-    @inbounds Ind = O2b_index(a_s,b_s,c_s,d_s,J,P,1,Orb_NN)
-    return Amp * O_NN.qp31.pp[P,J+1][Ind]
+@inline function qpO2b_31_index(a::Int64,b::Int64,c::Int64,d::Int64,J::Int64,P::Int64,Orb_NN::Orb2B)
+    Bra_key = (Int8(1),Int8(P),Int8(J),Int16(a),Int16(b))
+    Ket_key = (Int8(1),Int8(P),Int8(J),Int16(c),Int16(d))
+    Bra = Int64(Orb_NN.Dic[Bra_key])
+    Ket = Int64(Orb_NN.Dic[Ket_key])
+    return Bra, Ket
+end
+
+@inline function qpO2b_31_pp(a::Int64,b::Int64,c::Int64,d::Int64,J::Int64,P::Int64,O_NN::qpO2B,Orb_NN::Orb2B)
+    @inbounds Bra, Ket = qpO2b_31_index(a,b,c,d,J,P,Orb_NN)
+    @inbounds return O_NN.qp31.pp[P,J+1][Bra,Ket]
 end
 
 @inline function qpO2b_2011_pn(a::Int64,b::Int64,c::Int64,d::Int64,J::Int64,P::Int64,O_NN::qpO2B,Orb_NN::Orb2B)
-    @inbounds return O_NN.qp31.pn2011[P,J+1][O2b_index(a,b,c,d,J,P,0,Orb_NN)]
+    @inbounds Bra, Ket = qpO2b_31_index(a,b,c,d,J,P,Orb_NN)
+    @inbounds return O_NN.qp31.pn2011[P,J+1][Bra,Ket]
 end
 
 @inline function qpO2b_1120_pn(a::Int64,b::Int64,c::Int64,d::Int64,J::Int64,P::Int64,O_NN::qpO2B,Orb_NN::Orb2B)
-    @inbounds return O_NN.qp31.pn1120[P,J+1][O2b_index(a,b,c,d,J,P,0,Orb_NN)]
+    @inbounds Bra, Ket = qpO2b_31_index(a,b,c,d,J,P,Orb_NN)
+    @inbounds return O_NN.qp31.pn1120[P,J+1][Bra,Ket]
 end
 
-@inline function qpO2b_31_nn(a::Int64,b::Int64,c::Int64,d::Int64,J::Int64,P::Int64,O_NN::qpO2B,Orb::Vector{Orb1B},Orb_NN::Orb2B)
-    if a < b
-        a_s, b_s = b, a
-        exp_ab = J + 1 + div(Orb[a].j + Orb[b].j, 2)
-        Sign_ab = isodd(exp_ab) ? -1.0 : 1.0
-    else
-        a_s, b_s = a, b
-        Sign_ab = 1
-    end
-    if c < d
-        c_s, d_s = d, c
-        exp_cd = J + 1 + div(Orb[c].j + Orb[d].j, 2)
-        Sign_cd = isodd(exp_cd) ? -1.0 : 1.0
-    else
-        c_s, d_s = c, d
-        Sign_cd = 1
-    end
-    Amp = Sign_ab * Sign_cd
-    if (a < b) && (c < d)
-        exp = div(Orb[a].j + Orb[b].j + Orb[c].j + Orb[d].j, 2)
-        Amp = isodd(exp) ? -1.0 : 1.0
-    end
-    @inbounds Ind = O2b_index(a_s,b_s,c_s,d_s,J,P,1,Orb_NN)
-    return Amp * O_NN.qp31.nn[P,J+1][Ind]
+@inline function qpO2b_31_nn(a::Int64,b::Int64,c::Int64,d::Int64,J::Int64,P::Int64,O_NN::qpO2B,Orb_NN::Orb2B)
+    @inbounds Bra, Ket = qpO2b_31_index(a,b,c,d,J,P,Orb_NN)
+    @inbounds return O_NN.qp31.nn[P,J+1][Bra,Ket]
 end
