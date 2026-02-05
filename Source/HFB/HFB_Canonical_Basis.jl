@@ -22,8 +22,8 @@ function HFB_canonical_basis(Params::Parameters,Rho::O1B,Orb::Vector{Orb1B})
 
     # Add a tiny deterministic diagonal splitting to lift accidental degeneracies ...
     @inbounds for i in 1:a_max
-        pRho[i,i] += 1e-13 * Float64(a_max-i)
-        nRho[i,i] += 1e-13 * Float64(a_max-i)
+        pRho[i,i] += 1e-10 * Float64(a_max-i)
+        nRho[i,i] += 1e-10 * Float64(a_max-i)
     end
 
     # Diagonalize 1-body HFB density matrix Rho ...
