@@ -32,7 +32,7 @@ function HFB_orbital_ordering(Params::Parameters,SQE::pnVector,U::O1B,V::O1B,Orb
         @views nV .= nV[:,nOrbs_sort]
 
             # To ensure the Residual Hamiltonian is correctly built ...
-            #=
+        #=
             pOrbs_sort = sortperm(pSQE)
             nOrbs_sort = sortperm(nSQE)
 
@@ -45,7 +45,7 @@ function HFB_orbital_ordering(Params::Parameters,SQE::pnVector,U::O1B,V::O1B,Orb
             @views nSQE .= nSQE[nOrbs_sort]
             @views nU .= nU[:,nOrbs_sort]
             @views nV .= nV[:,nOrbs_sort]
-            =#
+        =#
 
     end
 

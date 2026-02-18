@@ -44,6 +44,7 @@ function QTDA(Params::Parameters)
     end
     
     println("\nStarting QTDA calculation ...")
+
     # Start QTDA calculation ...
     @time QTDA_solver(Params)
     

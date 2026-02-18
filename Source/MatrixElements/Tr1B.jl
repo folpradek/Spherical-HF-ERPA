@@ -253,20 +253,7 @@ function Tr1b_transformation(Params::Parameters,TrOp::Tr1B,Orb::Vector{Orb1B},C:
     return TrOp_new
 end
 
-
-
-# Work in progress ...
-
-struct qpTr1B
-    E0::qpO1B
-    E1::qpO1B
-    E2::qpO1B
-    E3::qpO1B
-    M1::qpO1B
-    M2::qpO1B
-    M3::qpO1B
-end
-
+    # qpTrO1B11 components may need some tweaking ...
 function qpTr1b_initialize(Params::Parameters,Orb::Vector{Orb1B},C::O1B,U::O1B,V::O1B)
     println("\nPreparing 1-body electromagnetic transition operators in quasiparticle representation ...")
     # Make the 1-body electromagnetic transitions operator in particle representation ...
@@ -315,12 +302,12 @@ function qpTr1b_E_lambda_initialize(Params::Parameters,Orb::Vector{Orb1B},TrOp::
                 @inbounds for k in 1:a_max
                     l_k, j_k = Orb[k].l, Orb[k].j
 
-                    if 1==1#l_a == l_k && j_a == j_k
+                    if l_a == l_k && j_a == j_k
 
                         @inbounds for l in 1:a_max
                             l_l, j_l = Orb[l].l, Orb[l].j
 
-                            if 1==1#l_l == l_b && j_l == j_b
+                            if l_l == l_b && j_l == j_b
                                 Phase = Float64((-1)^(div(j_a + j_b,2) + lambda))
 
                                 pME11, nME11 = 0.0, 0.0
@@ -333,8 +320,8 @@ function qpTr1b_E_lambda_initialize(Params::Parameters,Orb::Vector{Orb1B},TrOp::
                                     nME11 = TrOp.E0.n[k,l] * (U.n[k,a] * U.n[l,b] - Phase * V.n[k,a] * V.n[l,b] + sqrt(Float64(j_a + 1)) * kronecker_delta(a,b) * V.n[k,a] * V.n[l,b])
 
                                     # 20 part ...
-                                    pME20 = TrOp.E0.p[k,l] * (V.p[k,a] * U.p[l,b] + V.p[l,b] * U.p[k,a])
-                                    nME20 = TrOp.E0.n[k,l] * (V.n[k,a] * U.n[l,b] + V.n[l,b] * U.n[k,a])
+                                    pME20 = TrOp.E0.p[k,l] * (U.p[k,a] * V.p[l,b] + V.p[k,a] * U.p[l,b])
+                                    nME20 = TrOp.E0.n[k,l] * (U.n[k,a] * V.n[l,b] + V.n[k,a] * U.n[l,b])
                                 # E1
                                 elseif lambda == 1
                                     # 11 part ...
@@ -342,8 +329,8 @@ function qpTr1b_E_lambda_initialize(Params::Parameters,Orb::Vector{Orb1B},TrOp::
                                     nME11 = TrOp.E1.n[k,l] * (U.n[k,a] * U.n[l,b] - Phase * V.n[k,a] * V.n[l,b])
 
                                     # 20 part ...
-                                    pME20 = U.p[k,a] * TrOp.E1.p[k,l]  * V.p[l,b] + V.p[l,a] * TrOp.E1.p[l,k]  * U.p[k,b]
-                                    nME20 = U.n[k,a] * TrOp.E1.n[k,l]  * V.n[l,b] + V.n[l,a] * TrOp.E1.n[l,k]  * U.n[k,b]
+                                    pME20 = TrOp.E1.p[k,l] * (U.p[k,a] * V.p[l,b] + V.p[k,a] * U.p[l,b])
+                                    nME20 = TrOp.E1.p[k,l] * (U.n[k,a] * V.n[l,b] + V.n[k,a] * U.n[l,b])
                                 # E2
                                 elseif lambda == 2
                                     # 11 part ...
@@ -351,8 +338,8 @@ function qpTr1b_E_lambda_initialize(Params::Parameters,Orb::Vector{Orb1B},TrOp::
                                     nME11 = TrOp.E2.n[k,l] * (U.n[k,a] * U.n[l,b] - Phase * V.n[k,a] * V.n[l,b])
 
                                     # 20 part ...
-                                    pME20 = TrOp.E2.p[k,l] * (V.p[k,a] * U.p[l,b] + V.p[l,b] * U.p[k,a])
-                                    nME20 = TrOp.E2.n[k,l] * (V.n[k,a] * U.n[l,b] + V.n[l,b] * U.n[k,a])
+                                    pME20 = TrOp.E2.p[k,l] * (U.p[k,a] * V.p[l,b] + V.p[k,a] * U.p[l,b])
+                                    nME20 = TrOp.E2.n[k,l] * (U.n[k,a] * V.n[l,b] + V.n[k,a] * U.n[l,b])
                                 # E3
                                 elseif lambda == 3
                                     # 11 part ...
@@ -360,8 +347,8 @@ function qpTr1b_E_lambda_initialize(Params::Parameters,Orb::Vector{Orb1B},TrOp::
                                     nME11 = TrOp.E3.n[k,l] * (U.n[k,a] * U.n[l,b] - Phase * V.n[k,a] * V.n[l,b])
 
                                     # 20 part ...
-                                    pME20 = TrOp.E3.p[k,l] * (V.p[k,a] * U.p[l,b] - V.p[l,b] * U.p[k,a])
-                                    nME20 = TrOp.E3.n[k,l] * (V.n[k,a] * U.n[l,b] - V.n[l,b] * U.n[k,a])
+                                    pME20 = TrOp.E3.p[k,l] * (U.p[k,a] * V.p[l,b] + V.p[k,a] * U.p[l,b])
+                                    nME20 = TrOp.E3.n[k,l] * (U.n[k,a] * V.n[l,b] + V.n[k,a] * U.n[l,b])
                                 end
 
                                 # Update the sums ...
@@ -392,12 +379,6 @@ function qpTr1b_M_lambda_initialize(Params::Parameters,Orb::Vector{Orb1B},TrOp::
     N_max = Params.Calc.Nmax
     a_max = div((N_max + 1)*(N_max+2),2)
 
-        # Basic constants ...
-        #hc = 197.326980
-        #m_n = 939.565346
-        #m_p = 938.272013
-        #b_osc = sqrt(0.5 * (m_p + m_n) * hw) / hc
-
     # Initialite the transition operators ...
     pM_lambda_11 = zeros(Float64,a_max,a_max)
     nM_lambda_11 = zeros(Float64,a_max,a_max)
@@ -425,45 +406,33 @@ function qpTr1b_M_lambda_initialize(Params::Parameters,Orb::Vector{Orb1B},TrOp::
                                 pME11, nME11 = 0.0, 0.0
                                 pME20, nME20 = 0.0, 0.0
 
-                                # E0
-                                if lambda == 0
+                                # M1
+                                if lambda == 1
                                     # 11 part ...
-                                    pME11 = TrOp.E0.p[k,l] * (U.p[k,a] * U.p[l,b] - Phase * V.p[k,a] * V.p[l,b] - sqrt(Float64(j_a + 1)) * kronecker_delta(a,b) * V.p[k,a] * V.p[l,b])
-                                    nME11 = TrOp.E0.n[k,l] * (U.n[k,a] * U.n[l,b] - Phase * V.n[k,a] * V.n[l,b] - sqrt(Float64(j_a + 1)) * kronecker_delta(a,b) * V.n[k,a] * V.n[l,b])
+                                    pME11 = TrOp.M1.p[k,l] * (U.p[k,a] * U.p[l,b] - Phase * V.p[k,a] * V.p[l,b])
+                                    nME11 = TrOp.M1.n[k,l] * (U.n[k,a] * U.n[l,b] - Phase * V.n[k,a] * V.n[l,b])
 
                                     # 20 part ...
-                                    pME20 = TrOp.E0.p[k,l] * (V.p[k,a] * U.p[l,b] - Phase * U.p[k,a] * V.p[l,b])
-                                    nME20 = TrOp.E0.n[k,l] * (V.n[k,a] * U.n[l,b] - Phase * U.n[k,a] * V.n[l,b])
-                                # E1
-                                elseif lambda == 1
-                                    # 11 part ...
-                                    pME11 = TrOp.E1.p[k,l] * (U.p[k,a] * U.p[l,b] - Phase * V.p[k,a] * V.p[l,b])
-                                    nME11 = TrOp.E1.n[k,l] * (U.n[k,a] * U.n[l,b] - Phase * V.n[k,a] * V.n[l,b])
-
-                                    # 20 part ...
-                                    pME20 = TrOp.E1.p[k,l] * (V.p[k,a] * U.p[l,b] - Phase * U.p[k,a] * V.p[l,b])
-                                    nME20 = TrOp.E1.n[k,l] * (V.n[k,a] * U.n[l,b] - Phase * U.n[k,a] * V.n[l,b])
-                                # E2
+                                    pME20 = TrOp.M1.p[k,l] * (U.p[k,a] * V.p[l,b] - V.p[k,a] * U.p[l,b])
+                                    nME20 = TrOp.M1.n[k,l] * (U.n[k,a] * V.n[l,b] - V.n[k,a] * U.n[l,b])
+                                # M2
                                 elseif lambda == 2
                                     # 11 part ...
-                                    pME11 = TrOp.E2.p[k,l] * (U.p[k,a] * U.p[l,b] - Phase * V.p[k,a] * V.p[l,b])
-                                    nME11 = TrOp.E2.n[k,l] * (U.n[k,a] * U.n[l,b] - Phase * V.n[k,a] * V.n[l,b])
-
-                                    pM11Sum += pME11
-                                    nM11Sum += nME11
+                                    pME11 = TrOp.M2.p[k,l] * (U.p[k,a] * U.p[l,b] - Phase * V.p[k,a] * V.p[l,b])
+                                    nME11 = TrOp.M2.n[k,l] * (U.n[k,a] * U.n[l,b] - Phase * V.n[k,a] * V.n[l,b])
 
                                     # 20 part ...
-                                    pME20 = TrOp.E2.p[k,l] * (V.p[k,a] * U.p[l,b] - Phase * U.p[k,a] * V.p[l,b])
-                                    nME20 = TrOp.E2.n[k,l] * (V.n[k,a] * U.n[l,b] - Phase * U.n[k,a] * V.n[l,b])
-                                # E3
+                                    pME20 = TrOp.M2.p[k,l] * (U.p[k,a] * V.p[l,b] - V.p[k,a] * U.p[l,b])
+                                    nME20 = TrOp.M2.n[k,l] * (U.n[k,a] * V.n[l,b] - V.n[k,a] * U.n[l,b])
+                                # M3
                                 elseif lambda == 3
                                     # 11 part ...
-                                    pME11 = TrOp.E3.p[k,l] * (U.p[k,a] * U.p[l,b] - Phase * V.p[k,a] * V.p[l,b])
-                                    nME11 = TrOp.E3.n[k,l] * (U.n[k,a] * U.n[l,b] - Phase * V.n[k,a] * V.n[l,b])
+                                    pME11 = TrOp.M3.p[k,l] * (U.p[k,a] * U.p[l,b] - Phase * V.p[k,a] * V.p[l,b])
+                                    nME11 = TrOp.M3.n[k,l] * (U.n[k,a] * U.n[l,b] - Phase * V.n[k,a] * V.n[l,b])
 
                                     # 20 part ...
-                                    pME20 = TrOp.E3.p[k,l] * (V.p[k,a] * U.p[l,b] - Phase * U.p[k,a] * V.p[l,b])
-                                    nME20 = TrOp.E3.n[k,l] * (V.n[k,a] * U.n[l,b] - Phase * U.n[k,a] * V.n[l,b])
+                                    pME20 = TrOp.M3.p[k,l] * (U.p[k,a] * V.p[l,b] - V.p[k,a] * U.p[l,b])
+                                    nME20 = TrOp.M3.n[k,l] * (U.n[k,a] * V.n[l,b] - V.n[k,a] * U.n[l,b])
                                 end
 
                                 # Update the sums ...

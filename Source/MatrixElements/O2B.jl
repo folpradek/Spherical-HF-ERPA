@@ -179,10 +179,10 @@ function O2b_export(Params::Parameters,Orb_NN::Orb2B,O_NN::O2B,Export_Path::Stri
         # ppO
         @inbounds for J in 0:J_max
             @inbounds for P in 1:2
-                N_t1 = Orb_NN.N[2,P,J+1]
-                @inbounds for Bra in 1:N_t1
+                N_T1 = Orb_NN.N[2,P,J+1]
+                @inbounds for Bra in 1:N_T1
                     @inbounds for Ket in 1:Bra
-                        Ind = Bra + (Ket - 1) * N_t1 - div(Ket * (Ket - 1),2)
+                        Ind = Bra + (Ket - 1) * N_T1 - div(Ket * (Ket - 1),2)
                         ME = @views O_NN.pp[P,J+1][Ind]
                         write(Export_File, Float64(ME))
                     end
@@ -193,10 +193,10 @@ function O2b_export(Params::Parameters,Orb_NN::Orb2B,O_NN::O2B,Export_Path::Stri
         # pnO
         @inbounds for J in 0:J_max
             @inbounds for P in 1:2
-                N_t0 = Orb_NN.N[1,P,J+1]
-                @inbounds for Bra in 1:N_t0
-                    @inbounds for Ket in 1:N_t0
-                        Ind = Bra + (Ket - 1) * N_t0 - div(Ket * (Ket - 1),2)
+                N_T0 = Orb_NN.N[1,P,J+1]
+                @inbounds for Bra in 1:N_T0
+                    @inbounds for Ket in 1:N_T0
+                        Ind = Bra + (Ket - 1) * N_T0 - div(Ket * (Ket - 1),2)
                         ME = @views O_NN.pn[P,J+1][Ind]
                         write(Export_File, Float64(ME))
                     end
@@ -207,10 +207,10 @@ function O2b_export(Params::Parameters,Orb_NN::Orb2B,O_NN::O2B,Export_Path::Stri
         # nnO
         @inbounds for J in 0:J_max
             @inbounds for P in 1:2
-                N_t1 = Orb_NN.N[2,P,J+1]
-                @inbounds for Bra in 1:N_t1
+                N_T1 = Orb_NN.N[2,P,J+1]
+                @inbounds for Bra in 1:N_T1
                     @inbounds for Ket in 1:Bra
-                        Ind = Bra + (Ket - 1) * N_t1 - div(Ket * (Ket - 1),2)
+                        Ind = Bra + (Ket - 1) * N_T1 - div(Ket * (Ket - 1),2)
                         ME = @views O_NN.nn[P,J+1][Ind]
                         write(Export_File, Float64(ME))
                     end
@@ -855,4 +855,81 @@ function O2b_transformation_index4(Params::Parameters,JP::Vector{Vector{Int64}},
     end
 
     return O_NN
+end
+
+function O2b_Pandya_transformation(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,O_NN::O2B)
+    # Preallocate arrays of allowed values of J & P ...
+    JP = JP_initialize(Params.Calc.N2max + 1)
+
+    # Make full arrays for the Pandya transformed operatoe O_NN ...
+    F_NN, Orb_NN_t = O2b_temp_initialize(Params,Orb,Make_Orb_NN = true)
+    
+    # Define local functions performing the Pandya transformation of ph matrix elements ...
+    @inline function O2B_Pandya_transformation_ppF(a::Int64,b::Int64,c::Int64,d::Int64,J::Int64,Orb::Vector{Orb1B},Orb_NN::Orb2B,O_NN::O2B)
+        l_a, l_b, l_c, l_d = Orb[a].l, Orb[b].l, Orb[c].l, Orb[d].l
+        Q = rem(l_a + l_d,2) + 1
+        ppFSum = 0.0
+        if Q == (rem(l_b + l_c,2) + 1)
+            j_a, j_b, j_c, j_d = Orb[a].j, Orb[b].j, Orb[c].j, Orb[d].j
+            @inbounds for I in max(div(abs(j_a - j_d),2),div(abs(j_b - j_c),2)):min(div(j_a + j_d,2),div(j_b + j_c,2))
+                ME = Float64((-1)^(div(j_b + j_c,2) + I) * (2*I + 1)) * f6j(j_a,j_b,2*J,j_c,j_d,2*I) * O2b_pp(a,d,b,c,I,Q,O_NN,Orb,Orb_NN)
+                ppFSum += ME
+            end
+        end
+        return ppFSum
+    end
+
+    @inline function O2B_Pandya_transformation_pnF(a::Int64,b::Int64,c::Int64,d::Int64,J::Int64,Orb::Vector{Orb1B},Orb_NN::Orb2B,O_NN::O2B)
+        l_a, l_b, l_c, l_d = Orb[a].l, Orb[b].l, Orb[c].l, Orb[d].l
+        Q = rem(l_a + l_d,2) + 1
+        pnFSum = 0.0
+        if Q == (rem(l_b + l_c,2) + 1)
+            j_a, j_b, j_c, j_d = Orb[a].j, Orb[b].j, Orb[c].j, Orb[d].j
+            @inbounds for I in max(div(abs(j_a - j_d),2),div(abs(j_b - j_c),2)):min(div(j_a + j_d,2),div(j_b + j_c,2))
+                ME = Float64((-1)^(div(j_b + j_c,2) + I) * (2*I + 1)) * f6j(j_a,j_b,2*J,j_c,j_d,2*I) * O2b_pn(a,d,b,c,I,Q,O_NN,Orb_NN)
+                pnFSum += ME
+            end
+        end
+        return pnFSum
+    end
+
+    @inline function O2B_Pandya_transformation_nnF(a::Int64,b::Int64,c::Int64,d::Int64,J::Int64,Orb::Vector{Orb1B},Orb_NN::Orb2B,O_NN::O2B)
+        l_a, l_b, l_c, l_d = Orb[a].l, Orb[b].l, Orb[c].l, Orb[d].l
+        Q = rem(l_a + l_d,2) + 1
+        nnFSum = 0.0
+        if Q == (rem(l_b + l_c,2) + 1)
+            j_a, j_b, j_c, j_d = Orb[a].j, Orb[b].j, Orb[c].j, Orb[d].j
+            @inbounds for I in max(div(abs(j_a - j_d),2),div(abs(j_b - j_c),2)):min(div(j_a + j_d,2),div(j_b + j_c,2))
+                ME = Float64((-1)^(div(j_b + j_c,2) + I) * (2*I + 1)) * f6j(j_a,j_b,2*J,j_c,j_d,2*I) * O2b_nn(a,d,b,c,I,Q,O_NN,Orb,Orb_NN)
+                nnFSum += ME
+            end
+        end
+        return nnFSum
+    end
+
+    # Perform the Pandya transformation of the given 2-body O_NN operator ...
+    println("\nPerforming the Pandya transformation of the given 2-body operator ..")
+    @inbounds for jp in JP
+        J, P = jp[1], jp[2]
+        N = Orb_NN_t.N[P,J+1]
+        @inbounds Threads.@threads for Bra in 1:N
+            a = Orb_NN_t.Ind[P,J+1][Bra][1]
+            b = Orb_NN_t.Ind[P,J+1][Bra][2]
+
+            @inbounds for Ket in 1:N
+                c = Orb_NN_t.Ind[P,J+1][Ket][1]
+                d = Orb_NN_t.Ind[P,J+1][Ket][2]
+
+                ppF = O2B_Pandya_transformation_ppF(a,b,c,d,J,Orb,Orb_NN,O_NN)
+                pnF = O2B_Pandya_transformation_pnF(a,b,c,d,J,Orb,Orb_NN,O_NN)
+                nnF = O2B_Pandya_transformation_nnF(a,b,c,d,J,Orb,Orb_NN,O_NN)
+
+                F_NN.pp[P,J+1][Bra,Ket] = ppF
+                F_NN.pn[P,J+1][Bra,Ket] = pnF
+                F_NN.nn[P,J+1][Bra,Ket] = nnF
+            end
+        end
+    end
+
+    return F_NN
 end

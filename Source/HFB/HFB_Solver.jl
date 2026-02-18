@@ -47,21 +47,15 @@ function HFB_solver(Params::Parameters)
         # Allocate H_NN ... residual interaction 2-body Hamiltonian in the quasiparticle basis ...
         @time H_NN = qpO2b(Params,Orb,Orb_NN,V_NN,C,U,V)
 
-        # Deallocate V_NN 2-body & V_NNN 3-body interaction ...
-        V_NN = nothing
-        V_NNN = nothing
-
-        # Perform the Garbage Collection ...
-        GC.gc()
-
         # Perform final export of HFB solution into binary files ...
-        #@time HFB_export(Params,Orb,Orb_NN,C,U,V,H_N,H_NN)
+        @time HFB_export(Params,Orb,Orb_NN,C,U,V,H_N,H_NN)
 
         # Perform the HFB-BMBPT(2) calculation of correlation energy ...
         @time HFB_BMBPT_energy(Params,Orb,Orb_NN,H_N,H_NN)
 
         # Deallocate 2-body quasiparticle Hamiltonian H_NN ...
         H_NN = nothing
+
     end
 
     # Deallocate V_NN 2-body & V_NNN 3-body interaction ...
@@ -359,7 +353,11 @@ function HFB_solve(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,Orb_NNN::
     # Construct the canonical basis & evaluate approximate (BCS-like) amplitudes
     # & single-quasiparticle energies u_C, v_C & SQE_C ...
     #   U, V, Rho, Kappa, H, Delta ... remain expressed in the reference LHO basis ...
-    C = HFB_canonical_basis(Params,Rho,Orb)
+    if Params.Calc.HFB.Pairing == "BCS"
+        C = HFB_canonical_basis_BCS(Params,H,Orb)
+    else
+        C = HFB_canonical_basis(Params,Rho,Orb)
+    end
 
     # Final re-ordering of the HFB solution ... ascending in U ...
     SQE, U, V = HFB_orbital_ordering(Params,SQE,U,V,Orb,Final_Ordering=true,C=C)

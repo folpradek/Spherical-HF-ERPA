@@ -74,6 +74,44 @@ function orbitals_make(Params::Parameters)
     return Orb
 end
 
+function orbitals_lj_make(Params::Parameters,Orb::Vector{Orb1B})
+    # Parameter initialization...
+    N_max = Params.Calc.Nmax
+    a_max = div((N_max + 1)*(N_max + 2),2)
+
+    Orb_lj = Matrix{Vector{Int64}}(undef,N_max+1,2*N_max+1)
+
+    # Count the number of orbitals for each l,j pair ...
+    @inbounds for l in 0:N_max
+        @inbounds for j in 1:(2*N_max+1)
+            lj_count = 0
+            @inbounds for a in 1:a_max
+                l_a, j_a = Orb[a].l, Orb[a].j
+                if l == l_a && j == j_a
+                    lj_count += 1
+                end
+            end
+            Orb_lj[l+1,j] = zeros(Int64,lj_count)
+        end
+    end
+
+    # Fill the Orb_lj array with orbital indices ...
+    @inbounds for l in 0:N_max
+        @inbounds for j in 1:(2*N_max+1)
+            lj_count = 0
+            @inbounds for a in 1:a_max
+                l_a, j_a = Orb[a].l, Orb[a].j
+                if l == l_a && j == j_a
+                    lj_count += 1
+                    Orb_lj[l+1,j][lj_count] = a
+                end
+            end
+        end
+    end
+
+    return Orb_lj
+end
+
 function orbitals_export(Params::Parameters,Orb::Vector{Orb1B})
     N_max = Params.Calc.Nmax
     Output_File = Params.Calc.Path

@@ -214,9 +214,9 @@
 
     # Quasiparticle 2-body NN operator structures ...
     struct qpO40
-        pp::Matrix{Matrix{Float64}}
+        pp::Matrix{Vector{Float64}}
         pn::Matrix{Matrix{Float64}}
-        nn::Matrix{Matrix{Float64}}
+        nn::Matrix{Vector{Float64}}
     end
 
     struct qpO31
@@ -227,11 +227,10 @@
     end
 
     struct qpO22
-        pp::Matrix{Matrix{Float64}}
+        pp::Matrix{Vector{Float64}}
         pn2002::Matrix{Matrix{Float64}}
-        pn1111::Matrix{Matrix{Float64}}
-        pn0220::Matrix{Matrix{Float64}}
-        nn::Matrix{Matrix{Float64}}
+        pn1111::Matrix{Vector{Float64}}
+        nn::Matrix{Vector{Float64}}
     end
 
     struct qpO2B
@@ -240,24 +239,10 @@
         qp22::qpO22
     end
 
-    struct O2B_40_Temp
-        pp::Matrix{Matrix{Float64}}
-        pn::Matrix{Matrix{Float64}}
-        nn::Matrix{Matrix{Float64}}
-    end
-
     struct O2B_31_Temp
         pp::Vector{Matrix{Matrix{Float64}}}
         pn2011::Vector{Matrix{Matrix{Float64}}}
         pn1120::Vector{Matrix{Matrix{Float64}}}
-        nn::Vector{Matrix{Matrix{Float64}}}
-    end
-
-    struct O2B_22_Temp
-        pp::Vector{Matrix{Matrix{Float64}}}
-        pn2002::Matrix{Matrix{Float64}}
-        pn1111::Vector{Matrix{Matrix{Float64}}}
-        pn0220::Matrix{Matrix{Float64}}
         nn::Vector{Matrix{Matrix{Float64}}}
     end
 
@@ -270,6 +255,16 @@
         M1::O1B
         M2::O1B
         M3::O1B
+    end
+
+    struct qpTr1B
+        E0::qpO1B
+        E1::qpO1B
+        E2::qpO1B
+        E3::qpO1B
+        M1::qpO1B
+        M2::qpO1B
+        M3::qpO1B
     end
 
     struct ReducedMultipole

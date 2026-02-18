@@ -1,9 +1,8 @@
 function qpO2b_initialize(Params::Parameters,Orb::Vector{Orb1B};Make_Orb_NN::Bool=false)
     # Read parameters ...
-    N_max = Params.Calc.Nmax
-    N_2max = 2 * N_max
+    N_max, N_2max = Params.Calc.Nmax, Params.Calc.N2max
     a_max = div((N_max + 1)*(N_max + 2),2)
-    J_max = Int64(2*N_max + 1)
+    J_max = Int64(N_2max + 1)
 
     # Initiliaze array for counting of NN orbitals ...
     N_Orb_NN = zeros(Int64,2,2,J_max+1)
@@ -80,12 +79,9 @@ function qpO2b_initialize(Params::Parameters,Orb::Vector{Orb1B};Make_Orb_NN::Boo
     end
 
     # Initialize the NN interaction matrices ...
-        #O40_pp = Matrix{Vector{Float64}}(undef,2,J_max+1)
-        #O40_pn = Matrix{Vector{Float64}}(undef,2,J_max+1)
-        #O40_nn = Matrix{Vector{Float64}}(undef,2,J_max+1)
-        O40_pp = Matrix{Matrix{Float64}}(undef,2,J_max+1)
+        O40_pp = Matrix{Vector{Float64}}(undef,2,J_max+1)
         O40_pn = Matrix{Matrix{Float64}}(undef,2,J_max+1)
-        O40_nn = Matrix{Matrix{Float64}}(undef,2,J_max+1)
+        O40_nn = Matrix{Vector{Float64}}(undef,2,J_max+1)
 
         #O31_pp = Matrix{Vector{Float64}}(undef,2,J_max+1)
         #O31_pn_2011 = Matrix{Vector{Float64}}(undef,2,J_max+1)
@@ -97,60 +93,45 @@ function qpO2b_initialize(Params::Parameters,Orb::Vector{Orb1B};Make_Orb_NN::Boo
         O31_nn = Matrix{Matrix{Float64}}(undef,2,J_max+1)
 
 
-        #O22_pp = Matrix{Vector{Float64}}(undef,2,J_max+1)
-        #O22_pn2002 = Matrix{Vector{Float64}}(undef,2,J_max+1)
-        #O22_pn1111 = Matrix{Vector{Float64}}(undef,2,J_max+1)
-        #O22_pn0220 = Matrix{Vector{Float64}}(undef,2,J_max+1)
-        #O22_nn = Matrix{Vector{Float64}}(undef,2,J_max+1)
-
-        O22_pp = Matrix{Matrix{Float64}}(undef,2,J_max+1)
+        O22_pp = Matrix{Vector{Float64}}(undef,2,J_max+1)
         O22_pn2002 = Matrix{Matrix{Float64}}(undef,2,J_max+1)
-        O22_pn1111 = Matrix{Matrix{Float64}}(undef,2,J_max+1)
-        O22_pn0220 = Matrix{Matrix{Float64}}(undef,2,J_max+1)
-        O22_nn = Matrix{Matrix{Float64}}(undef,2,J_max+1)
+        O22_pn1111 = Matrix{Vector{Float64}}(undef,2,J_max+1)
+        O22_nn = Matrix{Vector{Float64}}(undef,2,J_max+1)
+
     
     # Allocate entries of H ...
     @inbounds for P = 1:2
         @inbounds Threads.@threads for J=0:J_max
-            #Length_symm_T0 = div(N_Orb_NN[1,P,J+1]*(N_Orb_NN[1,P,J+1]+1),2)
-            #Length_symm_T1 = div(N_Orb_NN[2,P,J+1]*(N_Orb_NN[2,P,J+1]+1),2)
-            Length_full_T0 = N_Orb_NN[1,P,J+1]
-            Length_full_T1 = N_Orb_NN[2,P,J+1]
+            L_T0_symm = div(N_Orb_NN[1,P,J+1]*(N_Orb_NN[1,P,J+1]+1),2)
+            L_T1_symm = div(N_Orb_NN[2,P,J+1]*(N_Orb_NN[2,P,J+1]+1),2)
+            L_T0_full = N_Orb_NN[1,P,J+1]
+            L_T1_full = N_Orb_NN[2,P,J+1]
 
-                #O40_pp[P,J+1] = zeros(Float64,Length_T1)
-                #O40_pn[P,J+1] = zeros(Float64,Length_T0)
-                #O40_nn[P,J+1] = zeros(Float64,Length_T1)
-                O40_pp[P,J+1] = zeros(Float64,Length_full_T1,Length_full_T1)
-                O40_pn[P,J+1] = zeros(Float64,Length_full_T0,Length_full_T0)
-                O40_nn[P,J+1] = zeros(Float64,Length_full_T1,Length_full_T1)
+                O40_pp[P,J+1] = zeros(Float64,L_T1_symm)
+                O40_pn[P,J+1] = zeros(Float64,L_T1_full,L_T1_full)
+                O40_nn[P,J+1] = zeros(Float64,L_T1_symm)
 
                 #O31_pp[P,J+1] = zeros(Float64,Length_T1)
                 #O31_pn_2011[P,J+1] = zeros(Float64,Length_T0)
                 #O31_pn_1120[P,J+1] = zeros(Float64,Length_T0)
                 #O31_nn[P,J+1] = zeros(Float64,Length_T1)
-                O31_pp[P,J+1] = zeros(Float64,Length_full_T0,Length_full_T0)
-                O31_pn_2011[P,J+1] = zeros(Float64,Length_full_T0,Length_full_T0)
-                O31_pn_1120[P,J+1] = zeros(Float64,Length_full_T0,Length_full_T0)
-                O31_nn[P,J+1] = zeros(Float64,Length_full_T0,Length_full_T0)
+                O31_pp[P,J+1] = zeros(Float64,L_T0_full,L_T0_full)
+                O31_pn_2011[P,J+1] = zeros(Float64,L_T0_full,L_T0_full)
+                O31_pn_1120[P,J+1] = zeros(Float64,L_T0_full,L_T0_full)
+                O31_nn[P,J+1] = zeros(Float64,L_T0_full,L_T0_full)
 
 
-                #O22_pp[P,J+1] = zeros(Float64,Length_T1)
-                #O22_pn2002[P,J+1] = zeros(Float64,Length_T0)
-                #O22_pn1111[P,J+1] = zeros(Float64,Length_T0)
-                #O22_pn0220[P,J+1] = zeros(Float64,Length_T0)
-                #O22_nn[P,J+1] = zeros(Float64,Length_T1)
-                O22_pp[P,J+1] = zeros(Float64,Length_full_T0,Length_full_T0)
-                O22_pn2002[P,J+1] = zeros(Float64,Length_full_T0,Length_full_T0)
-                O22_pn1111[P,J+1] = zeros(Float64,Length_full_T0,Length_full_T0)
-                O22_pn0220[P,J+1] = zeros(Float64,Length_full_T0,Length_full_T0)
-                O22_nn[P,J+1] = zeros(Float64,Length_full_T0,Length_full_T0)
+                O22_pp[P,J+1] = zeros(Float64,L_T1_symm)
+                O22_pn2002[P,J+1] = zeros(Float64,L_T1_full,L_T1_full)
+                O22_pn1111[P,J+1] = zeros(Float64,L_T0_symm)
+                O22_nn[P,J+1] = zeros(Float64,L_T1_symm)
         end
     end
 
     # Allocate the NN interaction in quasiparticle picture ...
     O_NN = qpO2B(qpO40(O40_pp,O40_pn,O40_nn),
                  qpO31(O31_pp,O31_pn_2011,O31_pn_1120,O31_nn),
-                 qpO22(O22_pp,O22_pn2002,O22_pn1111,O22_pn0220,O22_nn))
+                 qpO22(O22_pp,O22_pn2002,O22_pn1111,O22_nn))
 
     if Make_Orb_NN == false
         return O_NN
@@ -162,7 +143,7 @@ function qpO2b_initialize(Params::Parameters,Orb::Vector{Orb1B};Make_Orb_NN::Boo
 end
 
 function qpO2b(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,O_NN::O2B,C::O1B,U::O1B,V::O1B)
-    println("\nPreparing the given 2-body NN operator expressed in the J-scheme quasiparticle representation ...")
+    println("\nPreparing the given 2-body NN operator O expressed in the J-scheme quasiparticle representation ...")
 
     # Perform the Canonical Transformation of the given 2-body operator into the target basis ...
     O_NN = O2b_transformation(Params,Orb,Orb_NN,O_NN,C)
@@ -170,16 +151,28 @@ function qpO2b(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,O_NN::O2B,C::
     # Initialize the 2-body quasiparticle Hamiltonian H^(kl) ...
     Q_NN = qpO2b_initialize(Params,Orb)
 
-    # Allocate H^(40) ...
-    Q_NN = qpO2b_40_allocate(Params,Orb,Orb_NN,Q_NN,O_NN,U,V)
+    # Calculate the Pandya transformation of O_NN ...
+    @time F_NN = O2b_Pandya_transformation(Params,Orb,Orb_NN,O_NN)
 
-    # Allocate H^(31) ...
-    Q_NN = qpO2b_31_allocate(Params,Orb,Orb_NN,Q_NN,O_NN,U,V)
+    # Allocate H^(40) ...
+    @time Q_NN = qpO2b_40_allocate(Params,Orb,Orb_NN,Q_NN,O_NN,F_NN,U,V)
+        #@time Q_NN = qpO2b_40_allocate_canonical(Params,Orb,Orb_NN,Q_NN,O_NN,U,V)
+
+        # Under construction ....
+        # Allocate H^(31) ...
+        #Q_NN = qpO2b_31_allocate(Params,Orb,Orb_NN,Q_NN,O_NN,U,V)
 
     # Allocate H^(22) ...
-    Q_NN = qpO2b_22_allocate(Params,Orb,Orb_NN,Q_NN,O_NN,U,V)
+    @time Q_NN = qpO2b_22_allocate(Params,Orb,Orb_NN,Q_NN,O_NN,F_NN,U,V)
+        #@time Q_NN = qpO2b_22_allocate_canonical(Params,Orb,Orb_NN,Q_NN,O_NN,U,V)
+
+    # Deallocate the Pandya transformed O_NN temporary operator F_NN ...
+    F_NN = nothing
     
-    println("\nThe given 2-body NN operator expressed in the quasiparticke represation with components (kl) ...\n")
+    # Perform the Garbage Collection ...
+    GC.gc()
+    
+    println("\nThe given 2-body NN operator O expressed in the quasiparticke represation with components (kl) ...\n")
 
     return Q_NN
 end
@@ -191,7 +184,7 @@ function qpO2b_export(Params::Parameters,Orb_NN::Orb2B,O_NN::qpO2B,Export_Path::
     J_max = N_2max + 1
 
     # Prepare buffer for export  ...
-    Buffer_size, Buffer_count = 1000000, 0
+    Buffer_size, Buffer_count = 10000000, 0
     Buffer = Vector{Float64}(undef,Buffer_size)
 
     # Export the given 2-body quasiparticle NN operator ...
@@ -200,10 +193,11 @@ function qpO2b_export(Params::Parameters,Orb_NN::Orb2B,O_NN::qpO2B,Export_Path::
         # ppO40
         @inbounds for J in 0:J_max
             @inbounds for P in 1:2
-                N_T1 = Orb_NN.N[2,P,J+1]
-                @inbounds for Bra in 1:N_T1
-                    @inbounds for Ket in 1:N_T1
-                        @inbounds ME = O_NN.qp40.pp[P,J+1][Bra,Ket]
+                N = Orb_NN.N[2,P,J+1]
+                @inbounds for Bra in 1:N
+                    @inbounds for Ket in 1:Bra
+                        Ind = Bra + (Ket - 1) * N - div(Ket * (Ket - 1),2)
+                        @inbounds ME = O_NN.qp40.pp[P,J+1][Ind]
                         Buffer_count += 1
                         Buffer[Buffer_count] = Float64(ME)
                         if Buffer_count == Buffer_size
@@ -218,9 +212,9 @@ function qpO2b_export(Params::Parameters,Orb_NN::Orb2B,O_NN::qpO2B,Export_Path::
         # pnO40
         @inbounds for J in 0:J_max
             @inbounds for P in 1:2
-                N_T0 = Orb_NN.N[1,P,J+1]
-                @inbounds for Bra in 1:N_T0
-                    @inbounds for Ket in 1:N_T0
+                N = Orb_NN.N[2,P,J+1]
+                @inbounds for Bra in 1:N
+                    @inbounds for Ket in 1:N
                         @inbounds ME = O_NN.qp40.pn[P,J+1][Bra,Ket]
                         Buffer_count += 1
                         Buffer[Buffer_count] = Float64(ME)
@@ -236,10 +230,11 @@ function qpO2b_export(Params::Parameters,Orb_NN::Orb2B,O_NN::qpO2B,Export_Path::
         # nnO40
         @inbounds for J in 0:J_max
             @inbounds for P in 1:2
-                N_T1 = Orb_NN.N[2,P,J+1]
-                @inbounds for Bra in 1:N_T1
-                    @inbounds for Ket in 1:N_T1
-                        @inbounds ME = O_NN.qp40.nn[P,J+1][Bra,Ket]
+                N = Orb_NN.N[2,P,J+1]
+                @inbounds for Bra in 1:N
+                    @inbounds for Ket in 1:Bra
+                        Ind = Bra + (Ket - 1) * N - div(Ket * (Ket - 1),2)
+                        @inbounds ME = O_NN.qp40.nn[P,J+1][Ind]
                         Buffer_count += 1
                         Buffer[Buffer_count] = Float64(ME)
                         if Buffer_count == Buffer_size
@@ -326,10 +321,11 @@ function qpO2b_export(Params::Parameters,Orb_NN::Orb2B,O_NN::qpO2B,Export_Path::
         # ppO22
         @inbounds for J in 0:J_max
             @inbounds for P in 1:2
-                N = Orb_NN.N[1,P,J+1]
+                N = Orb_NN.N[2,P,J+1]
                 @inbounds for Bra in 1:N
-                    @inbounds for Ket in 1:N
-                        @inbounds ME = O_NN.qp22.pp[P,J+1][Bra,Ket]
+                    @inbounds for Ket in 1:Bra
+                        Ind = Bra + (Ket - 1) * N - div(Ket * (Ket - 1),2)
+                        @inbounds ME = O_NN.qp22.pp[P,J+1][Ind]
                         Buffer_count += 1
                         Buffer[Buffer_count] = Float64(ME)
                         if Buffer_count == Buffer_size
@@ -344,7 +340,7 @@ function qpO2b_export(Params::Parameters,Orb_NN::Orb2B,O_NN::qpO2B,Export_Path::
         # pnO2002
         @inbounds for J in 0:J_max
             @inbounds for P in 1:2
-                N = Orb_NN.N[1,P,J+1]
+                N = Orb_NN.N[2,P,J+1]
                 @inbounds for Bra in 1:N
                     @inbounds for Ket in 1:N
                         @inbounds ME = O_NN.qp22.pn2002[P,J+1][Bra,Ket]
@@ -364,26 +360,9 @@ function qpO2b_export(Params::Parameters,Orb_NN::Orb2B,O_NN::qpO2B,Export_Path::
             @inbounds for P in 1:2
                 N = Orb_NN.N[1,P,J+1]
                 @inbounds for Bra in 1:N
-                    @inbounds for Ket in 1:N
-                        @inbounds ME = O_NN.qp22.pn1111[P,J+1][Bra,Ket]
-                        Buffer_count += 1
-                        Buffer[Buffer_count] = Float64(ME)
-                        if Buffer_count == Buffer_size
-                            write(Export_File,Buffer)
-                            Buffer_count = 0
-                        end
-                    end
-                end
-            end
-        end
-
-        # pnO0220
-        @inbounds for J in 0:J_max
-            @inbounds for P in 1:2
-                N = Orb_NN.N[1,P,J+1]
-                @inbounds for Bra in 1:N
-                    @inbounds for Ket in 1:N
-                        @inbounds ME = O_NN.qp22.pn0220[P,J+1][Bra,Ket]
+                    @inbounds for Ket in 1:Bra
+                        Ind = Bra + (Ket - 1) * N - div(Ket * (Ket - 1),2)
+                        @inbounds ME = O_NN.qp22.pn1111[P,J+1][Ind]
                         Buffer_count += 1
                         Buffer[Buffer_count] = Float64(ME)
                         if Buffer_count == Buffer_size
@@ -398,10 +377,11 @@ function qpO2b_export(Params::Parameters,Orb_NN::Orb2B,O_NN::qpO2B,Export_Path::
         # nnO22
         @inbounds for J in 0:J_max
             @inbounds for P in 1:2
-                N = Orb_NN.N[1,P,J+1]
+                N = Orb_NN.N[2,P,J+1]
                 @inbounds for Bra in 1:N
-                    @inbounds for Ket in 1:N
-                        @inbounds ME = O_NN.qp22.nn[P,J+1][Bra,Ket]
+                    @inbounds for Ket in 1:Bra
+                        Ind = Bra + (Ket - 1) * N - div(Ket * (Ket - 1),2)
+                        @inbounds ME = O_NN.qp22.nn[P,J+1][Ind]
                         Buffer_count += 1
                         Buffer[Buffer_count] = Float64(ME)
                         if Buffer_count == Buffer_size
@@ -444,8 +424,8 @@ function qpO2b_import(Params::Parameters,Orb::Vector{Orb1B},Import_Path::String)
 
     # Import the given 2-body quasiparticle NN operator ...
     println("\nReading given 2-body quasiparticle NN operator ...")
-    #@inbounds Threads.@threads for HJP in HJP_chunk
-    @inbounds for HJP in HJP_chunk
+    @inbounds Threads.@threads for HJP in HJP_chunk
+    #@inbounds for HJP in HJP_chunk
         H, J, P = HJP[1], HJP[2], HJP[3]
 
         N = N_chunk[H,J+1,P]
@@ -455,7 +435,7 @@ function qpO2b_import(Params::Parameters,Orb::Vector{Orb1B},Import_Path::String)
         if H == 1
             N_T = Orb_NN.N[2,P,J+1]
             @inbounds for Bra in 1:N_T
-                @inbounds for Ket in 1:N_T
+                @inbounds for Ket in 1:Bra
                     if (Buffer_n > Buffer_N) || (Buffer_n == 1)
                         Buffer_N = min(N,Buffer_size)
                         N = N - Buffer_N
@@ -463,14 +443,15 @@ function qpO2b_import(Params::Parameters,Orb::Vector{Orb1B},Import_Path::String)
                         Buffer = qpO2b_read_chunk(qpO,N_skip,Buffer_N)
                         N_skip = N_skip + 8*Buffer_N
                     end
+                    Ind = Bra + (Ket - 1) * N_T - div(Ket * (Ket - 1),2)
                     ME = Buffer[Buffer_n]
                     Buffer_n += 1
-                    O_NN.qp40.pp[P,J+1][Bra,Ket] = ME
+                    O_NN.qp40.pp[P,J+1][Ind] = ME
                 end
             end
 
         elseif H == 2
-            N_T = Orb_NN.N[1,P,J+1]
+            N_T = Orb_NN.N[2,P,J+1]
             @inbounds for Bra in 1:N_T
                 @inbounds for Ket in 1:N_T
                     if (Buffer_n > Buffer_N) || (Buffer_n == 1)
@@ -489,7 +470,7 @@ function qpO2b_import(Params::Parameters,Orb::Vector{Orb1B},Import_Path::String)
         elseif H == 3
             N_T = Orb_NN.N[2,P,J+1]
             @inbounds for Bra in 1:N_T
-                @inbounds for Ket in 1:N_T
+                @inbounds for Ket in 1:Bra
                     if (Buffer_n > Buffer_N) || (Buffer_n == 1)
                         Buffer_N = min(N,Buffer_size)
                         N = N - Buffer_N
@@ -497,9 +478,10 @@ function qpO2b_import(Params::Parameters,Orb::Vector{Orb1B},Import_Path::String)
                         Buffer = qpO2b_read_chunk(qpO,N_skip,Buffer_N)
                         N_skip = N_skip + 8*Buffer_N
                     end
+                    Ind = Bra + (Ket - 1) * N_T - div(Ket * (Ket - 1),2)
                     ME = Buffer[Buffer_n]
                     Buffer_n += 1
-                    O_NN.qp40.nn[P,J+1][Bra,Ket] = ME
+                    O_NN.qp40.nn[P,J+1][Ind] = ME
                 end
             end
 
@@ -571,9 +553,9 @@ function qpO2b_import(Params::Parameters,Orb::Vector{Orb1B},Import_Path::String)
             end
 
         elseif H == 8
-            N_T = Orb_NN.N[1,P,J+1]
+            N_T = Orb_NN.N[2,P,J+1]
             @inbounds for Bra in 1:N_T
-                @inbounds for Ket in 1:N_T
+                @inbounds for Ket in 1:Bra
                     if (Buffer_n > Buffer_N) || (Buffer_n == 1)
                         Buffer_N = min(N,Buffer_size)
                         N = N - Buffer_N
@@ -581,14 +563,15 @@ function qpO2b_import(Params::Parameters,Orb::Vector{Orb1B},Import_Path::String)
                         Buffer = qpO2b_read_chunk(qpO,N_skip,Buffer_N)
                         N_skip = N_skip + 8*Buffer_N
                     end
+                    Ind = Bra + (Ket - 1) * N_T - div(Ket * (Ket - 1),2)
                     ME = Buffer[Buffer_n]
                     Buffer_n += 1
-                    O_NN.qp22.pp[P,J+1][Bra,Ket] = ME
+                    O_NN.qp22.pp[P,J+1][Ind] = ME
                 end
             end
         
         elseif H == 9
-            N_T = Orb_NN.N[1,P,J+1]
+            N_T = Orb_NN.N[2,P,J+1]
             @inbounds for Bra in 1:N_T
                 @inbounds for Ket in 1:N_T
                     if (Buffer_n > Buffer_N) || (Buffer_n == 1)
@@ -607,7 +590,7 @@ function qpO2b_import(Params::Parameters,Orb::Vector{Orb1B},Import_Path::String)
         elseif H == 10
             N_T = Orb_NN.N[1,P,J+1]
             @inbounds for Bra in 1:N_T
-                @inbounds for Ket in 1:N_T
+                @inbounds for Ket in 1:Bra
                     if (Buffer_n > Buffer_N) || (Buffer_n == 1)
                         Buffer_N = min(N,Buffer_size)
                         N = N - Buffer_N
@@ -615,16 +598,17 @@ function qpO2b_import(Params::Parameters,Orb::Vector{Orb1B},Import_Path::String)
                         Buffer = qpO2b_read_chunk(qpO,N_skip,Buffer_N)
                         N_skip = N_skip + 8*Buffer_N
                     end
+                    Ind = Bra + (Ket - 1) * N_T - div(Ket * (Ket - 1),2)
                     ME = Buffer[Buffer_n]
                     Buffer_n += 1
-                    O_NN.qp22.pn1111[P,J+1][Bra,Ket] = ME
+                    O_NN.qp22.pn1111[P,J+1][Ind] = ME
                 end
             end
 
         elseif H == 11
-            N_T = Orb_NN.N[1,P,J+1]
+            N_T = Orb_NN.N[2,P,J+1]
             @inbounds for Bra in 1:N_T
-                @inbounds for Ket in 1:N_T
+                @inbounds for Ket in 1:Bra
                     if (Buffer_n > Buffer_N) || (Buffer_n == 1)
                         Buffer_N = min(N,Buffer_size)
                         N = N - Buffer_N
@@ -632,241 +616,14 @@ function qpO2b_import(Params::Parameters,Orb::Vector{Orb1B},Import_Path::String)
                         Buffer = qpO2b_read_chunk(qpO,N_skip,Buffer_N)
                         N_skip = N_skip + 8*Buffer_N
                     end
+                    Ind = Bra + (Ket - 1) * N_T - div(Ket * (Ket - 1),2)
                     ME = Buffer[Buffer_n]
                     Buffer_n += 1
-                    O_NN.qp22.pn0220[P,J+1][Bra,Ket] = ME
+                    O_NN.qp22.nn[P,J+1][Ind] = ME
                 end
             end
 
-        elseif H == 12
-            N_T = Orb_NN.N[1,P,J+1]
-            @inbounds for Bra in 1:N_T
-                @inbounds for Ket in 1:N_T
-                    if (Buffer_n > Buffer_N) || (Buffer_n == 1)
-                        Buffer_N = min(N,Buffer_size)
-                        N = N - Buffer_N
-                        Buffer_n = 1
-                        Buffer = qpO2b_read_chunk(qpO,N_skip,Buffer_N)
-                        N_skip = N_skip + 8*Buffer_N
-                    end
-                    ME = Buffer[Buffer_n]
-                    Buffer_n += 1
-                    O_NN.qp22.nn[P,J+1][Bra,Ket] = ME
-                end
-            end
         end
-
-
-        #=
-            if H == 1
-                N_T = Orb_NN.N[2,P,J+1]
-                @inbounds for Bra in 1:N_T
-                    @inbounds for Ket in 1:Bra
-                        Ind = Bra + (Ket - 1) * N_T - div(Ket * (Ket - 1),2)
-                        if (Buffer_n > Buffer_N) || (Buffer_n == 1)
-                            Buffer_N = min(N,Buffer_size)
-                            N = N - Buffer_N
-                            Buffer_n = 1
-                            Buffer = qpO2b_read_chunk(qpO,N_skip,Buffer_N)
-                            N_skip = N_skip + 8*Buffer_N
-                        end
-                        ME = Buffer[Buffer_n]
-                        Buffer_n += 1
-                        O_NN.qp40.pp[P,J+1][Ind] = ME
-                    end
-                end
-
-            elseif H == 2
-                N_T = Orb_NN.N[1,P,J+1]
-                @inbounds for Bra in 1:N_T
-                    @inbounds for Ket in 1:N_T
-                        Ind = Bra + (Ket - 1) * N_T - div(Ket * (Ket - 1),2)
-                        if (Buffer_n > Buffer_N) || (Buffer_n == 1)
-                            Buffer_N = min(N,Buffer_size)
-                            N = N - Buffer_N
-                            Buffer_n = 1
-                            Buffer = qpO2b_read_chunk(qpO,N_skip,Buffer_N)
-                            N_skip = N_skip + 8*Buffer_N
-                        end
-                        ME = Buffer[Buffer_n]
-                        Buffer_n += 1
-                        O_NN.qp40.pn[P,J+1][Ind] = ME
-                    end
-                end
-
-            elseif H == 3
-                N_T = Orb_NN.N[2,P,J+1]
-                @inbounds for Bra in 1:N_T
-                    @inbounds for Ket in 1:Bra
-                        Ind = Bra + (Ket - 1) * N_T - div(Ket * (Ket - 1),2)
-                        if (Buffer_n > Buffer_N) || (Buffer_n == 1)
-                            Buffer_N = min(N,Buffer_size)
-                            N = N - Buffer_N
-                            Buffer_n = 1
-                            Buffer = qpO2b_read_chunk(qpO,N_skip,Buffer_N)
-                            N_skip = N_skip + 8*Buffer_N
-                        end
-                        ME = Buffer[Buffer_n]
-                        Buffer_n += 1
-                        O_NN.qp40.nn[P,J+1][Ind] = ME
-                    end
-                end
-            
-            elseif H == 4
-                N_T = Orb_NN.N[2,P,J+1]
-                @inbounds for Bra in 1:N_T
-                    @inbounds for Ket in 1:Bra
-                        Ind = Bra + (Ket - 1) * N_T - div(Ket * (Ket - 1),2)
-                        if (Buffer_n > Buffer_N) || (Buffer_n == 1)
-                            Buffer_N = min(N,Buffer_size)
-                            N = N - Buffer_N
-                            Buffer_n = 1
-                            Buffer = qpO2b_read_chunk(qpO,N_skip,Buffer_N)
-                            N_skip = N_skip + 8*Buffer_N
-                        end
-                        ME = Buffer[Buffer_n]
-                        Buffer_n += 1
-                        O_NN.qp31.pp[P,J+1][Ind] = ME
-                    end
-                end
-            elseif H == 5
-                N_T = Orb_NN.N[1,P,J+1]
-                @inbounds for Bra in 1:N_T
-                    @inbounds for Ket in 1:N_T
-                        Ind = Bra + (Ket - 1) * N_T - div(Ket * (Ket - 1),2)
-                        if (Buffer_n > Buffer_N) || (Buffer_n == 1)
-                            Buffer_N = min(N,Buffer_size)
-                            N = N - Buffer_N
-                            Buffer_n = 1
-                            Buffer = qpO2b_read_chunk(qpO,N_skip,Buffer_N)
-                            N_skip = N_skip + 8*Buffer_N
-                        end
-                        ME = Buffer[Buffer_n]
-                        Buffer_n += 1
-                        O_NN.qp31.pn2011[P,J+1][Ind] = ME
-                    end
-                end
-            elseif H == 6
-                N_T = Orb_NN.N[1,P,J+1]
-                @inbounds for Bra in 1:N_T
-                    @inbounds for Ket in 1:N_T
-                        Ind = Bra + (Ket - 1) * N_T - div(Ket * (Ket - 1),2)
-                        if (Buffer_n > Buffer_N) || (Buffer_n == 1)
-                            Buffer_N = min(N,Buffer_size)
-                            N = N - Buffer_N
-                            Buffer_n = 1
-                            Buffer = qpO2b_read_chunk(qpO,N_skip,Buffer_N)
-                            N_skip = N_skip + 8*Buffer_N
-                        end
-                        ME = Buffer[Buffer_n]
-                        Buffer_n += 1
-                        O_NN.qp31.pn1120[P,J+1][Ind] = ME
-                    end
-                end
-            elseif H == 7
-                N_T = Orb_NN.N[2,P,J+1]
-                @inbounds for Bra in 1:N_T
-                    @inbounds for Ket in 1:Bra
-                        Ind = Bra + (Ket - 1) * N_T - div(Ket * (Ket - 1),2)
-                        if (Buffer_n > Buffer_N) || (Buffer_n == 1)
-                            Buffer_N = min(N,Buffer_size)
-                            N = N - Buffer_N
-                            Buffer_n = 1
-                            Buffer = qpO2b_read_chunk(qpO,N_skip,Buffer_N)
-                            N_skip = N_skip + 8*Buffer_N
-                        end
-                        ME = Buffer[Buffer_n]
-                        Buffer_n += 1
-                        O_NN.qp31.nn[P,J+1][Ind] = ME
-                    end
-                end
-            elseif H == 8
-                N_T = Orb_NN.N[2,P,J+1]
-                @inbounds for Bra in 1:N_T
-                    @inbounds for Ket in 1:Bra
-                        Ind = Bra + (Ket - 1) * N_T - div(Ket * (Ket - 1),2)
-                        if (Buffer_n > Buffer_N) || (Buffer_n == 1)
-                            Buffer_N = min(N,Buffer_size)
-                            N = N - Buffer_N
-                            Buffer_n = 1
-                            Buffer = qpO2b_read_chunk(qpO,N_skip,Buffer_N)
-                            N_skip = N_skip + 8*Buffer_N
-                        end
-                        ME = Buffer[Buffer_n]
-                        Buffer_n += 1
-                        O_NN.qp22.pp[P,J+1][Ind] = ME
-                    end
-                end
-            elseif H == 9
-                N_T = Orb_NN.N[1,P,J+1]
-                @inbounds for Bra in 1:N_T
-                    @inbounds for Ket in 1:N_T
-                        Ind = Bra + (Ket - 1) * N_T - div(Ket * (Ket - 1),2)
-                        if (Buffer_n > Buffer_N) || (Buffer_n == 1)
-                            Buffer_N = min(N,Buffer_size)
-                            N = N - Buffer_N
-                            Buffer_n = 1
-                            Buffer = qpO2b_read_chunk(qpO,N_skip,Buffer_N)
-                            N_skip = N_skip + 8*Buffer_N
-                        end
-                        ME = Buffer[Buffer_n]
-                        Buffer_n += 1
-                        O_NN.qp22.pn2002[P,J+1][Ind] = ME
-                    end
-                end
-            elseif H == 10
-                N_T = Orb_NN.N[1,P,J+1]
-                @inbounds for Bra in 1:N_T
-                    @inbounds for Ket in 1:N_T
-                        Ind = Bra + (Ket - 1) * N_T - div(Ket * (Ket - 1),2)
-                        if (Buffer_n > Buffer_N) || (Buffer_n == 1)
-                            Buffer_N = min(N,Buffer_size)
-                            N = N - Buffer_N
-                            Buffer_n = 1
-                            Buffer = qpO2b_read_chunk(qpO,N_skip,Buffer_N)
-                            N_skip = N_skip + 8*Buffer_N
-                        end
-                        ME = Buffer[Buffer_n]
-                        Buffer_n += 1
-                        O_NN.qp22.pn1111[P,J+1][Ind] = ME
-                    end
-                end
-            elseif H == 11
-                N_T = Orb_NN.N[1,P,J+1]
-                @inbounds for Bra in 1:N_T
-                    @inbounds for Ket in 1:N_T
-                        Ind = Bra + (Ket - 1) * N_T - div(Ket * (Ket - 1),2)
-                        if (Buffer_n > Buffer_N) || (Buffer_n == 1)
-                            Buffer_N = min(N,Buffer_size)
-                            N = N - Buffer_N
-                            Buffer_n = 1
-                            Buffer = qpO2b_read_chunk(qpO,N_skip,Buffer_N)
-                            N_skip = N_skip + 8*Buffer_N
-                        end
-                        ME = Buffer[Buffer_n]
-                        Buffer_n += 1
-                        O_NN.qp22.pn0220[P,J+1][Ind] = ME
-                    end
-                end
-            elseif H == 12
-                N_T = Orb_NN.N[2,P,J+1]
-                @inbounds for Bra in 1:N_T
-                    @inbounds for Ket in 1:Bra
-                        Ind = Bra + (Ket - 1) * N_T - div(Ket * (Ket - 1),2)
-                        if (Buffer_n > Buffer_N) || (Buffer_n == 1)
-                            Buffer_N = min(N,Buffer_size)
-                            N = N - Buffer_N
-                            Buffer_n = 1
-                            Buffer = qpO2b_read_chunk(qpO,N_skip,Buffer_N)
-                            N_skip = N_skip + 8*Buffer_N
-                        end
-                        ME = Buffer[Buffer_n]
-                        Buffer_n += 1
-                        O_NN.qp22.nn[P,J+1][Ind] = ME
-                    end
-                end
-            end
-        =#
 
     end
 
@@ -882,13 +639,13 @@ function qpO2b_import_count(Params::Parameters,Orb_NN::Orb2B)
     J_max = N_2max + 1
 
     # Initialize H, J & P values ...
-    HJP = Vector{Tuple{Int64,Int64,Int64}}(undef,12*2*(J_max+1))
-    HJP_chunk = Array{Int64}(undef,12,J_max+1,2)
-    HJP_chunk_skip = Array{Int64}(undef,12,J_max+1,2)
+    HJP = Vector{Tuple{Int64,Int64,Int64}}(undef,11*2*(J_max+1))
+    HJP_chunk = Array{Int64}(undef,11,J_max+1,2)
+    HJP_chunk_skip = Array{Int64}(undef,11,J_max+1,2)
 
     # Allocate the values of HJP ...
     c = 0
-    @inbounds for H in 1:12
+    @inbounds for H in 1:11
         @inbounds for J in 0:J_max
             @inbounds for P in 1:2
                 c += 1
@@ -898,21 +655,35 @@ function qpO2b_import_count(Params::Parameters,Orb_NN::Orb2B)
     end
 
     # Calculate number of MEs in each HJP_chunk ... 
-    @inbounds for i in 1:(12*(J_max+1)*2)
+    @inbounds for i in 1:(11*(J_max+1)*2)
         H, J, P = HJP[i][1], HJP[i][2], HJP[i][3]
         n = 0
 
-        if H == 1 || H == 3
+        if H == 1 || H == 3 || H == 8 || H == 11
+            N = Orb_NN.N[2,P,J+1]
+            @inbounds for Bra in 1:N
+                @inbounds for Ket in 1:Bra
+                    n += 1
+                end
+            end
+        elseif H == 2 || H == 9
             N = Orb_NN.N[2,P,J+1]
             @inbounds for Bra in 1:N
                 @inbounds for Ket in 1:N
                     n += 1
                 end
             end
-        elseif H == 2 || H == 4 || H == 5 || H == 6 || H == 7 || H == 8 || H == 9 || H == 10 || H == 11 || H == 12
+        elseif H == 4 || H == 5 || H == 6 || H == 7
             N = Orb_NN.N[1,P,J+1]
             @inbounds for Bra in 1:N
                 @inbounds for Ket in 1:N
+                    n += 1
+                end
+            end
+        elseif H == 10
+            N = Orb_NN.N[1,P,J+1]
+            @inbounds for Bra in 1:N
+                @inbounds for Ket in 1:Bra
                     n += 1
                 end
             end
@@ -939,11 +710,10 @@ function qpO2b_import_count(Params::Parameters,Orb_NN::Orb2B)
         =#
 
         HJP_chunk[H,J+1,P] = n
-
     end
 
     # Calculate the number of bytes for each HJP chunk to be skipped ...
-    @inbounds for i in 1:(12*(J_max+1)*2)
+    @inbounds for i in 1:(11*(J_max+1)*2)
         H, J, P = HJP[i][1], HJP[i][2], HJP[i][3]
         n = 0
         @inbounds for j in 1:(i-1)

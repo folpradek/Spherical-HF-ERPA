@@ -103,6 +103,7 @@ function HF_RPA_allocate(Params::Parameters,N_nu::Matrix{Int64},Orb_Phonon::Matr
                         end
                     end
                 end
+
                 A_JP[ind_ph,ind_qg] = ASum
                 B_JP[ind_ph,ind_qg] = BSum
             end

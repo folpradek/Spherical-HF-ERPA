@@ -50,15 +50,8 @@ function BCS_solver(Params::Parameters,Params_Ref::Parameters)
         # Allocate H_NN ... residual interaction 2-body Hamiltonian in the quasiparticle basis ...
         @time H_NN = qpO2b(Params,Orb,Orb_NN,V_NN,C,U_m,V_m)
 
-        # Deallocate V_NN 2-body & V_NNN 3-body interaction ...
-        V_NN = nothing
-        V_NNN = nothing
-
-        # Perform the Garbage Collection ...
-        GC.gc()
-
         # Perform final export of BCS solution into binary files ...
-        #@time BCS_export(Params,Orb,Orb_NN,C,U_m,V_m,H_N,H_NN)
+        @time BCS_export(Params,Orb,Orb_NN,C,U_m,V_m,H_N,H_NN)
 
         # Perform the HF-BCS-BMBPT(2) calculation of correlation energy ...
         @time HF_BCS_BMBPT_energy(Params,Orb,Orb_NN,H_N,H_NN)

@@ -221,11 +221,6 @@ function QTDA_phonon_space_export(Params::Parameters,Orb_2qp::qpOrb2B)
     return
 end
 
-
-
-
-# WIP
-
 function QTDA_transitions_export(Params::Parameters,Orb_2qp::qpOrb2B,E_QTDA::Matrix{Vector{Float64}},rB_QTDA::ReducedTransition)
     # Read parameters ...
     Orthogon = Params.Calc.QTDA.Ortho
@@ -244,23 +239,12 @@ function QTDA_transitions_export(Params::Parameters,Orb_2qp::qpOrb2B,E_QTDA::Mat
         end
     end
 
-    if Orthogon == true && 1 == 2
-        # QTDA E1 export ...
-        open(Output_File * "/QTDA/Transitions/E1/QTDA_E1.dat", "w") do Write_File
-            J, P = 1, 2
-            println(Write_File, "E\tB_ph\tB_is\tB_iv")
-            @inbounds for nu in 1:Orb_2qp.N[P,J+1]
-                println(Write_File, string(round(E_QTDA[P,J+1][nu], sigdigits=4)) * "\t" * string(round(rB_QTDA.E1.ph[nu],digits = 4)) * "\t" * string(round(rB_QTDA.E1.is[nu],digits = 4)) * "\t" * string(round(rB_QTDA.E1.iv[nu],digits = 4)))
-            end
-        end
-    else
-        # QTDA E1 export ...
-        open(Output_File * "/QTDA/Transitions/E1/QTDA_E1.dat", "w") do Write_File
-            J, P = 1, 2
-            println(Write_File, "E\tB_E1_ph\tB_E1_is\tB_E1_iv")
-            @inbounds for nu in 1:Orb_2qp.N[P,J+1]
-                println(Write_File, string(round(E_QTDA[P,J+1][nu], sigdigits=4)) * "\t" * string(round(rB_QTDA.E1.ph[nu],digits = 4)) * "\t" * string(round(rB_QTDA.E1.is[nu],digits = 4)) * "\t" * string(round(rB_QTDA.E1.iv[nu],digits = 4)))
-            end
+    # QTDA E1 export ...
+    open(Output_File * "/QTDA/Transitions/E1/QTDA_E1.dat", "w") do Write_File
+        J, P = 1, 2
+        println(Write_File, "E\tB_ph\tB_is\tB_iv")
+        @inbounds for nu in 1:Orb_2qp.N[P,J+1]
+            println(Write_File, string(round(E_QTDA[P,J+1][nu], sigdigits=4)) * "\t" * string(round(rB_QTDA.E1.ph[nu],digits = 4)) * "\t" * string(round(rB_QTDA.E1.is[nu],digits = 4)) * "\t" * string(round(rB_QTDA.E1.iv[nu],digits = 4)))
         end
     end
 

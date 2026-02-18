@@ -76,15 +76,15 @@ function HF_BCS_BMBPT_energy(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B
 
         # T = 0 proton-neutron branch ...
         elseif T_ab == 0
-            E_a, E_b = H_N.qp11.p[a,a], H_N.qp11.n[b,b]
+            E_a, E_b = H_N.qp11.p[a,a], H_N.qp11.p[b,b] 
             @inbounds for c in 1:a_max
-                l_c, j_c, E_c = Orb[c].l, Orb[c].j, H_N.qp11.p[c,c]
+                l_c, j_c, E_c = Orb[c].l, Orb[c].j, H_N.qp11.n[c,c]
                 @inbounds for d in 1:a_max
                     l_d, j_d, E_d = Orb[d].l, Orb[d].j, H_N.qp11.n[d,d]
                     if (rem(l_c + l_d,2) + 1) == P
                         Denom = -1.0 / (E_a + E_b + E_c + E_d) / 4.0
                         @inbounds for J in max(div(abs(j_a - j_b),2),div(abs(j_c - j_d),2)):min(div(j_a + j_b,2),div(j_c + j_d,2))
-                            ME = Float64(2*J + 1) * Denom * abs(qpO2b_40_pn(a,b,c,d,J,P,H_NN,Orb_NN))^2
+                            ME = Float64(2*J + 1) * Denom * abs(qpO2b_40_pn(a,b,c,d,J,P,H_NN,Orb,Orb_NN))^2
                             Sum += ME
                         end
                     end
@@ -112,7 +112,7 @@ function HF_BCS_BMBPT_energy(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B
     end
 
     # Get the total HF-BCS-BMBPT(2) energy from the thread accumulators ...
-    dE = 4.0 * sum(dE_threads)
+    dE = sum(dE_threads)
 
     # Print the total HF-BCS-BMBPT(2) energy correction ...
     println("\tHF-BCS-BMBPT(2) energy    ...   E^(2) = " * string(round(dE, sigdigits=9)) * " MeV\n")

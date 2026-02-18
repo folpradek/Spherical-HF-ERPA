@@ -1,4 +1,4 @@
-function QTDA_rM(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::qpOrb2B,X_QTDA::Matrix{Matrix{Float64}},qpTrOp::qpTr1B)
+function QTDA_rM(Params::Parameters,Orb_2qp::qpOrb2B,X_QTDA::Matrix{Matrix{Float64}},qpTrOp::qpTr1B)
     # Read calculation parameters ...
     Orthogon = Params.Calc.QTDA.Ortho
 
@@ -15,12 +15,12 @@ function QTDA_rM(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::qpOrb2B,X_QTDA::
         @inbounds  for i_qp in 1:N_qp
             a, b, T_ab = Orb_2qp.i[P,J+1][i_qp].a, Orb_2qp.i[P,J+1][i_qp].b, Orb_2qp.i[P,J+1][i_qp].T
             if T_ab == -1
-                ME = X_QTDA[P,J+1][i_qp,nu] * (qpTrOp.E0.qp20.p[a,b] + qpTrOp.E0.qp20.p[b,a]) / sqrt(1.0 + kronecker_delta(a,b))
+                ME = X_QTDA[P,J+1][i_qp,nu] * qpTrOp.E0.qp20.p[a,b] / sqrt(1.0 + kronecker_delta(a,b))
                 pM_E0Sum += ME
             end
 
             if T_ab == 1
-                ME = X_QTDA[P,J+1][i_qp,nu] * (qpTrOp.E0.qp20.n[a,b] + qpTrOp.E0.qp20.n[b,a]) / sqrt(1.0 + kronecker_delta(a,b))
+                ME = X_QTDA[P,J+1][i_qp,nu] * qpTrOp.E0.qp20.n[a,b] / sqrt(1.0 + kronecker_delta(a,b))
                 nM_E0Sum += ME
             end
         end
@@ -37,14 +37,13 @@ function QTDA_rM(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::qpOrb2B,X_QTDA::
         pM_E1Sum, nM_E1Sum = 0.0, 0.0
         @inbounds  for i_qp in 1:N_qp
             a, b, T_ab = Orb_2qp.i[P,J+1][i_qp].a, Orb_2qp.i[P,J+1][i_qp].b, Orb_2qp.i[P,J+1][i_qp].T
-            j_a, j_b = Orb[a].j, Orb[b].j
             if T_ab == -1
-                ME = X_QTDA[P,J+1][i_qp,nu] * (qpTrOp.E1.qp20.p[a,b] + 0.0*qpTrOp.E1.qp20.p[b,a]) / sqrt(1.0 + kronecker_delta(a,b))
+                ME = X_QTDA[P,J+1][i_qp,nu] * qpTrOp.E1.qp20.p[a,b] / sqrt(1.0 + kronecker_delta(a,b))
                 pM_E1Sum += ME
             end
 
             if T_ab == 1
-                ME = X_QTDA[P,J+1][i_qp,nu] * (qpTrOp.E1.qp20.n[a,b] + 0.0*qpTrOp.E1.qp20.n[b,a]) / sqrt(1.0 + kronecker_delta(a,b))
+                ME = X_QTDA[P,J+1][i_qp,nu] * qpTrOp.E1.qp20.n[a,b] / sqrt(1.0 + kronecker_delta(a,b))
                 nM_E1Sum += ME
             end
         end
@@ -61,14 +60,13 @@ function QTDA_rM(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::qpOrb2B,X_QTDA::
         pM_E2Sum, nM_E2Sum = 0.0, 0.0
         @inbounds  for i_qp in 1:N_qp
             a, b, T_ab = Orb_2qp.i[P,J+1][i_qp].a, Orb_2qp.i[P,J+1][i_qp].b, Orb_2qp.i[P,J+1][i_qp].T
-            j_a, j_b = Orb[a].j, Orb[b].j
             if T_ab == -1
-                ME = X_QTDA[P,J+1][i_qp,nu] * (qpTrOp.E2.qp20.p[a,b] + qpTrOp.E2.qp20.p[b,a]) / sqrt(1.0 + kronecker_delta(a,b))
+                ME = X_QTDA[P,J+1][i_qp,nu] * qpTrOp.E2.qp20.p[a,b] / sqrt(1.0 + kronecker_delta(a,b))
                 pM_E2Sum += ME
             end
 
             if T_ab == 1
-                ME = X_QTDA[P,J+1][i_qp,nu] * (qpTrOp.E2.qp20.n[a,b] + qpTrOp.E2.qp20.n[b,a]) / sqrt(1.0 + kronecker_delta(a,b))
+                ME = X_QTDA[P,J+1][i_qp,nu] * qpTrOp.E2.qp20.n[a,b] / sqrt(1.0 + kronecker_delta(a,b))
                 nM_E2Sum += ME
             end
         end
@@ -77,8 +75,7 @@ function QTDA_rM(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::qpOrb2B,X_QTDA::
     end
 
     # E3
-    J = 3
-    P = 2
+    J, P = 3, 2
     N_qp = Orb_2qp.N[P,J+1]
     pM_E3 = Vector{ComplexF64}(undef,N_qp)
     nM_E3 = Vector{ComplexF64}(undef,N_qp)
@@ -86,14 +83,13 @@ function QTDA_rM(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::qpOrb2B,X_QTDA::
         pM_E3Sum, nM_E3Sum = 0.0, 0.0
         @inbounds  for i_qp in 1:N_qp
             a, b, T_ab = Orb_2qp.i[P,J+1][i_qp].a, Orb_2qp.i[P,J+1][i_qp].b, Orb_2qp.i[P,J+1][i_qp].T
-            j_a, j_b = Orb[a].j, Orb[b].j
             if T_ab == -1
-                ME = X_QTDA[P,J+1][i_qp,nu] * (qpTrOp.E3.qp20.p[a,b] + 0.0*qpTrOp.E3.qp20.p[b,a]) / sqrt(1.0 + kronecker_delta(a,b))
+                ME = X_QTDA[P,J+1][i_qp,nu] * qpTrOp.E3.qp20.p[a,b] / sqrt(1.0 + kronecker_delta(a,b))
                 pM_E3Sum += ME
             end
 
             if T_ab == 1
-                ME = X_QTDA[P,J+1][i_qp,nu] * (qpTrOp.E3.qp20.n[a,b] + 0.0*qpTrOp.E3.qp20.n[b,a]) / sqrt(1.0 + kronecker_delta(a,b))
+                ME = X_QTDA[P,J+1][i_qp,nu] * qpTrOp.E3.qp20.n[a,b] / sqrt(1.0 + kronecker_delta(a,b))
                 nM_E3Sum += ME
             end
         end
