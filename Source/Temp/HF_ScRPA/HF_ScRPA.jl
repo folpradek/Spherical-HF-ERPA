@@ -3,9 +3,9 @@ function HF_ScRPA(Params::Parameters)
     wigner_init_float(Params.Int.N2max + 2, "Jmax", 6)
 
     # Calculation parameters
-    println("Starting RPA (TDA) calculations with residual NO2B NN+NNN interaction")
+    println("Starting Self-consistent RPA calculation with residual NO2B NN+NNN interaction")
     println("\nCalculation data:")
-    println("A = " * string(Params.Calc.A) * " , Z = " * string(Params.Calc.Z) * " , HbarOmega = " * string(Params.Calc.Z) *
+    println("A = " * string(Params.Calc.A) * " , Z = " * string(Params.Calc.Z) * " , hw = " * string(Params.Calc.Z) *
             " MeV , N_max = " * string(Params.Calc.Nmax) * " , J-scheme LHO basis size = " * string(div((Params.Calc.Nmax+1)*(Params.Calc.Nmax+2),2)) *
             " , M-scheme LHO basis size = " * string(div((Params.Calc.Nmax+1)*(Params.Calc.Nmax+2)*(Params.Calc.Nmax+3),6)))
 

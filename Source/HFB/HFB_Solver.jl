@@ -41,6 +41,11 @@ function HFB_solver(Params::Parameters)
         # Make density dependent residual 2-body interaction in the LHO basis ...
         @time V_NN = V2b_residual_no2b(Params,Orb,Orb_NN,Orb_NNN,Rho,V_NN,V_NNN)
 
+        # Include the N^2 contribution to the residual 2-body interaction in the LHO basis ... if LNT is enabled ...
+        if Params.Calc.HFB.LNT == true
+            @time V_NN = HFB_Lipkin_Nogami_V2b_residual_no2b(Params,Orb,Orb_NN,V_NN)
+        end
+
         # Perform transformation of U and V to the canonical basis ...
         U, V = O1B(C.p' * U.p, C.n' * U.n), O1B(C.p' * V.p, C.n' * V.n)
 
@@ -227,6 +232,11 @@ function HFB_solve(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,Orb_NNN::
         # Allocate the single-particle field H and the pairing field Delta ...
         H, Delta = HFB_allocate(Params,Lambda,Rho,Kappa,Orb,Orb_NN,Orb_NNN,T,V_NN,V_NNN)
 
+        # Include the Lipkin-Nogami correction to fields H & Delta ...
+        if Params.Calc.HFB.LNT == true
+            H, Delta = HFB_Lipkin_Nogami(Params,Orb,Orb_NN,Orb_NNN,Rho,Kappa,H,Delta,V_NN,V_NNN)
+        end
+
         # Diagonalize the HFB equations ... basis is reordered as needed ...
         if Pairing == "Full"
             SQE, U, V = HFB_diagonalize(Params,H,Delta,Orb)
@@ -334,26 +344,26 @@ function HFB_solve(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,Orb_NNN::
     # Perform final evaluation of resulting densities ...
     #Rho, Kappa = HFB_density_operator(Params,U,V,Orb)
 
-    # self-consistency check
-    #=
-    # Generate new densities Rho & Kappa ...
-    Rho, Kappa = HFB_density_operator(Params,U,V,Orb)
+        # self-consistency check
+        #=
+            # Generate new densities Rho & Kappa ...
+            Rho, Kappa = HFB_density_operator(Params,U,V,Orb)
 
-    # Allocate the single-particle field H and the pairing field Delta ...
-    H, Delta = HFB_allocate(Params,Lambda,Rho,Kappa,Orb,Orb_NN,Orb_NNN,T,V_NN,V_NNN)
+            # Allocate the single-particle field H and the pairing field Delta ...
+            H, Delta = HFB_allocate(Params,Lambda,Rho,Kappa,Orb,Orb_NN,Orb_NNN,T,V_NN,V_NNN)
 
-    # Diagonalize the HFB equations ... basis is reordered as needed ...
-    SQE1, U, V = HFB_diagonalize(Params,H,Delta,Orb)
+            # Diagonalize the HFB equations ... basis is reordered as needed ...
+            SQE1, U, V = HFB_diagonalize(Params,H,Delta,Orb)
 
-    dE = (sum(abs.(SQE.p .- SQE1.p )) + sum(abs.(SQE.n .- SQE1.n))) / Float64(2 * a_max)
+            dE = (sum(abs.(SQE.p .- SQE1.p )) + sum(abs.(SQE.n .- SQE1.n))) / Float64(2 * a_max)
 
-    println("dE = " * string(dE))
-    =#
+            println("dE = " * string(dE))
+        =#
 
     # Construct the canonical basis & evaluate approximate (BCS-like) amplitudes
     # & single-quasiparticle energies u_C, v_C & SQE_C ...
     #   U, V, Rho, Kappa, H, Delta ... remain expressed in the reference LHO basis ...
-    if Params.Calc.HFB.Pairing == "BCS"
+    if Params.Calc.HFB.Pairing == "BCS" || Params.Calc.HFB.Pairing == "MCA"
         C = HFB_canonical_basis_BCS(Params,H,Orb)
     else
         C = HFB_canonical_basis(Params,Rho,Orb)
@@ -366,6 +376,389 @@ function HFB_solve(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,Orb_NNN::
 end
 
 function HFB_diagonalize(Params::Parameters,H::O1B,Delta::O1B,Orb::Vector{Orb1B})
+    # Read & define parameters ...
+    N_max = Params.Calc.Nmax
+    a_max = div((N_max + 1) * (N_max + 2), 2)
+    HFB_dim = 2 * a_max
+    Tol = 1e-13
+
+    # Preallocate arrays for solutions ...
+    pU = Matrix{Float64}(undef,a_max,a_max)
+    pV = Matrix{Float64}(undef,a_max,a_max)
+    pSQE = Vector{Float64}(undef,a_max)
+    nU = Matrix{Float64}(undef,a_max,a_max)
+    nV = Matrix{Float64}(undef,a_max,a_max)
+    nSQE = Vector{Float64}(undef,a_max)
+
+    # Allocate and fill the HFB eigenvalue systems explicitly (avoids temporaries) ...
+    pHFB = Matrix{Float64}(undef,HFB_dim,HFB_dim)
+    nHFB = Matrix{Float64}(undef,HFB_dim,HFB_dim)
+
+    @inbounds for a in 1:a_max
+        @inbounds for b in 1:a_max
+            pH_ab = H.p[a,b]
+            pD_ab = Delta.p[a,b]
+            nH_ab = H.n[a,b]
+            nD_ab = Delta.n[a,b]
+
+            pHFB[a,b] = pH_ab
+            pHFB[a,b+a_max] = pD_ab
+            pHFB[a+a_max,b] = pD_ab
+            pHFB[a+a_max,b+a_max] = -pH_ab
+
+            nHFB[a,b] = nH_ab
+            nHFB[a,b+a_max] = nD_ab
+            nHFB[a+a_max,b] = nD_ab
+            nHFB[a+a_max,b+a_max] = -nH_ab
+        end
+    end
+
+    # Solve the HFB equations ... (in-place eigensolvers to avoid extra copies)
+    pEig = eigen!(Symmetric(pHFB),sortby=+)
+    nEig = eigen!(Symmetric(nHFB),sortby=+)
+    pE, pW = pEig.values, pEig.vectors
+    nE, nW = nEig.values, nEig.vectors
+
+    # Only positive energy solutions are extracted ...
+    @inbounds for a in 1:a_max
+        pSQE[a], nSQE[a] = pE[a+a_max], nE[a+a_max]
+        @views pU[:,a] .= pW[1:a_max,a+a_max]
+        @views pV[:,a] .= pW[a_max+1:2*a_max,a+a_max]
+        @views nU[:,a] .= nW[1:a_max,a+a_max]
+        @views nV[:,a] .= nW[a_max+1:2*a_max,a+a_max]
+    end
+
+    # Remove numerical noise ...
+    @inbounds for a in 1:a_max
+        @inbounds for b in 1:a_max
+            pu, pv = pU[a,b], pV[a,b]
+            nu, nv = nU[a,b], nV[a,b]
+            if abs(pu) < Tol
+                pU[a,b] = 0.0
+            end
+            if abs(pv) < Tol
+                pV[a,b] = 0.0
+            end
+            if abs(nu) < Tol
+                nU[a,b] = 0.0
+            end
+            if abs(nv) < Tol
+                nV[a,b] = 0.0
+            end
+        end
+    end
+
+    # Perform reordering - to match quantum numbers j & l ascending in E ...
+    SQE, U, V = HFB_orbital_ordering(Params,pnVector(pSQE,nSQE),O1B(pU,nU),O1B(pV,nV),Orb)
+
+    # Next, perform the SVD decomposition of U ... in the spirit of the BMZ theorem ... \bar{U} = C^\dag U D ...  
+    pC, pS, pD = svd(U.p)
+    nC, nS, nD = svd(U.n)
+
+    # Perform the reordering the particle & quasiparticle bases due to C & D ...
+    pC, nC, pD, nD = HFB_BMZ_orbital_ordering(Params,O1B(pC,nC),O1B(pD,nD),Orb)
+
+    # Transform U & V to the canonical BMZ basis ...
+    pU = pC' * U.p * pD
+    pV = pC' * V.p * pD
+
+    nU = nC' * U.n * nD
+    nV = nC' * V.n * nD
+
+    # Fix the HFB phases in the canonical BMZ decomposed basis ...
+    @inbounds for a in 1:a_max
+        l_a = Orb[a].l
+        Phase = Float64((-1)^(l_a))
+        @views pU[:,a] .= Phase .* abs.(pU[:,a])
+        @views pV[:,a] .= abs.(pV[:,a])
+        @views nU[:,a] .= Phase .* abs.(nU[:,a])
+        @views nV[:,a] .= abs.(nV[:,a])
+    end
+
+    # Transform back to the LHO basis ...
+    pU = pC * pU * pD'
+    pV = pC * pV * pD'
+
+    nU = nC * nU * nD'
+    nV = nC * nV * nD'
+
+    # Remove numerical noise ...
+    @inbounds for a in 1:a_max
+        @inbounds for b in 1:a_max
+            pu, pv = pU[a,b], pV[a,b]
+            nu, nv = nU[a,b], nV[a,b]
+            if abs(pu) < Tol
+                pU[a,b] = 0.0
+            end
+            if abs(pv) < Tol
+                pV[a,b] = 0.0
+            end
+            if abs(nu) < Tol
+                nU[a,b] = 0.0
+            end
+            if abs(nv) < Tol
+                nV[a,b] = 0.0
+            end
+        end
+    end
+
+    # Allocate U & V ...
+    U = O1B(pU,nU)
+    V = O1B(pV,nV)
+ 
+    return SQE, U, V
+end
+
+function HFB_diagonalize_BCS(Params::Parameters,H::O1B,Delta::O1B,Orb::Vector{Orb1B})
+    # Read parameters ...
+    N_max = Params.Calc.Nmax
+    a_max = div((N_max + 1) * (N_max + 2), 2)
+
+    # Preallocate arrays for solutions ...
+    pU, pV, pSQE = zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max), zeros(Float64,a_max)
+    nU, nV, nSQE = zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max), zeros(Float64,a_max)
+
+    # Find the canonical basis by diagonalizing H ...
+    pSPE, pC = eigen(Symmetric(H.p),sortby=+)
+    nSPE, nC = eigen(Symmetric(H.n),sortby=+)
+
+    # Reorder HF orbitals & SPEs ...
+    C, SPE = HF_orbital_ordering(Orb,a_max,O1B(pC,nC),pnVector(pSPE,nSPE))
+    pC .= C.p
+    nC .= C.n
+    pSPE .= SPE.p
+    nSPE .= SPE.n
+
+    # Transform Delta to the canonical basis ...
+    pDelta = pC' * Delta.p * pC
+    nDelta = nC' * Delta.n * nC
+
+    # Remove off-diagonal elements of Delta in the canonical basis ...
+    @inbounds for a in 1:a_max
+        @inbounds for b in 1:a_max
+            if a != b
+                pDelta[a,b] = 0.0
+                nDelta[a,b] = 0.0
+            end
+        end
+    end
+
+    # Allocate U and V amplitudes in the canonical basis ...
+    @inbounds for a in 1:a_max
+        l_a = Orb[a].l
+        Phase = Float64((-1)^(l_a))
+
+        # Protons ...
+        pE_a, pD_a = pSPE[a], pDelta[a,a]
+        pU[a,a] = Phase * sqrt(0.5 * (1.0 + pE_a / sqrt(pE_a^2 + pD_a^2)))
+        pV[a,a] = sqrt(0.5 * (1.0 - pE_a / sqrt(pE_a^2 + pD_a^2)))
+        pSQE[a] = sqrt(pE_a^2 + pD_a^2)
+
+        # Neutrons ...
+        nE_a, nD_a = nSPE[a], nDelta[a,a]
+        nU[a,a] = Phase * sqrt(0.5 * (1.0 + nE_a / sqrt(nE_a^2 + nD_a^2)))
+        nV[a,a] = sqrt(0.5 * (1.0 - nE_a / sqrt(nE_a^2 + nD_a^2)))
+        nSQE[a] = sqrt(nE_a^2 + nD_a^2)
+    end
+
+    # Transform U & V back to the reference basis ...
+    pU .= pC * pU
+    pV .= pC * pV
+    nU .= nC * nU
+    nV .= nC * nV
+
+    return pnVector(pSQE,nSQE), O1B(pU,nU), O1B(pV,nV)
+end
+
+function HFB_diagonalize_MCA(Params::Parameters,H::O1B,Delta::O1B,Orb::Vector{Orb1B})
+    # Read & define parameters ...
+    N_max = Params.Calc.Nmax
+    a_max = div((N_max + 1) * (N_max + 2), 2)
+    HFB_dim = 2 * a_max
+    Tol = 1e-13
+
+    # Preallocate arrays for solutions ...
+    pU = Matrix{Float64}(undef,a_max,a_max)
+    pV = Matrix{Float64}(undef,a_max,a_max)
+    pSQE = Vector{Float64}(undef,a_max)
+    nU = Matrix{Float64}(undef,a_max,a_max)
+    nV = Matrix{Float64}(undef,a_max,a_max)
+    nSQE = Vector{Float64}(undef,a_max)
+
+    # Allocate and fill the HFB eigenvalue systems explicitly (avoids temporaries) ...
+    pHFB = Matrix{Float64}(undef,HFB_dim,HFB_dim)
+    nHFB = Matrix{Float64}(undef,HFB_dim,HFB_dim)
+
+    @inbounds for a in 1:a_max
+        @inbounds for b in 1:a_max
+            pH_ab = H.p[a,b]
+            pD_ab = Delta.p[a,b]
+            nH_ab = H.n[a,b]
+            nD_ab = Delta.n[a,b]
+
+            pHFB[a,b] = pH_ab
+            pHFB[a,b+a_max] = pD_ab
+            pHFB[a+a_max,b] = pD_ab
+            pHFB[a+a_max,b+a_max] = -pH_ab
+
+            nHFB[a,b] = nH_ab
+            nHFB[a,b+a_max] = nD_ab
+            nHFB[a+a_max,b] = nD_ab
+            nHFB[a+a_max,b+a_max] = -nH_ab
+        end
+    end
+
+    # Solve the HFB equations ...
+    pE, pC = eigen(Symmetric(pHFB),sortby=+)
+    nE, nC = eigen(Symmetric(nHFB),sortby=+)
+
+    # Only positive energy solutions are extracted ...
+    @inbounds for a in 1:a_max
+        pSQE[a], nSQE[a] = pE[a+a_max], nE[a+a_max]
+        @views pU[:,a] .= pC[1:a_max,a+a_max]
+        @views pV[:,a] .= pC[a_max+1:2*a_max,a+a_max]
+        @views nU[:,a] .= nC[1:a_max,a+a_max]
+        @views nV[:,a] .= nC[a_max+1:2*a_max,a+a_max]
+    end
+
+    # Perform reordering - to match quantum numbers j & l ascending in E ...
+    SQE, U, V = HFB_orbital_ordering(Params,pnVector(pSQE,nSQE),O1B(pU,nU),O1B(pV,nV),Orb)
+
+    Rho, Kappa = HFB_density_operator(Params,U,V,Orb)
+
+    # Find the canonical basis by diagonalizing Rho ...
+    pn, pC = eigen(Symmetric(Rho.p),sortby=+)
+    nn, nC = eigen(Symmetric(Rho.n),sortby=+)
+
+    # Transform Delta to the canonical basis ...
+    pDelta = pC' * Delta.p * pC
+    nDelta = nC' * Delta.n * nC
+
+    # Remove off-diagonal elements of Delta in the canonical basis ...
+    @inbounds for a in 1:a_max
+        @inbounds for b in 1:a_max
+            if a != b
+                pDelta[a,b] = 0.0
+                nDelta[a,b] = 0.0
+            end
+        end
+    end
+
+    # Transform Delta back to the reference LHO basis ...
+    pDelta .= pC * pDelta * pC'
+    nDelta .= nC * nDelta * nC'
+
+    # Allocate the HFB eigenvalue system ...
+    pHFB = [H.p pDelta; pDelta -1.0 .* H.p]
+    nHFB = [H.n nDelta; nDelta -1.0 .* H.n]
+
+    # Solve the HFB equations ...
+    pE, pW = eigen(Symmetric(pHFB),sortby=+)
+    nE, nW = eigen(Symmetric(nHFB),sortby=+)
+
+    # Only positive energy solutions are extracted ...
+    @inbounds for a in 1:a_max
+        pSQE[a], nSQE[a] = pE[a+a_max], nE[a+a_max]
+        @views pU[:,a] .= pW[1:a_max,a+a_max]
+        @views pV[:,a] .= pW[a_max+1:2*a_max,a+a_max]
+        @views nU[:,a] .= nW[1:a_max,a+a_max]
+        @views nV[:,a] .= nW[a_max+1:2*a_max,a+a_max]
+    end
+
+    # Remove numerical noise ...
+    @inbounds for a in 1:a_max
+        @inbounds for b in 1:a_max
+            pu, pv = pU[a,b], pV[a,b]
+            nu, nv = nU[a,b], nV[a,b]
+            if abs(pu) < Tol
+                pU[a,b] = 0.0
+            end
+            if abs(pv) < Tol
+                pV[a,b] = 0.0
+            end
+            if abs(nu) < Tol
+                nU[a,b] = 0.0
+            end
+            if abs(nv) < Tol
+                nV[a,b] = 0.0
+            end
+        end
+    end
+
+    # Perform reordering - to match quantum numbers j & l ...
+    SQE, U, V = HFB_orbital_ordering(Params,pnVector(pSQE,nSQE),O1B(pU,nU),O1B(pV,nV),Orb)
+
+        # RM ? ...
+        #=
+        @inbounds for a in 1:a_max
+            U.p[a,a] += a * 1e-12
+            U.n[a,a] += a * 1e-12
+            V.p[a,a] += a * 1e-12
+            V.n[a,a] += a * 1e-12
+        end
+        =#
+
+    # Next, perform the SVD decomposition of U ... in the spirit of the BMZ theorem ... \bar{U} = C^\dag U D ...  
+    pC, pS, pD = svd(U.p)
+    nC, nS, nD = svd(U.n)
+
+    # Perform the reordering the particle & quasiparticle bases due to C & D ...
+    pC, nC, pD, nD = HFB_BMZ_orbital_ordering(Params,O1B(pC,nC),O1B(pD,nD),Orb)
+
+    # Transform U & V to the canonical BMZ basis ...
+    pU = pC' * U.p * pD
+    pV = pC' * V.p * pD
+
+    nU = nC' * U.n * nD
+    nV = nC' * V.n * nD
+    
+    # Fix the HFB phases in the canonical BMZ decomposed basis ...
+    @inbounds for a in 1:a_max
+        l_a = Orb[a].l
+        Phase = Float64((-1)^(l_a))
+        @views pU[:,a] .= Phase .* abs.(pU[:,a])
+        @views pV[:,a] .= abs.(pV[:,a])
+        @views nU[:,a] .= Phase .* abs.(nU[:,a])
+        @views nV[:,a] .= abs.(nV[:,a])
+    end
+
+    # Transform back to the LHO basis ...
+    pU = pC * pU * pD'
+    pV = pC * pV * pD'
+
+    nU = nC * nU * nD'
+    nV = nC * nV * nD'
+
+    # Remove numerical noise
+    @inbounds for a in 1:a_max
+        @inbounds for b in 1:a_max
+            pu, pv = pU[a,b], pV[a,b]
+            nu, nv = nU[a,b], nV[a,b]
+            if abs(pu) < Tol
+                pU[a,b] = 0.0
+            end
+            if abs(pv) < Tol
+                pV[a,b] = 0.0
+            end
+            if abs(nu) < Tol
+                nU[a,b] = 0.0
+            end
+            if abs(nv) < Tol
+                nV[a,b] = 0.0
+            end
+        end
+    end
+
+    # Allocate U & V ...
+    U = O1B(pU,nU)
+    V = O1B(pV,nV)
+
+    return SQE, U, V
+end
+
+
+# Remove ... redundant ...
+function HFB_diagonalize_OLD(Params::Parameters,H::O1B,Delta::O1B,Orb::Vector{Orb1B})
     # Read parameters ...
     Tol = 1e-13
     N_max = Params.Calc.Nmax
@@ -447,164 +840,5 @@ function HFB_diagonalize(Params::Parameters,H::O1B,Delta::O1B,Orb::Vector{Orb1B}
     # Perform reordering - to match quantum numbers j & l ascending in E ...
     SQE, U, V = HFB_orbital_ordering(Params,pnVector(pSQE,nSQE),O1B(pU,nU),O1B(pV,nV),Orb)
  
-    return SQE, U, V
-end
-
-function HFB_diagonalize_MCA(Params::Parameters,H::O1B,Delta::O1B,Orb::Vector{Orb1B})
-    # Read parameters ...
-    N_max = Params.Calc.Nmax
-    a_max = div((N_max + 1) * (N_max + 2), 2)
-
-    # Preallocate arrays for solutions ...
-    pU, pV, pSQE = zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max), zeros(Float64,a_max)
-    nU, nV, nSQE = zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max), zeros(Float64,a_max)
-
-    # Allocate the HFB eigenvalue system ...
-    pHFB = [H.p Delta.p; Delta.p -1.0 .* H.p]
-    nHFB = [H.n Delta.n; Delta.n -1.0 .* H.n]
-
-    # Solve the HFB equations ...
-    pE, pC = eigen(Symmetric(pHFB),sortby=+)
-    nE, nC = eigen(Symmetric(nHFB),sortby=+)
-
-    # Only positive energy solutions are extracted ...
-    @inbounds for a in 1:a_max
-        pSQE[a], nSQE[a] = pE[a+a_max], nE[a+a_max]
-        @views pU[:,a] .= pC[1:a_max,a+a_max]
-        @views pV[:,a] .= pC[a_max+1:2*a_max,a+a_max]
-        @views nU[:,a] .= nC[1:a_max,a+a_max]
-        @views nV[:,a] .= nC[a_max+1:2*a_max,a+a_max]
-    end
-
-    # Perform reordering - to match quantum numbers j & l ascending in E ...
-    SQE, U, V = HFB_orbital_ordering(Params,pnVector(pSQE,nSQE),O1B(pU,nU),O1B(pV,nV),Orb)
-
-    Rho, Kappa = HFB_density_operator(Params,U,V,Orb)
-
-    # Find the canonical basis by diagonalizing H ...
-    pn, pC = eigen(Symmetric(Rho.p),sortby=+)
-    nn, nC = eigen(Symmetric(Rho.n),sortby=+)
-
-    # Transform Delta to the canonical basis ...
-    pDelta = pC' * Delta.p * pC
-    nDelta = nC' * Delta.n * nC
-
-    # Remove off-diagonal elements of Delta in the canonical basis ...
-    @inbounds for a in 1:a_max
-        @inbounds for b in 1:a_max
-            if a != b
-                pDelta[a,b] = 0.0
-                nDelta[a,b] = 0.0
-            end
-        end
-    end
-
-    # Transform Delta back to the reference basis ...
-    pDelta .= pC * pDelta * pC'
-    nDelta .= nC * nDelta * nC'
-
-    # Allocate the HFB eigenvalue system ...
-    pHFB = [H.p pDelta; pDelta -1.0 .* H.p]
-    nHFB = [H.n nDelta; nDelta -1.0 .* H.n]
-
-    # Solve the HFB equations ...
-    pE, pW = eigen(Symmetric(pHFB),sortby=+)
-    nE, nW = eigen(Symmetric(nHFB),sortby=+)
-
-    # Only positive energy solutions are extracted ...
-    @inbounds for a in 1:a_max
-        pSQE[a], nSQE[a] = pE[a+a_max], nE[a+a_max]
-        @views pU[:,a] .= pW[1:a_max,a+a_max]
-        @views pV[:,a] .= pW[a_max+1:2*a_max,a+a_max]
-        @views nU[:,a] .= nW[1:a_max,a+a_max]
-        @views nV[:,a] .= nW[a_max+1:2*a_max,a+a_max]
-    end
-
-    # Perform reordering - to match quantum numbers j & l...
-    SQE, U, V = HFB_orbital_ordering(Params,pnVector(pSQE,nSQE),O1B(pU,nU),O1B(pV,nV),Orb)
-
-    return SQE, U, V
-end
-
-function HFB_diagonalize_BCS(Params::Parameters,H::O1B,Delta::O1B,Orb::Vector{Orb1B})
-    # Read parameters ...
-    N_max = Params.Calc.Nmax
-    a_max = div((N_max + 1) * (N_max + 2), 2)
-
-    # Preallocate arrays for solutions ...
-    pU, pV, pSQE = zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max), zeros(Float64,a_max)
-    nU, nV, nSQE = zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max), zeros(Float64,a_max)
-
-    # Find the canonical basis by diagonalizing H ...
-    pSPE, pC = eigen(Symmetric(H.p),sortby=+)
-    nSPE, nC = eigen(Symmetric(H.n),sortby=+)
-
-    # Reorder HF orbitals & SPEs ...
-    C, SPE = HF_orbital_ordering(Orb,a_max,O1B(pC,nC),pnVector(pSPE,nSPE))
-    pC .= C.p
-    nC .= C.n
-    pSPE .= SPE.p
-    nSPE .= SPE.n
-
-    # Transform Delta to the canonical basis ...
-    pDelta = pC' * Delta.p * pC
-    nDelta = nC' * Delta.n * nC
-
-    # Remove off-diagonal elements of Delta in the canonical basis ...
-    @inbounds for a in 1:a_max
-        @inbounds for b in 1:a_max
-            if a != b
-                pDelta[a,b] = 0.0
-                nDelta[a,b] = 0.0
-            end
-        end
-    end
-
-    # Allocate U and V amplitudes in the canonical basis ...
-    @inbounds for a in 1:a_max
-        l_a = Orb[a].l
-
-        # Protons ...
-        pE_a, pD_a = pSPE[a], pDelta[a,a]
-        pU[a,a] = (-1)^(l_a) * sqrt(0.5 * (1.0 + pE_a / sqrt(pE_a^2 + pD_a^2)))
-        pV[a,a] = sqrt(0.5 * (1.0 - pE_a / sqrt(pE_a^2 + pD_a^2)))
-        pSQE[a] = sqrt(pE_a^2 + pD_a^2)
-
-        # Neutrons ...
-        nE_a, nD_a = nSPE[a], nDelta[a,a]
-        nU[a,a] = (-1)^(l_a) * sqrt(0.5 * (1.0 + nE_a / sqrt(nE_a^2 + nD_a^2)))
-        nV[a,a] = sqrt(0.5 * (1.0 - nE_a / sqrt(nE_a^2 + nD_a^2)))
-        nSQE[a] = sqrt(nE_a^2 + nD_a^2)
-    end
-
-    # Transform U & V back to the reference basis ...
-    pU .= pC * pU
-    pV .= pC * pV
-    nU .= nC * nU
-    nV .= nC * nV
-
-    #=
-    # Perform sorting of quasiparticles ... ascending in energy ...
-    pOrbs_sort = sortperm(pSQE)
-    nOrbs_sort = sortperm(nSQE)
-
-    # Proton single-quasiparticle orbitals ...
-    @views pSQE .= pSQE[pOrbs_sort]
-    @views pU .= pU[:,pOrbs_sort]
-    @views pV .= pV[:,pOrbs_sort]
-
-    # Neutron single-quasiparticle orbitals ...
-    @views nSQE .= nSQE[nOrbs_sort]
-    @views nU .= nU[:,nOrbs_sort]
-    @views nV .= nV[:,nOrbs_sort]
-
-    # Perform reordering - to match quantum numbers j & l ...
-    SQE, U, V = HFB_orbital_ordering(Params,pnVector(pSQE,nSQE),O1B(pU,nU),O1B(pV,nV),Orb)
-    =#
-    
-    SQE = pnVector(pSQE,nSQE)
-    U = O1B(pU,nU)
-    V = O1B(pV,nV)
-
     return SQE, U, V
 end

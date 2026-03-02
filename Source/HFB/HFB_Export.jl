@@ -45,7 +45,10 @@ function HFB_summary(Params::Parameters,E_HFB::Vector{Float64},T_HFB::Float64,La
         println(Summary, "E_Par      = " * string(round(E_HFB[2] + E_HFB[3], sigdigits=9)) * "\t MeV \t\t ... \t pairing ground-state  energy")
         println(Summary, "E_Par (2N) = " * string(round(E_HFB[2], sigdigits=9)) * "\t MeV \t\t ... \t pairing ground-state  energy")
         println(Summary, "E_Par (3N) = " * string(round(E_HFB[3], sigdigits=9)) * "\t MeV \t\t ... \t pairing ground-state  energy")
-        println(Summary, "T_HFB      = " * string(round(T_HFB, sigdigits=9)) * "\t MeV \t\t ... \t HFB mean-field ground-state kinetic energy")
+        println(Summary, "E_Par (3N) = " * string(round(E_HFB[3], sigdigits=9)) * "\t MeV \t\t ... \t pairing ground-state  energy")
+        if Params.Calc.HFB.LNT == true
+            println(Summary, "E_LN       = " * string(round(E_HFB[4], sigdigits=9)) * "\t MeV \t\t ... \t HFB mean-field Lipkin-Nogami ground-state energy correction")
+         end    
         println(Summary, "\nE_HFB / A      = " * string(round(sum(E_HFB) / A, digits=9)) * "\t MeV / Nucleon \t\t ... \t HFB mean-field ground-state energy per nucleon")
         println(Summary, "E_MF  / A      = " * string(round(E_HFB[1] / A, sigdigits=9)) * "\t MeV / Nucleon \t\t ... \t mean-field ground-state energy per nucleon")
         println(Summary, "E_Par / A      = " * string(round((E_HFB[2] + E_HFB[3]) / A, sigdigits=9)) * "\t MeV / Nucleon \t\t ... \t pairing ground-state  energy per nucleon")
@@ -55,6 +58,12 @@ function HFB_summary(Params::Parameters,E_HFB::Vector{Float64},T_HFB::Float64,La
         println(Summary, "\n\nValues of HFB chemical potentials:")
         println(Summary, "\npLambda =  " * string(Lambda.p) * " MeV")
         println(Summary, "nLambda =  " * string(Lambda.n) * " MeV")
+        if Params.Calc.HFB.LNT == true
+            Lambda_2 = HFB_Lipkin_Nogami_Lambda_2_import(Params)
+            println(Summary, "\n\nValues of LN-HFB coefficients:")
+            println(Summary, "\npLambda_2 =  " * string(Lambda_2.p) * " MeV")
+            println(Summary, "nLambda_2 =  " * string(Lambda_2.n) * " MeV")
+        end
         println(Summary, "\nDispersion of HFB particle numbers dZ & dN:")
         println(Summary, "\ndZ = " * string(round(dZ, sigdigits=6)))
         println(Summary, "dN = " * string(round(dN, sigdigits=6)))

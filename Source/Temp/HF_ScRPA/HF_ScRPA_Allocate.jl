@@ -156,7 +156,7 @@ function HF_ScRPA_allocate(Params::Parameters,N_nu::Matrix{Int64},Orb_Phonon::Ma
 
                             # Works great!!!
 
-                            ##=
+                            #=
                             if t_ph == -1 && t_qg == -1
                                 Phase = Float64((-1)^(div(j_h + j_q,2) + J + J_r))
                                 ME = Phase * Float64(2*J_r + 1) * f6j(j_p,j_h,2*J,j_g,j_q,2*J_r) * O2b_pp(a_p,a_q,a_h,a_g,J_r,P_pq,Rho_NN,Orb,Orb_NN)
@@ -174,7 +174,7 @@ function HF_ScRPA_allocate(Params::Parameters,N_nu::Matrix{Int64},Orb_Phonon::Ma
                                 ME = Phase * (2*J_r + 1) * f6j(j_p,j_h,2*J,j_g,j_q,2*J_r) * O2b_nn(a_p,a_q,a_h,a_g,J_r,P_pq,Rho_NN,Orb,Orb_NN)
                                 MSum += ME
                             end
-                            ##=#
+                            =#
 
                         end
                     end

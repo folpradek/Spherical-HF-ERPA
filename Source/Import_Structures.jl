@@ -9,6 +9,8 @@
         cP2N::Float64 = 1.0
         cP3N::Float64 = 1.0
         cRes::Float64 = 1.0
+        pG2N::Float64 = 0.0
+        nG2N::Float64 = 0.0
     end
 
     Base.@kwdef struct HF_EFA_Parameters
@@ -65,6 +67,7 @@
         Broy_Amax::Float64 = 0.9
         Broy_Bmax::Float64 = 0.3
         Broy_Tmax::Float64 = 0.9
+        LNT::Bool = false
         BMF::Bool = true
         HRF::Bool = false
     end

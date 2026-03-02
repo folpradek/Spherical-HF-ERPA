@@ -77,6 +77,7 @@ module NuJuliet
     include("HFB/HFB_Density_Operator.jl")
     include("HFB/HFB_Chemical_Potential.jl")
     include("HFB/HFB_Particle_Number.jl")
+    include("HFB/HFB_Lipkin_Nogami.jl")
     include("HFB/HFB_Broyden.jl")
     include("HFB/HFB_Ordering.jl")
     include("HFB/HFB_Allocate.jl")

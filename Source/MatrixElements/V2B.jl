@@ -193,26 +193,27 @@ function V2b_read(Params::Parameters,Orb::Vector{Orb1B})
         println("\nCMS 2-body correction added...")
     end
 
-    #=
     # Enhance contact V_aabb^J=0 matrix elements ...
-    pG, nG = 0.0, -1.0
+    pG, nG = Params.Int.pG2N, Params.Int.nG2N
     if abs(pG) > 1e-8 || abs(nG) > 1e-8
         N_T1 = Orb_NN.N[2,1,1]
-        @inbounds for Bra in 1:N_T1
+        @inbounds Threads.@threads for Bra in 1:N_T1
             a, b = Orb_NN.Ind[2,1,1][Bra][1], Orb_NN.Ind[2,1,1][Bra][2]
             if a == b
+                l_a, j_a = Orb[a].l, Orb[a].j
                 @inbounds for Ket in 1:Bra
                     c, d = Orb_NN.Ind[2,1,1][Ket][1], Orb_NN.Ind[2,1,1][Ket][2]
                     if c == d
+                        l_c, j_c = Orb[c].l, Orb[c].j
                         Ind = Bra + (Ket - 1) * N_T1 - div(Ket * (Ket - 1),2)
-                        V_NN.pp[1,1][Ind] += pG
-                        V_NN.nn[1,1][Ind] += nG
+                        Amp = -0.5 * sqrt(Float64((j_a + 1) * (j_c + 1))) * Float64((-1)^(l_a + l_c))
+                        V_NN.pp[1,1][Ind] += Amp * pG
+                        V_NN.nn[1,1][Ind] += Amp * nG
                     end
                 end
             end
         end
     end
-    =#
 
     return V_NN, Orb_NN
 end
@@ -288,7 +289,7 @@ function V2b_residual_no2b(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,O
     # Initialize list of J & P values ...
     JP = JP_initialize(J_max)
 
-    println("\nStarting calculation of residual NN interaction...\n")
+    println("\nStarting calculation of residual NN interaction ...\n")
 
     # Include NO2B NNN interaction to V_NN...
     println("\nMaking density dependent residual 2-body interaction...")
@@ -310,7 +311,7 @@ function V2b_residual_no2b(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,O
                 a, b = Orb_NN.Ind[1,P,J+1][Bra][1], Orb_NN.Ind[1,P,J+1][Bra][2]
                 n_a, l_a = Orb[a].n, Orb[a].l
                 n_b, l_b = Orb[b].n, Orb[b].l
-                for Ket in 1:Bra
+                @inbounds for Ket in 1:Bra
                     Ind = Bra + (Ket - 1) * N_T0 - div(Ket * (Ket - 1),2)
                     d, e = Orb_NN.Ind[1,P,J+1][Ket][1], Orb_NN.Ind[1,P,J+1][Ket][2]
                     n_d, l_d = Orb[d].n, Orb[d].l
@@ -347,7 +348,7 @@ function V2b_residual_no2b(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,O
                 a, b = Orb_NN.Ind[2,P,J+1][Bra][1], Orb_NN.Ind[2,P,J+1][Bra][2]
                 n_a, l_a = Orb[a].n, Orb[a].l
                 n_b, l_b = Orb[b].n, Orb[b].l
-                for Ket in 1:Bra
+                @inbounds for Ket in 1:Bra
                     Ind = Bra + (Ket - 1) * N_T1 - div(Ket * (Ket - 1),2)
                     d, e = Orb_NN.Ind[2,P,J+1][Ket][1], Orb_NN.Ind[2,P,J+1][Ket][2]
                     n_d, l_d = Orb[d].n, Orb[d].l

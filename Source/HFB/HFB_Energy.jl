@@ -8,7 +8,7 @@ function HFB_energy(Params::Parameters,Rho::O1B,Kappa::O1B,Orb::Vector{Orb1B},Or
 
     #Calculate the HF energy ...
 
-    E_HFB = [0.0, 0.0, 0.0]
+    E_HFB = [0.0, 0.0, 0.0, 0.0]
 
     println("\nCalculating total HFB ground-state energy ...")
 
@@ -173,11 +173,25 @@ function HFB_energy(Params::Parameters,Rho::O1B,Kappa::O1B,Orb::Vector{Orb1B},Or
     E_HFB[2] += sum(E_p_2N_threads)
     E_HFB[3] += sum(E_p_3N_threads)
 
+    # Lipkin-Nogami energy correction ... if enabled ...
+    if Params.Calc.HFB.LNT == true
+        # Import the LN coefficient Lambda_2 ...
+        Lambda_2 = HFB_Lipkin_Nogami_Lambda_2_import(Params)
+
+        # Calculate the LN energy corretion ...
+        E_LN = HFB_Lipkin_Nogami_energy(Params,Orb,Lambda_2,Rho)
+
+        E_HFB[4] = E_LN
+    end
+
     println("\n\tHFB energy                 ...   E_HFB = " * string(sum(E_HFB)) * " MeV")
     println("\tMean-field energy          ...   E_MF  = " * string(E_HFB[1]) * " MeV")
     println("\tPairing energy             ...   E_Par = " * string(E_HFB[2] + E_HFB[3]) * " MeV")
     println("\tNN pairing energy        ...   E_Par2N = " * string(E_HFB[2]) * " MeV")
     println("\tNNN pairing energy       ...   E_Par3N = " * string(E_HFB[3]) * " MeV")
+    if Params.Calc.HFB.LNT == true
+        println("\tLipkin-Nogami energy     ...   E_LN  = " * string(E_HFB[4]) * " MeV")
+    end
 
     return E_HFB
 end

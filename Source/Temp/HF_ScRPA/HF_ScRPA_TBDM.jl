@@ -35,14 +35,10 @@ function HF_MBPT2_TBDM(Params::Parameters,h_N::O1B,V_NN::O2B,Orb::Vector{Orb1B},
                     # Case of Rho_pn ...
                     if (Orb[a].pO == 1 && Orb[b].nO == 1) && (Orb[c].pO == 0 && Orb[d].nO == 0)
                         pE_a, nE_b, pE_c ,nE_d = h_N.p[a,a], h_N.n[b,b], h_N.p[c,c], h_N.n[d,d]
-                        #ME = O2b_pn(a,b,c,d,J,P,V_NN,Orb,Orb_NN) / (pE_a + nE_b - pE_c - nE_d)
-                        #ME = V2b(a,b,c,d,J,0,V_NN.pn,Orb,Orb_NN) / (pE_a + nE_b - pE_c - nE_d)
                         ME = O2b_pn(a,b,c,d,J,P,V_NN,Orb_NN) / (pE_a + nE_b - pE_c - nE_d)
                         @views Rho_NN.pn[P,J+1][Ind] = ME
                     elseif (Orb[a].pO == 0 && Orb[b].nO == 0) && (Orb[c].pO == 1 && Orb[d].nO == 1)
                         pE_a, nE_b, pE_c ,nE_d = h_N.p[a,a], h_N.n[b,b], h_N.p[c,c], h_N.n[d,d]
-                        #ME = O2b_pn(a,b,c,d,J,P,V_NN,Orb,Orb_NN) / (pE_c + nE_d - pE_a - nE_b)
-                        #ME = V2b(a,b,c,d,J,0,V_NN.pn,Orb,Orb_NN) / (pE_c + nE_d - pE_a - nE_b)
                         ME = O2b_pn(a,b,c,d,J,P,V_NN,Orb_NN) / (pE_c + nE_d - pE_a - nE_b)
                         @views Rho_NN.pn[P,J+1][Ind] = ME
                     end
@@ -60,14 +56,10 @@ function HF_MBPT2_TBDM(Params::Parameters,h_N::O1B,V_NN::O2B,Orb::Vector{Orb1B},
                     # Case of Rho_pp ...
                      if (Orb[a].pO == 1 && Orb[b].pO == 1) && (Orb[c].pO == 0 && Orb[d].pO == 0)
                         pE_a, pE_b, pE_c ,pE_d = h_N.p[a,a], h_N.p[b,b], h_N.p[c,c], h_N.p[d,d]
-                        #ME = O2b_pp(a,b,c,d,J,P,V_NN,Orb,Orb_NN) / (pE_a + pE_b - pE_c - pE_d)
-                        #ME = V2b(a,b,c,d,J,1,V_NN.pp,Orb,Orb_NN) / (pE_a + pE_b - pE_c - pE_d)
                         ME = O2b_pp(a,b,c,d,J,P,V_NN,Orb,Orb_NN) / (pE_a + pE_b - pE_c - pE_d)
                         @views Rho_NN.pp[P,J+1][Ind] = ME
                     elseif (Orb[a].pO == 0 && Orb[b].pO == 0) && (Orb[c].pO == 1 && Orb[d].pO == 1)
                         pE_a, pE_b, pE_c ,pE_d = h_N.p[a,a], h_N.p[b,b], h_N.p[c,c], h_N.p[d,d]
-                        #ME = O2b_pp(a,b,c,d,J,P,V_NN,Orb,Orb_NN) / (pE_c + pE_d - pE_a - pE_b)
-                        #ME = V2b(a,b,c,d,J,1,V_NN.pp,Orb,Orb_NN) / (pE_c + pE_d - pE_a - pE_b)
                         ME = O2b_pp(a,b,c,d,J,P,V_NN,Orb,Orb_NN) / (pE_c + pE_d - pE_a - pE_b)
                         @views Rho_NN.pp[P,J+1][Ind] = ME
                     end
@@ -75,14 +67,10 @@ function HF_MBPT2_TBDM(Params::Parameters,h_N::O1B,V_NN::O2B,Orb::Vector{Orb1B},
                     # Case of Rho_nn ...
                     if (Orb[a].nO == 1 && Orb[b].nO == 1) && (Orb[c].nO == 0 && Orb[d].nO == 0)
                         nE_a, nE_b, nE_c ,nE_d = h_N.n[a,a], h_N.n[b,b], h_N.n[c,c], h_N.n[d,d]
-                        #ME = O2b_nn(a,b,c,d,J,P,V_NN,Orb,Orb_NN) / (nE_a + nE_b - nE_c - nE_d)
-                        #ME = V2b(a,b,c,d,J,1,V_NN.nn,Orb,Orb_NN) / (nE_a + nE_b - nE_c - nE_d)
                         ME = O2b_nn(a,b,c,d,J,P,V_NN,Orb,Orb_NN) / (nE_a + nE_b - nE_c - nE_d)
                         @views Rho_NN.nn[P,J+1][Ind] = ME
                     elseif (Orb[a].nO == 0 && Orb[b].nO == 0) && (Orb[c].nO == 1 && Orb[d].nO == 1)
                         nE_a, nE_b, nE_c ,nE_d = h_N.n[a,a], h_N.n[b,b], h_N.n[c,c], h_N.n[d,d]
-                        #ME = O2b_nn(c,d,a,b,J,P,V_NN,Orb,Orb_NN) / (nE_c + nE_d - nE_a - nE_b)
-                        #ME = V2b(a,b,c,d,J,1,V_NN.nn,Orb,Orb_NN) / (nE_c + nE_d - nE_a - nE_b)
                         ME = O2b_nn(a,b,c,d,J,P,V_NN,Orb,Orb_NN) / (nE_c + nE_d - nE_a - nE_b)
                         @views Rho_NN.nn[P,J+1][Ind] = ME
                     end
@@ -226,7 +214,7 @@ function HF_ScRPA_TBDM_allocate(Params::Parameters,N_nu::Matrix{Int64},Orb_Phono
     a_max = div((N_max + 1)*(N_max + 2),2)
 
     # Preallocate arrays of allowed values of J & P ...
-    JP = JP_initialize(Params.Calc.N2max + 1)
+    JP_list = JP_initialize(Params.Calc.N2max + 1)
     
     # Initialite the 2-body NN correlation matrix Sigma_NN ...
     Sigma_NN = O2b_initialize(Params,Orb)
@@ -269,8 +257,9 @@ function HF_ScRPA_TBDM_allocate(Params::Parameters,N_nu::Matrix{Int64},Orb_Phono
 
     println("\nAllocating 2-body RPA correlation matrix Sigma_NN ...")
 
-    @inbounds Threads.@threads for jp in JP
-        J, P = jp[1], jp[2]
+
+    @inbounds Threads.@threads for JP in JP_list;
+        J, P = JP[1], JP[2]
         if P == 1
             println("\tCalculating   ...   J = " * string(J) * "/" * string(N_2max+1) * "\tP = +")
         else
@@ -291,46 +280,81 @@ function HF_ScRPA_TBDM_allocate(Params::Parameters,N_nu::Matrix{Int64},Orb_Phono
                     l_c, j_c = Orb[c].l, Orb[c].j
                     l_d, j_d = Orb[d].l, Orb[d].j
 
-                    if rem(l_a + l_c,2) + 1 == P && rem(l_b + l_d,2) + 1 == P
+                    pO_a, nO_b = Orb[a].pO, Orb[b].nO
+                    pO_c, nO_d = Orb[c].pO, Orb[d].nO
 
-                        pnSigmaSum = 0.0
+                    Q = rem(l_a + l_c,2) + 1
 
-                        @inbounds for nu in 1:N_ph
+                    pnSigmaSum = 0.0
 
-                            # 2p-2h terms only ...
-                                # a, b > F & c, d < F
-                            if Orb[a].pO == 1 && Orb[b].nO == 1 && Orb[c].pO == 1 && Orb[d].nO == 0
-                                @inbounds for J_r in div(abs(j_a - j_c),2):div((j_a + j_c),2)
-                                    if (abs(j_b - j_d) <= 2*J_r) && (2*J_r <= (j_b + j_d))
-                                        p_a, p_b = orbitals_ph_list[a][1], orbitals_ph_list[b][2]
-                                        h_c, h_d = orbitals_ph_list[c][1], orbitals_ph_list[d][2]
-                                        Phase = 0.5 * Float64(2*J_r + 1) * (-1)^(J + J_r + j_c)
-                                        Amp1 = Phase * (-1)^(j_b) * f6j(j_a,j_b,2*J,j_d,j_c,2*J_r)
-                                        Amp2 = Phase * (-1)^(j_a) * f6j(j_b,j_a,2*J,j_d,j_c,2*J_r)
-                                        ME = Amp1 * real(Y_RPA[J+1,P][nu][p_a,h_c] * conj(X_RPA[J+1,P][nu][p_b,h_d])) + Amp2 * real(X_RPA[J+1,P][nu][p_a,h_c] * conj(Y_RPA[J+1,P][nu][p_b,h_d]))
-                                        pnSigmaSum += ME
+                    # 2p-2h terms ...
+                        if ((pO_a + nO_b) == 0 && (pO_c + nO_d) == 2) || ((pO_a + nO_b) == 2 && (pO_c + nO_d) == 0)
 
-                                    end
-                                end
-                                # a, b < F && c, d > F
-                             elseif Orb[a].pO == 0 && Orb[b].nO == 0 && Orb[c].pO == 1 && Orb[d].nO == 1
-                                @inbounds for J_r in div(abs(j_a - j_c),2):div((j_a + j_c),2)
-                                    if (abs(j_b - j_d) <= 2*J_r) && (2*J_r <= (j_b + j_d))
-                                        h_a, h_b = orbitals_ph_list[a][1], orbitals_ph_list[b][2]
-                                        p_c, p_d = orbitals_ph_list[c][1], orbitals_ph_list[d][2]
-                                        Phase = 0.5 * Float64(2*J_r + 1) * (-1)^(J + J_r + j_d)
-                                        Amp1 = Phase * (-1)^(j_d) * f6j(j_c,j_d,2*J,j_a,j_b,2*J_r)
-                                        Amp2 = Phase * (-1)^(j_c) * f6j(j_d,j_c,2*J,j_a,j_b,2*J_r)
-                                        ME = Amp1 * real(Y_RPA[J+1,P][nu][p_c,h_a] * conj(X_RPA[J+1,P][nu][p_d,h_b])) + Amp2 * real(X_RPA[J+1,P][nu][p_c,h_a] * conj(Y_RPA[J+1,P][nu][p_d,h_b]))
-                                        pnSigmaSum += ME
+                            if (pO_a + nO_b) == 0 && (pO_c + nO_d) == 2
+                                p, l_p, j_p = a, l_a, j_a
+                                q, l_q, j_q = b, l_b, j_b
+                                h, l_g, j_h = c, l_c, j_c
+                                g, l_h, j_g = d, l_d, j_d
+                            else
+                                p, l_p, j_p = c, l_c, j_c
+                                q, l_q, j_q = d, l_d, j_d
+                                h, l_g, j_h = a, l_a, j_a
+                                g, l_h, j_g = b, l_b, j_b
+                            end
+
+                            p_p, p_q = orbitals_ph_list[p][1], orbitals_ph_list[q][2]
+                            h_h, h_g = orbitals_ph_list[h][1], orbitals_ph_list[g][2]
+
+                            Q = rem(l_p + l_h,2) + 1
+                            if Q == (rem(l_q + l_g,2) + 1)
+                                @inbounds for I in max(div(abs(j_p - j_h),2),div(abs(j_q - j_g),2)):min(div((j_p + j_h),2),div((j_q + j_g),2))
+                                    Amp = 0.5 * Float64(2*I + 1) * (-1)^(J + I + div(j_q + j_h,2)) * f6j(j_p,j_q,2*J,j_g,j_h,2*I)
+                                    @inbounds for nu in 1:N_ph
+                                        ME = Amp * (real(Y_RPA[I+1,Q][nu][p_p,h_h] * conj(X_RPA[I+1,Q][nu][p_q,h_g])) + real(X_RPA[I+1,Q][nu][p_p,h_h] * conj(Y_RPA[I+1,Q][nu][p_q,h_g])))
+                                        #pnSigmaSum += ME
                                     end
                                 end
                             end
 
                         end
 
-                        @inbounds Sigma_NN.pn[P,J+1][Ind] = pnSigmaSum
-                    end
+                    #=
+                        if Q == (rem(l_b + l_d,2) + 1)
+                            if (pO_a + nO_b) == 0 && (pO_c + nO_d) == 2
+
+                                @inbounds for I in max(div(abs(j_a - j_c),2),div(abs(j_b - j_d),2)):min(div((j_a + j_c),2),div((j_b + j_d),2))
+                                    p_a, p_b = orbitals_ph_list[a][1], orbitals_ph_list[b][2]
+                                    h_c, h_d = orbitals_ph_list[c][1], orbitals_ph_list[d][2]
+                                    Phase = 0.5 * Float64(2*I + 1) * (-1)^(J + I + j_c)
+                                    Amp1 = Phase * (-1)^(j_b) * f6j(j_a,j_b,2*J,j_d,j_c,2*I)
+                                    Amp2 = Phase * (-1)^(j_a) * f6j(j_b,j_a,2*J,j_d,j_c,2*I)
+                                    @inbounds for nu in 1:N_ph
+                                        ME = Amp1 * real(Y_RPA[I+1,Q][nu][p_a,h_c] * conj(X_RPA[I+1,Q][nu][p_b,h_d])) + Amp2 * real(X_RPA[I+1,Q][nu][p_a,h_c] * conj(Y_RPA[I+1,Q][nu][p_b,h_d]))
+                                        pnSigmaSum += ME
+                                    end
+                                end
+
+                            elseif (pO_a + nO_b) == 2 && (pO_c + nO_d) == 0
+
+                                    @inbounds for I in max(div(abs(j_a - j_c),2),div(abs(j_b - j_d),2)):min(div((j_a + j_c),2),div((j_b + j_d),2))
+                                        h_a, h_b = orbitals_ph_list[a][1], orbitals_ph_list[b][2]
+                                        p_c, p_d = orbitals_ph_list[c][1], orbitals_ph_list[d][2]
+                                        Phase = 0.5 * Float64(2*I + 1) * (-1)^(J + I + j_a)
+                                        Amp1 = Phase * (-1)^(j_d) * f6j(j_c,j_d,2*J,j_b,j_a,2*I)
+                                        Amp2 = Phase * (-1)^(j_c) * f6j(j_d,j_c,2*J,j_b,j_a,2*I)
+                                        @inbounds for nu in 1:N_ph
+                                            ME = Amp1 * real(Y_RPA[I+1,Q][nu][p_c,h_a] * conj(X_RPA[I+1,Q][nu][p_d,h_b])) + Amp2 * real(X_RPA[I+1,Q][nu][p_c,h_a] * conj(Y_RPA[I+1,Q][nu][p_d,h_b]))
+                                            pnSigmaSum += ME
+                                        end
+                                    end
+
+                            end
+                        end
+                    =#
+
+                    # 1p1-h terms ... no proton-neutron 1p-1h 2-body correlation function terms ...
+
+                    @inbounds Sigma_NN.pn[P,J+1][Ind] = pnSigmaSum
 
                 end
 
@@ -344,60 +368,404 @@ function HF_ScRPA_TBDM_allocate(Params::Parameters,N_nu::Matrix{Int64},Orb_Phono
                     l_c, j_c = Orb[c].l, Orb[c].j
                     l_d, j_d = Orb[d].l, Orb[d].j
 
+                    pO_a, pO_b = Orb[a].pO, Orb[b].pO
+                    pO_c, pO_d = Orb[c].pO, Orb[d].pO
+
+                    nO_a, nO_b = Orb[a].nO, Orb[b].nO
+                    nO_c, nO_d = Orb[c].nO, Orb[d].nO
+
                     ppSigmaSum, nnSigmaSum = 0.0, 0.0
 
-                    if rem(l_a + l_c,2) + 1 == P && rem(l_b + l_d,2) + 1 == P
+                    # 2p-2h channel ...
+                        # proton-proton terms ...
+                        if ((pO_a + pO_b) == 0 && (pO_c + pO_d) == 2) || ((pO_a + pO_b) == 2 && (pO_c + pO_d) == 0)
 
-                        pnSigmaSum = 0.0
+                            if (pO_a + pO_b) == 0 && (pO_c + pO_d) == 2
+                                p, l_p, j_p = a, l_a, j_a
+                                q, l_q, j_q = b, l_b, j_b
+                                h, l_g, j_h = c, l_c, j_c
+                                g, l_h, j_g = d, l_d, j_d
+                            else
+                                p, l_p, j_p = c, l_c, j_c
+                                q, l_q, j_q = d, l_d, j_d
+                                h, l_g, j_h = a, l_a, j_a
+                                g, l_h, j_g = b, l_b, j_b
+                            end
 
-                        @inbounds for nu in 1:N_ph
+                            p_p, p_q = orbitals_ph_list[p][1], orbitals_ph_list[q][1]
+                            h_h, h_g = orbitals_ph_list[h][1], orbitals_ph_list[g][1]
 
-                            # pp 2p-2h terms only ...
-                                # a, b > F & c, d < F
-                            if Orb[a].pO == 1 && Orb[b].pO == 1 && Orb[c].pO == 1 && Orb[d].pO == 0
-                                @inbounds for J_r in div(abs(j_a - j_c),2):div((j_a + j_c),2)
-                                    if (abs(j_b - j_d) <= 2*J_r) && (2*J_r <= (j_b + j_d))
-                                        p_a, p_b = orbitals_ph_list[a][1], orbitals_ph_list[b][1]
-                                        h_c, h_d = orbitals_ph_list[c][1], orbitals_ph_list[d][1]
-                                        Phase = 0.5 * Float64(2*J_r + 1) * (-1)^(J + J_r + j_c)
-                                        Amp1 = Phase * (-1)^(j_b) * f6j(j_a,j_b,2*J,j_d,j_c,2*J_r)
-                                        Amp2 = Phase * (-1)^(j_a) * f6j(j_b,j_a,2*J,j_d,j_c,2*J_r)
-                                        ME = Amp1 * real(Y_RPA[J+1,P][nu][p_a,h_c] * conj(X_RPA[J+1,P][nu][p_b,h_d])) + Amp2 * real(X_RPA[J+1,P][nu][p_a,h_c] * conj(Y_RPA[J+1,P][nu][p_b,h_d]))
-                                        pnSigmaSum += ME
-
+                            # Direct term ...
+                            Q = rem(l_p + l_h,2) + 1
+                            if Q == (rem(l_q + l_g,2) + 1)
+                                @inbounds for I in max(div(abs(j_p - j_h),2),div(abs(j_q - j_g),2)):min(div((j_p + j_h),2),div((j_q + j_g),2))
+                                    Amp = 0.5 * Float64(2*I + 1) * (-1)^(J + I + div(j_q + j_h,2)) * f6j(j_p,j_q,2*J,j_g,j_h,2*I)
+                                    @inbounds for nu in 1:N_ph
+                                        ME = Amp * real(Y_RPA[I+1,Q][nu][p_p,h_h] * conj(X_RPA[I+1,Q][nu][p_q,h_g]))
+                                        ppSigmaSum += ME
                                     end
                                 end
-                                # a, b < F && c, d > F
-                             elseif Orb[a].pO == 0 && Orb[b].pO == 0 && Orb[c].pO == 1 && Orb[d].pO == 1
-                                @inbounds for J_r in div(abs(j_a - j_c),2):div((j_a + j_c),2)
-                                    if (abs(j_b - j_d) <= 2*J_r) && (2*J_r <= (j_b + j_d))
-                                        h_a, h_b = orbitals_ph_list[a][1], orbitals_ph_list[b][1]
-                                        p_c, p_d = orbitals_ph_list[c][1], orbitals_ph_list[d][1]
-                                        Phase = 0.5 * Float64(2*J_r + 1) * (-1)^(J + J_r + j_d)
-                                        Amp1 = Phase * (-1)^(j_d) * f6j(j_c,j_d,2*J,j_a,j_b,2*J_r)
-                                        Amp2 = Phase * (-1)^(j_c) * f6j(j_d,j_c,2*J,j_a,j_b,2*J_r)
-                                        ME = Amp1 * real(Y_RPA[J+1,P][nu][p_c,h_a] * conj(X_RPA[J+1,P][nu][p_d,h_b])) + Amp2 * real(X_RPA[J+1,P][nu][p_c,h_a] * conj(Y_RPA[J+1,P][nu][p_d,h_b]))
-                                        pnSigmaSum += ME
+                            end
+
+                            # Exchange term ...
+                            Q = rem(l_p + l_g,2) + 1
+                            if Q == (rem(l_q + l_h,2) + 1)
+                                @inbounds for I in max(div(abs(j_p - j_g),2),div(abs(j_q - j_h),2)):min(div((j_p + j_g),2),div((j_q + j_h),2))
+                                    Amp = 0.5 * Float64(2*I + 1) * (-1)^(I + div(j_q + j_g,2) + 1) * f6j(j_p,j_q,2*J,j_h,j_g,2*I)
+                                    @inbounds for nu in 1:N_ph
+                                        ME = Amp * real(Y_RPA[I+1,Q][nu][p_p,h_g] * conj(X_RPA[I+1,Q][nu][p_q,h_h]))
+                                        ppSigmaSum += ME
                                     end
                                 end
                             end
 
                         end
 
-                        @inbounds Sigma_NN.pp[P,J+1][Ind] = ppSigmaSum
-                        @inbounds Sigma_NN.nn[P,J+1][Ind] = nnSigmaSum
-                    end
+                        # Neutron-neutron terms
+                        if ((nO_a + nO_b) == 0 && (nO_c + nO_d) == 2) || ((nO_a + nO_b) == 2 && (nO_c + nO_d) == 0)
+
+                            if (nO_a + nO_b) == 0 && (nO_c + nO_d) == 2
+                                p, l_p, j_p = a, l_a, j_a
+                                q, l_q, j_q = b, l_b, j_b
+                                h, l_g, j_h = c, l_c, j_c
+                                g, l_h, j_g = d, l_d, j_d
+                            else
+                                p, l_p, j_p = c, l_c, j_c
+                                q, l_q, j_q = d, l_d, j_d
+                                h, l_g, j_h = a, l_a, j_a
+                                g, l_h, j_g = b, l_b, j_b
+                            end
+
+                            p_p, p_q = orbitals_ph_list[p][2], orbitals_ph_list[q][2]
+                            h_h, h_g = orbitals_ph_list[h][2], orbitals_ph_list[g][2]
+
+                            # Direct term ...
+                            Q = rem(l_p + l_h,2) + 1
+                            if Q == (rem(l_q + l_g,2) + 1)
+                                @inbounds for I in max(div(abs(j_p - j_h),2),div(abs(j_q - j_g),2)):min(div((j_p + j_h),2),div((j_q + j_g),2))
+                                    Amp = 0.5 * Float64(2*I + 1) * (-1)^(J + I + div(j_q + j_h,2)) * f6j(j_p,j_q,2*J,j_g,j_h,2*I)
+                                    @inbounds for nu in 1:N_ph
+                                        ME = Amp * real(Y_RPA[I+1,Q][nu][p_p,h_h] * conj(X_RPA[I+1,Q][nu][p_q,h_g]))
+                                        nnSigmaSum += ME
+                                    end
+                                end
+                            end
+
+                            # Exchange term ...
+                            Q = rem(l_p + l_g,2) + 1
+                            if Q == (rem(l_q + l_h,2) + 1)
+                                @inbounds for I in max(div(abs(j_p - j_g),2),div(abs(j_q - j_h),2)):min(div((j_p + j_g),2),div((j_q + j_h),2))
+                                    Amp = 0.5 * Float64(2*I + 1) * (-1)^(J + div(j_q + j_g,2) + 1) * f6j(j_p,j_q,2*J,j_h,j_g,2*I)
+                                    @inbounds for nu in 1:N_ph
+                                        ME = Amp * real(Y_RPA[I+1,Q][nu][p_p,h_g] * conj(X_RPA[I+1,Q][nu][p_q,h_h]))
+                                        nnSigmaSum += ME
+                                    end
+                                end
+                            end
+
+                        end
+
+
+                    # 2p-2h channel ...
+                    #=
+                        # proton-proton terms ...
+                        if (pO_a + pO_b) == 0 && (pO_c + pO_d) == 2
+                            # Direct term ...
+                            Q = rem(l_a + l_c,2) + 1
+                            if Q == (rem(l_b + l_d,2) + 1)
+                                @inbounds for I in max(div(abs(j_a - j_c),2),div(abs(j_b - j_d),2)):min(div((j_a + j_c),2),div((j_b + j_d),2))
+
+                                    p_a, p_b = orbitals_ph_list[a][1], orbitals_ph_list[b][1]
+                                    h_c, h_d = orbitals_ph_list[c][1], orbitals_ph_list[d][1]
+                                    Amp = 0.5 * Float64(2*I + 1) * (-1)^(J + I + div(j_b + j_c,2)) * f6j(j_a,j_b,2*J,j_d,j_c,2*I) / (sqrt((1 + kronecker_delta(a,b))*(1 + kronecker_delta(c,d))))
+                                    
+                                    @inbounds for nu in 1:N_ph
+                                        ME = Amp * real(Y_RPA[I+1,Q][nu][p_a,h_c] * conj(X_RPA[I+1,Q][nu][p_b,h_d]))
+                                        ppSigmaSum += ME
+                                    
+                                    end
+                                end
+                            end
+
+                            # Exchange term ...
+                            Q = rem(l_a + l_d,2) + 1
+                            if Q == (rem(l_b + l_c,2) + 1)
+                                @inbounds for I in max(div(abs(j_a - j_d),2),div(abs(j_b - j_c),2)):min(div((j_a + j_d),2),div((j_b + j_c),2))
+
+                                    p_a, p_b = orbitals_ph_list[a][1], orbitals_ph_list[b][1]
+                                    h_c, h_d = orbitals_ph_list[c][1], orbitals_ph_list[d][1]
+                                    Amp = 0.5 * Float64(2*I + 1) * (-1)^(I + div(j_b + j_d,2) + 1) * f6j(j_a,j_b,2*J,j_c,j_d,2*I) / (sqrt((1 + kronecker_delta(a,b))*(1 + kronecker_delta(c,d))))
+                                    @inbounds for nu in 1:N_ph
+                                        ME = Amp *  real(Y_RPA[I+1,Q][nu][p_a,h_d] * conj(X_RPA[I+1,Q][nu][p_b,h_c]))
+                                        ppSigmaSum += ME
+                                    end
+
+                                end
+                            end
+                            
+                        elseif (pO_a + pO_b) == 2 && (pO_c + pO_d) == 0
+
+                            # Direct term ...
+                            Q = rem(l_a + l_c,2) + 1
+                            if Q == (rem(l_b + l_d,2) + 1)
+                                @inbounds for I in max(div(abs(j_a - j_c),2),div(abs(j_b - j_d),2)):min(div((j_a + j_c),2),div((j_b + j_d),2))
+
+                                    h_a, h_b = orbitals_ph_list[a][1], orbitals_ph_list[b][1]
+                                    p_c, p_d = orbitals_ph_list[c][1], orbitals_ph_list[d][1]
+                                    Amp = 0.5 * Float64(2*I + 1) * (-1)^(J + I + div(j_a + j_d,2)) * f6j(j_c,j_d,2*J,j_b,j_a,2*I) / (sqrt((1 + kronecker_delta(a,b))*(1 + kronecker_delta(c,d))))
+                                    @inbounds for nu in 1:N_ph
+                                        ME = Amp * real(Y_RPA[I+1,Q][nu][p_c,h_a] * conj(X_RPA[I+1,Q][nu][p_d,h_b]))
+                                        ppSigmaSum += ME
+                                    end
+
+                                end
+                            end
+
+                            # Exchange term ...
+                            Q = rem(l_a + l_d,2) + 1
+                            if Q == (rem(l_b + l_c,2) + 1)
+                                @inbounds for I in max(div(abs(j_a - j_d),2),div(abs(j_b - j_c),2)):min(div((j_a + j_d),2),div((j_b + j_c),2))
+
+                                    h_a, h_b = orbitals_ph_list[a][1], orbitals_ph_list[b][1]
+                                    p_c, p_d = orbitals_ph_list[c][1], orbitals_ph_list[d][1]
+                                    Amp = 0.5 * Float64(2*I + 1) * (-1)^(I + div(j_b + j_d,2) + 1) * f6j(j_c,j_d,2*J,j_a,j_b,2*I) / (sqrt((1 + kronecker_delta(a,b))*(1 + kronecker_delta(c,d))))
+                                    @inbounds for nu in 1:N_ph
+                                        ME = Amp *  real(Y_RPA[I+1,Q][nu][p_d,h_a] * conj(X_RPA[I+1,Q][nu][p_c,h_b]))
+                                        ppSigmaSum += ME
+                                    end
+
+                                end
+                            end
+
+                        end
+
+                        # neutron-neutron terms ...
+                        if (nO_a + nO_b) == 0 && (nO_c + nO_d) == 2
+                            # Direct term ...
+                            Q = rem(l_a + l_c,2) + 1
+                            if Q == (rem(l_b + l_d,2) + 1)
+                                @inbounds for I in max(div(abs(j_a - j_c),2),div(abs(j_b - j_d),2)):min(div((j_a + j_c),2),div((j_b + j_d),2))
+
+                                    p_a, p_b = orbitals_ph_list[a][2], orbitals_ph_list[b][2]
+                                    h_c, h_d = orbitals_ph_list[c][2], orbitals_ph_list[d][2]
+                                    Amp = 0.5 * Float64(2*I + 1) * (-1)^(J + I + div(j_b + j_c,2)) * f6j(j_a,j_b,2*J,j_d,j_c,2*I) / (sqrt((1 + kronecker_delta(a,b))*(1 + kronecker_delta(c,d))))
+                                    
+                                    @inbounds for nu in 1:N_ph
+                                        ME = Amp * real(Y_RPA[I+1,Q][nu][p_a,h_c] * conj(X_RPA[I+1,Q][nu][p_b,h_d]))
+                                        nnSigmaSum += ME
+                                    
+                                    end
+                                end
+                            end
+
+                            # Exchange term ...
+                            Q = rem(l_a + l_d,2) + 1
+                            if Q == (rem(l_b + l_c,2) + 1)
+                                @inbounds for I in max(div(abs(j_a - j_d),2),div(abs(j_b - j_c),2)):min(div((j_a + j_d),2),div((j_b + j_c),2))
+
+                                    p_a, p_b = orbitals_ph_list[a][2], orbitals_ph_list[b][2]
+                                    h_c, h_d = orbitals_ph_list[c][2], orbitals_ph_list[d][2]
+                                    Amp = 0.5 * Float64(2*I + 1) * (-1)^(I + div(j_b + j_d,2) + 1) * f6j(j_a,j_b,2*J,j_c,j_d,2*I) / (sqrt((1 + kronecker_delta(a,b))*(1 + kronecker_delta(c,d))))
+                                    @inbounds for nu in 1:N_ph
+                                        ME = Amp *  real(Y_RPA[I+1,Q][nu][p_b,h_c] * conj(X_RPA[I+1,Q][nu][p_a,h_d]))
+                                        nnSigmaSum += ME
+                                    end
+
+                                end
+                            end
+                            
+                        elseif (nO_a + nO_b) == 2 && (nO_c + nO_d) == 0
+
+                            # Direct term ...
+                            Q = rem(l_a + l_c,2) + 1
+                            if Q == (rem(l_b + l_d,2) + 1)
+                                @inbounds for I in max(div(abs(j_a - j_c),2),div(abs(j_b - j_d),2)):min(div((j_a + j_c),2),div((j_b + j_d),2))
+
+                                    h_a, h_b = orbitals_ph_list[a][2], orbitals_ph_list[b][2]
+                                    p_c, p_d = orbitals_ph_list[c][2], orbitals_ph_list[d][2;]
+                                    Amp = 0.5 * Float64(2*I + 1) * (-1)^(J + I + div(j_a + j_d,2)) * f6j(j_c,j_d,2*J,j_b,j_a,2*I) / (sqrt((1 + kronecker_delta(a,b))*(1 + kronecker_delta(c,d))))
+                                    @inbounds for nu in 1:N_ph
+                                        ME = Amp * real(Y_RPA[I+1,Q][nu][p_c,h_a] * conj(X_RPA[I+1,Q][nu][p_d,h_b]))
+                                        nnSigmaSum += ME
+                                    end
+
+                                end
+                            end
+
+                            # Exchange term ...
+                            Q = rem(l_a + l_d,2) + 1
+                            if Q == (rem(l_b + l_c,2) + 1)
+                                @inbounds for I in max(div(abs(j_a - j_d),2),div(abs(j_b - j_c),2)):min(div((j_a + j_d),2),div((j_b + j_c),2))
+
+                                    h_a, h_b = orbitals_ph_list[a][2], orbitals_ph_list[b][2]
+                                    p_c, p_d = orbitals_ph_list[c][2], orbitals_ph_list[d][2]
+                                    Amp = 0.5 * Float64(2*I + 1) * (-1)^(I + div(j_b + j_d,2) + 1) * f6j(j_c,j_d,2*J,j_a,j_b,2*I) / (sqrt((1 + kronecker_delta(a,b))*(1 + kronecker_delta(c,d))))
+                                    @inbounds for nu in 1:N_ph
+                                        ME = Amp *  real(Y_RPA[I+1,Q][nu][p_d,h_a] * conj(X_RPA[I+1,Q][nu][p_c,h_b]))
+                                        nnSigmaSum += ME
+                                    end
+
+                                end
+                            end
+
+                        end
+                        =#
+
+                    
+                        #=
+                    # 1p-1h channel ... does not contribute ???
+                        # proton-proton terms ...
+                        if (pO_a + pO_b) == 1 && (pO_c + pO_d) == 1
+
+                            Phase = 1.0
+
+                            if pO_a == 0
+                                p, l_p, j_p = a, l_a, j_a
+                                h, l_h, j_h = b, l_b, j_b
+                            else
+                                p, l_p, j_p = b, l_b, j_b
+                                h, l_h, j_h = a, l_a, j_a
+                                Phase = (-1)^(div(j_a + j_b,2) - J + 1) * Phase
+                            end
+
+                            if pO_c == 0
+                                q, l_q, j_q = c, l_c, j_c
+                                g, l_g, j_g = d, l_d, j_d
+                            else
+                                q, l_q, j_q = d, l_d, j_d
+                                g, l_g, j_g = c, l_c, j_c
+                                Phase = (-1)^(div(j_c + j_d,2) - J + 1) * Phase
+                            end
+
+                            Q = rem(l_p + l_g,2) + 1
+                            if Q == (rem(l_q + l_h,2) + 1)
+                                @inbounds for I in max(div(abs(j_p - j_g),2),div(abs(j_q - j_h),2)):min(div((j_p + j_g),2),div((j_q + j_h),2))
+                                    if p != q && h != g
+                                        Amp = (-1)^(div(j_h + j_q,2) + I + 1) * Phase * Float64(2*I + 1) * f6j(j_p,j_h,2*J,j_q,j_g,2*I)
+                                        p_p, p_q = orbitals_ph_list[p][1], orbitals_ph_list[q][1]
+                                        h_h, h_g = orbitals_ph_list[h][1], orbitals_ph_list[g][1]
+                                        @inbounds for nu in 1:N_ph
+                                            ME = Amp * real(Y_RPA[I+1,Q][nu][p_p,h_g] * conj(Y_RPA[I+1,Q][nu][p_q,h_h]))
+                                            ppSigmaSum += ME
+                                        end
+                                    end
+                                end
+                            end
+
+
+                        end
+
+                        # neutron-neutron terms ...
+                        if (nO_a + nO_b) == 1 && (nO_c + nO_d) == 1
+
+                            Phase = 1.0
+
+                            if nO_a == 0
+                                p, l_p, j_p = a, l_a, j_a
+                                h, l_h, j_h = b, l_b, j_b
+                            else
+                                p, l_p, j_p = b, l_b, j_b
+                                h, l_h, j_h = a, l_a, j_a
+                                Phase = (-1)^(div(j_a + j_b,2) - J + 1) * Phase
+                            end
+
+                            if nO_c == 0
+                                q, l_q, j_q = c, l_c, j_c
+                                g, l_g, j_g = d, l_d, j_d
+                            else
+                                q, l_q, j_q = d, l_d, j_d
+                                g, l_g, j_g = c, l_c, j_c
+                                Phase = (-1)^(div(j_c + j_d,2) - J + 1) * Phase
+                            end
+
+                            Q = rem(l_p + l_g,2) + 1
+                            if Q == (rem(l_q + l_h,2) + 1)
+                                @inbounds for I in max(div(abs(j_p - j_g),2),div(abs(j_q - j_h),2)):min(div((j_p + j_g),2),div((j_q + j_h),2))
+                                    if p != q && h != g
+                                        Amp = (-1)^(div(j_h + j_q,2) + I + 1) * Phase * Float64(2*I + 1) * f6j(j_p,j_h,2*J,j_q,j_g,2*I)
+                                        p_p, p_q = orbitals_ph_list[p][2], orbitals_ph_list[q][2]
+                                        h_h, h_g = orbitals_ph_list[h][2], orbitals_ph_list[g][2]
+                                        @inbounds for nu in 1:N_ph
+                                            ME = Amp * real(Y_RPA[I+1,Q][nu][p_p,h_g] * conj(Y_RPA[I+1,Q][nu][p_q,h_h]))
+                                            nnSigmaSum += ME
+                                        end
+                                    end
+                                end
+                            end
+
+
+                        end
+                    =#
+
+                    @inbounds Sigma_NN.pp[P,J+1][Ind] = ppSigmaSum
+                    @inbounds Sigma_NN.nn[P,J+1][Ind] = nnSigmaSum
 
                 end
+
 
             end
         end
 
     end
 
+
     println("\nSuccesfully allocate 2-body RPA correlation matrix Sigma_NN ...")
-
-
     
     return Sigma_NN
+end
+
+function V2b_correlation_energy(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,Sigma::O2B,V_NN::O2B)
+    # Read parameters ...
+    N_max = Params.Calc.Nmax
+    N_2max = Params.Calc.N2max
+    a_max = div((N_max + 1)*(N_max + 2),2)
+
+    # Calculate the HF energy ...
+    println("\nCalculating the correlation ground-state energy ...")
+
+    E_corr, E_corr_threads = 0.0, zeros(Float64,Threads.maxthreadid())
+
+    @inbounds Threads.@threads :static for a = 1:a_max
+        Sum, Tid = 0.0, Threads.threadid()
+        n_a = Orb[a].n
+        l_a = Orb[a].l
+        j_a = Orb[a].j
+        @inbounds for b = 1:a_max
+            n_b = Orb[b].n
+            l_b = Orb[b].l
+            P = rem(l_a + l_b, 2) + 1
+            if (2*(n_a + n_b) + l_a + l_b) <= N_2max
+                j_b = Orb[b].j
+                @inbounds for c = 1:a_max
+                    l_c = Orb[c].l
+                    j_c = Orb[c].j
+                    n_c = Orb[c].n
+                    @inbounds for d = 1:a_max
+                        n_d = Orb[d].n
+                        l_d = Orb[d].l
+                        j_d = Orb[d].j
+                        if (2*(n_c + n_d) + l_c + l_d) <= N_2max
+                            @inbounds for J in max(div(abs(j_a - j_b),2),div(abs(j_c - j_d),2)):min(div((j_a + j_b),2),div((j_c + j_d),2))
+                                if (rem(l_a + l_b, 2) == rem(l_c + l_d, 2))
+                                    Hat =  Float64(2*J + 1)
+                                    Sum += 0.25 * Hat * O2b_pp(a,b,c,d,J,P,V_NN,Orb,Orb_NN) * O2b_pp(a,b,c,d,J,P,Sigma,Orb,Orb_NN)
+                                    Sum += 0.25 * Hat * O2b_nn(a,b,c,d,J,P,V_NN,Orb,Orb_NN) * O2b_nn(a,b,c,d,J,P,Sigma,Orb,Orb_NN)
+                                    Sum += Hat * O2b_pn(a,b,c,d,J,P,V_NN,Orb_NN) * O2b_pn(a,b,c,d,J,P,Sigma,Orb_NN)
+                                end
+                            end
+                        end
+                    end
+
+                end
+            end
+        end
+        E_corr_threads[Tid] += Sum
+    end
+
+    # Sum-up the total HF energy ...
+    E_corr = sum(E_corr_threads)
+
+    println("\tCorrelation energy ...   E_corr = " * string(E_corr) * " MeV")
+
+    return E_corr
 end
