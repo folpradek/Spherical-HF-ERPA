@@ -27,11 +27,11 @@ function HFB_canonical_basis(Params::Parameters,Rho::O1B,Orb::Vector{Orb1B})
     end
 
     # Diagonalize 1-body HFB density matrix Rho ...
-    pn_C, pC = eigen(Symmetric(pRho),sortby=-)
-    nn_C, nC = eigen(Symmetric(nRho),sortby=-)
+    _, pC = eigen(Symmetric(pRho),sortby=-)
+    _, nC = eigen(Symmetric(nRho),sortby=-)
 
     # Clean numerical noise in C ...
-    @inbounds for a in 1:a_max
+    @inbounds Threads.@threads for a in 1:a_max
         @inbounds for b in 1:a_max
             pCME, nCME = abs(pC[a,b]), abs(nC[a,b])
             if pCME < 1e-13
@@ -44,7 +44,7 @@ function HFB_canonical_basis(Params::Parameters,Rho::O1B,Orb::Vector{Orb1B})
     end
 
     # Reorder the transformation matrix C ...
-    C = HFB_canonical_basis_particle_reordering(Params,O1B(pC,nC),Orb)
+    C = HFB_canonical_basis_orbital_ordering(Params,O1B(pC,nC),Orb)
 
     return C
 end
@@ -62,7 +62,7 @@ function HFB_canonical_basis_BCS(Params::Parameters,H::O1B,Orb::Vector{Orb1B})
     nH .= 0.5 .* (nH .+ nH')
 
     # Eliminate any possible numerical noise spoiling block-diagonal structure ...
-    @inbounds for a in 1:a_max
+    @inbounds Threads.@threads for a in 1:a_max
         @inbounds for b in 1:a_max
             if (Orb[a].j != Orb[b].j) || (Orb[a].l != Orb[b].l)
                 pH[a,b] = 0.0
@@ -72,11 +72,11 @@ function HFB_canonical_basis_BCS(Params::Parameters,H::O1B,Orb::Vector{Orb1B})
     end
 
     # Diagonalize 1-body HFB density matrix Rho ...
-    pe, pC = eigen(Symmetric(pH),sortby=+)
-    ne, nC = eigen(Symmetric(nH),sortby=+)
+    _, pC = eigen(Symmetric(pH),sortby=+)
+    _, nC = eigen(Symmetric(nH),sortby=+)
 
     # Clean numerical noise in C ...
-    @inbounds for a in 1:a_max
+    @inbounds Threads.@threads for a in 1:a_max
         @inbounds for b in 1:a_max
             pCME, nCME = abs(pC[a,b]), abs(nC[a,b])
             if pCME < 1e-13
@@ -89,7 +89,7 @@ function HFB_canonical_basis_BCS(Params::Parameters,H::O1B,Orb::Vector{Orb1B})
     end
 
     # Reorder the transformation matrix C ...
-    C = HFB_canonical_basis_particle_reordering(Params,O1B(pC,nC),Orb)
+    C = HFB_canonical_basis_orbital_ordering(Params,O1B(pC,nC),Orb)
 
     return C
 end

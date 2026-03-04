@@ -16,7 +16,9 @@ function sample_script_run()
                 N3max = 9,
                 #cRes = 1.0,
                 #cP2N = 1.0,
-                #cP3N = 1.0
+                #cP3N = 1.0,
+                #pG2N = 0.0,
+                #nG2N = 0.0
                 )
 
     # Calculation parameters structure ...
@@ -68,7 +70,7 @@ function sample_script_run()
                 N3max = 9,
                 #CMS = "CMS1+2B",
                 #Path = "HFB_A18_Z8_hw16.0_Nmax3_N2max6_N3max9",
-                #HFB = HFB_Parameters(Tol = 1e-8, Imax = 150, Pairing = "Full", dLmax = 0.5, BMF = true, HRF = false),
+                #HFB = HFB_Parameters(Tol = 1e-8, Imax = 150, Pairing = "Full", dLmax = 0.5, BMF = true, LNT = false, HRF = false),
                 #QTDA = QTDA_Parameters(Ortho = true)
                 )
 
