@@ -910,31 +910,29 @@ function HFB_diagonalize(Params::Parameters,H::O1B,Delta::O1B,Orb::Vector{Orb1B}
                 nRho[a,b] = 0.0
             end
         end
-        #J_a = div(j_a + 1,2)
-        #R = 1e-12 * Float64((l_a + J_a) * (l_a + J_a + 1) / 2 + J_a) + 1e-12 * a
-        #pRho[a,a] += R
-        #nRho[a,a] += R
+        R = 10.0 * Float64(l_a*(N_max+1) + div(j_a+1,2))
+        pRho[a,a] += R
+        nRho[a,a] += R
     end
 
     # Determine the canonical basis & occupation numbers by diagonalizing Rho ...
-    #pOcc, pC = eigen(Symmetric(pRho),sortby=-)
-    #nOcc, nC = eigen(Symmetric(nRho),sortby=-)
+    pOcc, pC = eigen(Symmetric(pRho),sortby=-)
+    nOcc, nC = eigen(Symmetric(nRho),sortby=-)
 
-    pOcc, pC, nOcc, nC = HFB_canonical_basis_diagonalize(Params,O1B(pRho,nRho),Orb)
+    #pOcc, pC, nOcc, nC = HFB_canonical_basis_diagonalize(Params,O1B(pRho,nRho),Orb)
 
     # Reorder the canonical basis & occupation numbers ...
     pC, nC, pOcc, nOcc = HFB_canonical_orbital_ordering(Params,pnVector(pOcc,nOcc),O1B(pC,nC),Orb)
 
     # Adjust the occupation numbers ... regularization factor is removed ...
-    #=
+
     @inbounds for a in 1:a_max
         l_a, j_a = Orb[a].l, Orb[a].j
-        J_a = div(j_a + 1,2)
-        R = 1e-12 * Float64((l_a + J_a) * (l_a + J_a + 1) / 2 + J_a) + 1e-12 * a
+        R = 10.0 * Float64(l_a*(N_max+1) + div(j_a+1,2))
         pOcc[a] -= R
         nOcc[a] -= R
     end
-    =#
+
 
     # Remove numerical noise ...
     @inbounds Threads.@threads for a in 1:a_max
