@@ -42,7 +42,7 @@ function HFB_solver(Params::Parameters)
         @time V_NN = V2b_residual_no2b(Params,Orb,Orb_NN,Orb_NNN,Rho,V_NN,V_NNN)
 
         # Include the N^2 contribution to the residual 2-body interaction in the LHO basis ... if LNT is enabled ...
-        if Params.Calc.HFB.LNT == true
+        if Params.Calc.HFB.LNT == true && Iteration > 15
             @time V_NN = HFB_Lipkin_Nogami_V2b_residual_no2b(Params,Orb,Orb_NN,V_NN)
         end
 
@@ -233,7 +233,7 @@ function HFB_solve(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,Orb_NNN::
         H, Delta = HFB_allocate(Params,Lambda,Rho,Kappa,Orb,Orb_NN,Orb_NNN,T,V_NN,V_NNN)
 
         # Include the Lipkin-Nogami correction to fields H & Delta ...
-        if Params.Calc.HFB.LNT == true
+        if Params.Calc.HFB.LNT == true && Iteration > 15
             H, Delta = HFB_Lipkin_Nogami(Params,Orb,Orb_NN,Orb_NNN,Rho,Kappa,H,Delta,V_NN,V_NNN)
         end
 
@@ -307,7 +307,7 @@ function HFB_solve(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,Orb_NNN::
         end
 
         # Check for degenerate solutions ...
-        if d2E < dE * 1e-4 && dE < 1e-1 && dZ < epsilon && dN < epsilon
+        if d2E < dE * 1e-4 && dE < 1e-1 && dZ < 1e-1 && dN < 1e-1
             println("\nHFB iteration stucked at a degenerate solution ... Degenerate solutions will be analyzed ...")
             Degeneracy = true
             H_1, Delta_1, Lambda_1 = O1B(H.p,H.n), O1B(Delta.p,Delta.n), pnFloat(Lambda.p,Lambda.n)
@@ -341,6 +341,7 @@ function HFB_solve(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,Orb_NNN::
 
     end
 
+    # RM soon ...
     # Perform final evaluation of resulting densities ...
     #Rho, Kappa = HFB_density_operator(Params,U,V,Orb)
 
@@ -442,7 +443,7 @@ function HFB_diagonalize_MCA(Params::Parameters,H::O1B,Delta::O1B,Orb::Vector{Or
     a_max = div((N_max + 1) * (N_max + 2), 2)
     HFB_dim = 2 * a_max
     Tol = Params.Calc.HFB.Tol
-    nTol = 1e-13
+    nTol = 1e-14
 
     # Preallocate arrays for solutions ...
     pU = Matrix{Float64}(undef,a_max,a_max)
@@ -793,7 +794,7 @@ function HFB_diagonalize(Params::Parameters,H::O1B,Delta::O1B,Orb::Vector{Orb1B}
     N_max = Params.Calc.Nmax
     a_max = div((N_max + 1) * (N_max + 2), 2)
     HFB_dim = 2 * a_max
-    Tol = 1e-1 * Params.Calc.HFB.Tol
+    Tol = 1e-11
     nTol = 1e-13
 
     # Preallocate arrays for solutions ...
@@ -899,29 +900,53 @@ function HFB_diagonalize(Params::Parameters,H::O1B,Delta::O1B,Orb::Vector{Orb1B}
     pRho .= 0.5 .* (pRho .+ pRho')
     nRho .= 0.5 .* (nRho .+ nRho')
 
-    # Regularize the density matrix Rho ...
+    # Clean numerical noise & regularize the density matrix Rho ...
     @inbounds for a in 1:a_max
-        pRho[a,a] += 1e-11 * Float64(a_max - a + 1)
-        nRho[a,a] += 1e-11 * Float64(a_max - a + 1)
+        l_a, j_a = Orb[a].l, Orb[a].j
+        @inbounds for b in 1:a_max
+            l_b, j_b = Orb[b].l, Orb[b].j
+            if l_a != l_b || j_a != j_b
+                pRho[a,b] = 0.0
+                nRho[a,b] = 0.0
+            end
+        end
+        #J_a = div(j_a + 1,2)
+        #R = 1e-12 * Float64((l_a + J_a) * (l_a + J_a + 1) / 2 + J_a) + 1e-12 * a
+        #pRho[a,a] += R
+        #nRho[a,a] += R
     end
 
     # Determine the canonical basis & occupation numbers by diagonalizing Rho ...
-    pOcc, pC = eigen(Symmetric(pRho),sortby=-)
-    nOcc, nC = eigen(Symmetric(nRho),sortby=-)
+    #pOcc, pC = eigen(Symmetric(pRho),sortby=-)
+    #nOcc, nC = eigen(Symmetric(nRho),sortby=-)
+
+    pOcc, pC, nOcc, nC = HFB_canonical_basis_diagonalize(Params,O1B(pRho,nRho),Orb)
 
     # Reorder the canonical basis & occupation numbers ...
     pC, nC, pOcc, nOcc = HFB_canonical_orbital_ordering(Params,pnVector(pOcc,nOcc),O1B(pC,nC),Orb)
 
-    # Clean numerical noise in the occupation numbers ...
+    # Adjust the occupation numbers ... regularization factor is removed ...
+    #=
     @inbounds for a in 1:a_max
+        l_a, j_a = Orb[a].l, Orb[a].j
+        J_a = div(j_a + 1,2)
+        R = 1e-12 * Float64((l_a + J_a) * (l_a + J_a + 1) / 2 + J_a) + 1e-12 * a
+        pOcc[a] -= R
+        nOcc[a] -= R
+    end
+    =#
+
+    # Remove numerical noise ...
+    @inbounds Threads.@threads for a in 1:a_max
         po, no = pOcc[a], nOcc[a]
-        # Case of protons ...
+        # Case of proton occupation numbers ...
         if po < Tol
             pOcc[a] = 0.0
         elseif (1.0 - po) < Tol
             pOcc[a] = 1.0
         end
-        # Case of neutrons ...
+
+        # Case of neutron occupation numbers ...
         if no < Tol
             nOcc[a] = 0.0
         elseif (1.0 - no) < Tol
@@ -936,14 +961,15 @@ function HFB_diagonalize(Params::Parameters,H::O1B,Delta::O1B,Orb::Vector{Orb1B}
     nV_BMZ = zeros(Float64,a_max,a_max)
 
     # Calculate U & V amplitudes in the BMZT decomposed basis ...
-    @inbounds for a in 1:a_max
+    @inbounds Threads.@threads for a in 1:a_max
         Phase = Float64((-1)^(Orb[a].l))
         pv2, nv2 = pOcc[a], nOcc[a]
 
-        pu = Phase * sqrt(max(0.0, 1.0 - pv2))
         pv = sqrt(min(1.0,pv2))
-        nu = Phase * sqrt(max(0.0, 1.0 - nv2))
         nv = sqrt(min(1.0,nv2))
+
+        pu = Phase * sqrt(abs(1.0 - pv^2))
+        nu = Phase * sqrt(abs(1.0 - nv^2))
 
         pU_BMZ[a,a] = pu
         pV_BMZ[a,a] = pv

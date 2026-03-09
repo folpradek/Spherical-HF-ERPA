@@ -93,3 +93,88 @@ function HFB_canonical_basis_BCS(Params::Parameters,H::O1B,Orb::Vector{Orb1B})
 
     return C
 end
+
+function HFB_canonical_basis_diagonalize(Params::Parameters,Rho::O1B,Orb::Vector{Orb1B})
+    # Read calculation parameters ...
+    N_max = Params.Calc.Nmax
+    a_max = div((N_max + 1) * (N_max + 2), 2)
+
+    # The number of l & j combinations ...
+    lj_max = (N_max+1)^2
+
+    # Read the density matrix Rho ...
+    pRho, nRho = Rho.p ,Rho.n
+
+    # Initialize the transformation matrix C & occupation number Occ ...
+    pC, pOcc = zeros(Float64,a_max,a_max), zeros(Float64,a_max)
+    nC, nOcc = zeros(Float64,a_max,a_max), zeros(Float64,a_max)
+
+    # Prepare the l & j blocks ...
+    lj_a, lj_a_count = Vector{Vector{Int64}}(undef,lj_max), zeros(Int64,lj_max)
+        # Note l & j numbers are evaluated in the direction as follows ...
+        # for l in 0:N_max ... for j in 1:2:(2*N_max+1) ... hence the
+        # analytic formula ... lj_ind = l_a*(N_max+1) + div(j_a+1,2)
+
+    # Count the number of orbitals in each l & j block ...
+    @inbounds for a in 1:a_max
+        l_a, j_a = Orb[a].l, Orb[a].j
+        lj_ind = l_a*(N_max+1) + div(j_a+1,2)
+        lj_a_count[lj_ind] += 1
+    end
+
+    # Initialite the mapping lists for orbitals in each l & j block ...
+    @inbounds for lj_ind in 1:lj_max
+        lj_a[lj_ind] = Vector{Int64}(undef,lj_a_count[lj_ind])
+    end
+
+    # Reset the counter for orbitals in each l & j block ...
+    lj_a_count .= 0
+
+    # Allocate the mapping lists for orbitals in each l & j block ...
+    @inbounds for a in 1:a_max
+        l_a, j_a = Orb[a].l, Orb[a].j
+        lj_ind = l_a*(N_max+1) + div(j_a+1,2)
+        lj_a_count[lj_ind] += 1
+        lj_a[lj_ind][lj_a_count[lj_ind]] = a
+    end
+
+    # Allocate & diagonalize l & j blocks of Rho ...
+    @inbounds Threads.@threads for lj_ind in 1:lj_max
+        a_lj_max = lj_a_count[lj_ind]
+
+        if a_lj_max > 0
+            # Initialite the density matrix Rho for given l & j ...
+            pRho_lj = Matrix{Float64}(undef,a_lj_max,a_lj_max)
+            nRho_lj = Matrix{Float64}(undef,a_lj_max,a_lj_max)
+
+            # Allocate the density matrix Rho for given l & j ...
+            @inbounds for a_lj in 1:a_lj_max
+                a = lj_a[lj_ind][a_lj]
+                @inbounds for b_lj in 1:a_lj_max
+                    b = lj_a[lj_ind][b_lj]
+                    pRho_lj[a_lj,b_lj] = pRho[a,b]
+                    nRho_lj[a_lj,b_lj] = nRho[a,b]
+                end
+            end
+
+            # Diagonalize the given l & j block of Rho ...
+            pOcc_lj, pC_lj = eigen!(Symmetric(pRho_lj),sortby=-)
+            nOcc_lj, nC_lj = eigen!(Symmetric(nRho_lj),sortby=-)
+
+            # Allocate the transformation matrix C & occupation numbers Occ ...
+            @inbounds for a_lj in 1:a_lj_max
+                a = lj_a[lj_ind][a_lj]
+                @inbounds for b_lj in 1:a_lj_max
+                    b = lj_a[lj_ind][b_lj]
+                    pC[b,a] = pC_lj[b_lj,a_lj]
+                    nC[b,a] = nC_lj[b_lj,a_lj]
+                end
+                pOcc[a] = pOcc_lj[a_lj]
+                nOcc[a] = nOcc_lj[a_lj]
+            end
+
+        end
+    end
+
+    return pOcc, pC, nOcc, nC
+end

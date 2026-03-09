@@ -430,8 +430,8 @@ function HFB_Lipkin_Nogami_Lambda_2(Params::Parameters,Orb::Vector{Orb1B},Orb_NN
                         # 2-body NN interaction part ...
                         if rem(l_a + l_b, 2) == rem(l_d + l_e, 2)
                             J_hat = Float64(2*J + 1)
-                            pTr1Sum +=  J_hat * O2b_pp(a,b,d,e,J,P_ab,V_NN,Orb,Orb_NN) * pRho_ad * pRho_be
-                            nTr1Sum +=  J_hat * O2b_nn(a,b,d,e,J,P_ab,V_NN,Orb,Orb_NN) * nRho_ad * nRho_be
+                            pTr1Sum += J_hat * O2b_pp(a,b,d,e,J,P_ab,V_NN,Orb,Orb_NN) * pRho_ad * pRho_be
+                            nTr1Sum += J_hat * O2b_nn(a,b,d,e,J,P_ab,V_NN,Orb,Orb_NN) * nRho_ad * nRho_be
                         end
 
                         # 3-body NNN interaction part ...
@@ -480,7 +480,7 @@ function HFB_Lipkin_Nogami_Lambda_2(Params::Parameters,Orb::Vector{Orb1B},Orb_NN
                 n_e, l_e, j_e = Orb[e].n, Orb[e].l, Orb[e].j
 
                 j_b_hat = sqrt(Float64(j_b + 1))
-                Amp = 0.5 * j_b_hat * j_a_hat * 2.0
+                Amp = j_b_hat * j_a_hat
 
                 if (2*(n_b + n_e) + l_b + l_e) <= N_2max && (l_b == l_e) && (j_b == j_e) && a == d && b == e
                     pKappa_be, nKappa_be = pKappa_bar[b,e], nKappa_bar[b,e]
@@ -637,7 +637,7 @@ function HFB_Lipkin_Nogami_Lambda_2_BackUp(Params::Parameters,Orb::Vector{Orb1B}
             n_e, l_e, j_e = Orb[e].n, Orb[e].l, Orb[e].j
             P_ab = rem(l_a + l_b,2) + 1
 
-            if (2*(n_a + n_b) + l_a + l_b) <= N_2max
+            if (2*(n_a + n_b) + l_a + l_b) <= N_2max && a == d && b == e
 
                 if l_b == l_e && j_b == j_e && (2*(n_d + n_e) + l_d + l_e) <= N_2max
                     pRho_be, nRho_be = pRho_bar[b,e], nRho_bar[b,e]
@@ -661,7 +661,7 @@ function HFB_Lipkin_Nogami_Lambda_2_BackUp(Params::Parameters,Orb::Vector{Orb1B}
                                 @inbounds for f in 1:a_max
                                     n_f = Orb[f].n
                                     l_f = Orb[f].l
-                                    if (2*(n_d + n_e + n_f) + l_d + l_e + l_f) <= N_3max && l_c == l_f && P_abc == (rem(l_d + l_e + l_f,2) + 1)
+                                    if (2*(n_d + n_e + n_f) + l_d + l_e + l_f) <= N_3max && l_c == l_f && P_abc == (rem(l_d + l_e + l_f,2) + 1) && f == c
                                         j_f = Orb[f].j
                                         if j_c == j_f
                                             pRho_cf, nRho_cf = Rho.p[c,f], Rho.n[c,f]

@@ -97,7 +97,8 @@ function HFB_canonical_orbital_ordering(Params::Parameters,Occ::pnVector,C::O1B,
     pC, nC = deepcopy(C.p), deepcopy(C.n)
 
     # Preallocate temporary arrays ...
-    pOrb_order, nOrb_order = Vector{Int64}(undef,a_max), Vector{Int64}(undef,a_max)
+    #pOrb_order, nOrb_order = Vector{Int64}(undef,a_max), Vector{Int64}(undef,a_max)
+    pOrb_order, nOrb_order = zeros(Int, a_max), zeros(Int, a_max)
     pOrb_mask, nOrb_mask = falses(a_max), falses(a_max)
 
     pl_values, pj_values = zeros(Float64,a_max), zeros(Float64,a_max)
@@ -137,6 +138,311 @@ function HFB_canonical_orbital_ordering(Params::Parameters,Occ::pnVector,C::O1B,
             end
         end
     end
+
+
+        # Check if any orbitals remian unassigned & perform assignment ...
+        #=
+            pUnassigned, nUnassigned = false, false
+
+            if false in pOrb_mask
+                pUnassigned = true
+            end
+            if false in nOrb_mask
+                nUnassigned = true
+            end
+
+            lj_max = (N_max+1)^2
+            #lj_ind = l_a*(N_max+1) + div(j_a+1,2)
+
+            lj_mask = falses(lj_max)
+            plj_count, nlj_count = zeros(Int64,lj_max), zeros(Int64,lj_max)
+
+            pCount, nCount = 0, 0
+
+            # Determine the unassigned orbitals ...
+            @inbounds for a in 1:a_max
+                if pOrb_mask[a] == false
+                    pCount += 1
+                end
+                if nOrb_mask[a] == false
+                    nCount += 1
+                end
+            end
+
+            pOrb_left, nOrb_left = zeros(Int64,pCount), zeros(Int64,nCount)
+
+            pCount, nCount = 0, 0
+
+            @inbounds for a in 1:a_max
+                l_a, j_a = Orb[a].l, Orb[a].j
+                #lj_ind = l_a*(N_max+1) + div(j_a+1,2)
+                if pOrb_mask[a] == false
+                    pCount += 1
+                    pOrb_left[pCount] = a
+                end
+                if nOrb_mask[a] == false
+                    nCount += 1
+                    nOrb_left[nCount] = a
+                end
+            end
+
+            # Count lj combinations ... 
+                # Case of proton orbitals ...
+            @inbounds for a in pOrb_left
+                lj_mask .= false
+                @inbounds for b in 1:a_max
+                    l_b, j_b = Orb[b].l, Orb[b].j
+                    lj_ind = l_b*(N_max+1) + div(j_b+1,2)
+                    pc = pC[b,a]
+                    if abs(pc) > 1e-6 && lj_mask[lj_ind] == false
+                        plj_count[lj_ind] += 1
+                        lj_mask[lj_ind] = true
+                    end
+                end
+            end
+                # Case of neutron orbitals ...
+            @inbounds for a in nOrb_left
+                lj_mask .= false
+                @inbounds for b in 1:a_max
+                    l_b, j_b = Orb[b].l, Orb[b].j
+                    lj_ind = l_b*(N_max+1) + div(j_b+1,2)
+                    nc = nC[b,a]
+                    if abs(nc) > 1e-6 && lj_mask[lj_ind] == false
+                        nlj_count[lj_ind] += 1
+                        lj_mask[lj_ind] = true
+                    end
+                end
+            end
+
+            while pUnassigned == true
+                #display(plj_count)
+                #println("pUnassigned branch ...")
+                lj_mask .= false
+                lj_count = 0
+                lj_ind, l, j = 0, 0, 0
+
+                for L in 0:N_max
+                    for J in 1:2:(N_max+1)
+                        LJ_ind = L*(N_max+1) + div(J+1,2)
+                        if plj_count[LJ_ind] != 0 && plj_count[LJ_ind] > lj_count
+                            lj_count = plj_count[LJ_ind]
+                            lj_ind = LJ_ind
+                            l = L
+                            j = J
+                        end
+                    end
+                end
+
+                display("l = $l, j = $j")
+
+
+                assigned = false
+
+                for a in 1:a_max
+                    l_a, j_a = Orb[a].l, Orb[a].j
+                    if pOrb_mask[a] == false && l == l_a && j == j_a
+                        for b in 1:a_max
+                            if (b in pOrb_order) == false
+                                lj_mask .= false
+                                pN = 0.0
+                                @inbounds for c in 1:a_max
+                                    l_c, j_c = Orb[c].l, Orb[c].j
+                                    pc = pC[c,b]
+                                    if abs(pc) > 1e-6
+                                        lj_mask[lj_ind] = true
+                                    end
+                                    if l == l_c && j == j_c
+                                        pN += pc^2
+                                    end
+                                end
+
+                                if pN > 1e-6
+                                    pNorm = 1.0 / sqrt(pN)
+                                    pOrb_mask[a] = true
+                                    pOrb_order[a] = b
+                                    @inbounds for c in 1:a_max
+                                        l_c, j_c = Orb[c].l, Orb[c].j
+                                        if l == l_c && j == j_c
+                                            pC[c,b] = pC[c,b] / pNorm
+                                        else
+                                            pC[c,b] = 0.0
+                                        end
+                                    end
+                                    assigned = true
+                                    break
+                                end
+
+                            end
+                        end
+                    end
+                    if assigned == true
+                        break
+                    end
+                end
+
+                for i in 1:lj_max
+                    if lj_mask[i] == true
+                        plj_count[i] -= 1
+                    end
+                end
+
+                if sum(plj_count) == 0
+                    pUnassigned = false
+                    throw("stop here")
+                end
+
+            end
+            
+            while nUnassigned == true
+                println("nUnassigned branch ...")
+                lj_count = 0
+                lj_ind, l, j = 0, 0, 0
+                lj_mask .= false
+
+                for L in 0:N_max
+                    for J in 1:2:(N_max+1)
+                        LJ_ind = L*(N_max+1) + div(J+1,2)
+                        if nlj_count[LJ_ind] != 0 && nlj_count[LJ_ind] > lj_count
+                            lj_count = nlj_count[LJ_ind]
+                            lj_ind = LJ_ind
+                            l = L
+                            j = J
+                        end
+                    end
+                end
+
+                for a in 1:a_max
+                    l_a, j_a = Orb[a].l, Orb[a].j
+                    if nOrb_mask[a] == false && l == l_a && j == j_a
+                        for b in 1:a_max
+                            if (b in nOrb_order) == false
+                                nN = 0.0
+                                @inbounds for c in 1:a_max
+                                    l_c, j_c = Orb[c].l, Orb[c].j
+                                    nc = nC[c,b]
+                                    if abs(nc) > 1e-6
+                                        lj_mask[lj_ind] = true
+                                    end
+                                    if l == l_c && j == j_c
+                                        nN += nc^2
+                                    end
+                                end
+
+                                nNorm = 1.0 / sqrt(nN)
+
+                                if nN > 1e-6
+                                    nOrb_mask[a] = true
+                                    nOrb_order[a] = b
+                                    @inbounds for c in 1:a_max
+                                        l_c, j_c = Orb[c].l, Orb[c].j
+                                        if l == l_c && j == j_c
+                                            nC[c,b] = nC[c,b] / nNorm
+                                        else
+                                            nC[c,b] = 0.0
+                                        end
+                                    end
+                                    break
+                                end
+
+                            end
+                        end
+                    end
+                end
+
+                for i in 1:lj_max
+                    if lj_mask[i] == true
+                        nlj_count[i]  -= 1
+                    end
+                end
+
+                if sum(nlj_count) == 0
+                    nUnassigned = false
+                end
+
+            end
+        =#
+
+
+        #=
+            @inbounds for a in 1:a_max
+                if pOrb_order[a] == false
+                    l_a, j_a = Orb[a].l, Orb[a].j
+                    @inbounds for b in 1:a_max
+                        pN = 0.0
+                        @inbounds for c in 1:a_max
+                            l_c, j_c = Orb[c].l, Orb[c].j
+                            if l_a == l_c && j_a == j_c
+                                pN += pC[c,b]^2
+                            end
+                        end
+                    end
+                end
+            end
+
+
+            @inbounds for a in 1:a_max
+                if pOrb_mask[a] == false
+                    l_a, j_a = Orb[a].l, Orb[a].j
+                    @inbounds for b in 1:a_max
+                        if (b in pOrb_order) == false
+                            pN = 0.0
+                            @inbounds for c in 1:a_max
+                                l_c, j_c = Orb[c].l, Orb[c].j
+                                if l_a == l_c && j_a == j_c
+                                    pN += pC[c,b]^2
+                                end
+                            end
+                            if pN > Tol
+                                pOrb_mask[a] = true
+                                pOrb_order[a] = b
+                                pN = 1.0 / sqrt(pN)
+                                @inbounds for c in 1:a_max
+                                    l_c, j_c = Orb[c].l, Orb[c].j
+                                    if l_a == l_c && j_a == j_c
+                                        pC[c,b] = pN * pC[c,b]
+                                    else
+                                        pC[c,b] = 0.0
+                                    end
+                                end
+                                break
+                            end
+                        end
+
+                    end
+                end
+
+                if nOrb_mask[a] == false
+                    l_a, j_a = Orb[a].l, Orb[a].j
+                    @inbounds for b in 1:a_max
+                        if (b in nOrb_order) == false
+                            nN = 0.0
+                            @inbounds for c in 1:a_max
+                                l_c, j_c = Orb[c].l, Orb[c].j
+                                if l_a == l_c && j_a == j_c
+                                    nN += nC[c,b]^2
+                                end
+                            end
+                            if nN > Tol
+                                nOrb_mask[a] = true
+                                nOrb_order[a] = b
+                                nN = 1.0 / sqrt(nN)
+                                @inbounds for c in 1:a_max
+                                    l_c, j_c = Orb[c].l, Orb[c].j
+                                    if l_a == l_c && j_a == j_c
+                                        nC[c,b] = nN * nC[c,b]
+                                    else
+                                        nC[c,b] = 0.0
+                                    end
+                                end
+                                break
+                            end
+                        end
+
+                    end
+                end
+            end
+
+        =#
 
     # Perform reordering of single-particle orbitals ...
     pOcc .= pOcc[pOrb_order]
