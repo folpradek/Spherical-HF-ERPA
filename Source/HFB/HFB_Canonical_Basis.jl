@@ -10,20 +10,19 @@ function HFB_canonical_basis(Params::Parameters,Rho::O1B,Orb::Vector{Orb1B})
     pRho .= 0.5 .* (pRho .+ pRho')
     nRho .= 0.5 .* (nRho .+ nRho')
 
-    # Eliminate any possible numerical noise spoiling block-diagonal structure ...
+    # Clean numerical noise & regularize the density matrix Rho ...
     @inbounds for a in 1:a_max
+        l_a, j_a = Orb[a].l, Orb[a].j
         @inbounds for b in 1:a_max
-            if (Orb[a].j != Orb[b].j) || (Orb[a].l != Orb[b].l)
+            l_b, j_b = Orb[b].l, Orb[b].j
+            if l_a != l_b || j_a != j_b
                 pRho[a,b] = 0.0
                 nRho[a,b] = 0.0
             end
         end
-    end
-
-    # Add a tiny deterministic diagonal splitting to lift accidental degeneracies ...
-    @inbounds for i in 1:a_max
-        pRho[i,i] += 1e-11 * Float64(a_max-i)
-        nRho[i,i] += 1e-11 * Float64(a_max-i)
+        R = 10.0 * Float64(l_a*(N_max+1) + div(j_a+1,2))
+        pRho[a,a] += R
+        nRho[a,a] += R
     end
 
     # Diagonalize 1-body HFB density matrix Rho ...
