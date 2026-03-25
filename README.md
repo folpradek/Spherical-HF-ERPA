@@ -8,6 +8,7 @@ Many-body nuclear structure solver written in Julia [1]. Currently, the code fea
   - Spherical HF-Bardeen-Cooper-Schrieffer (**HF-BCS**) solver.
   - Spherical Hartree-Fock-Bogoliubov (**HFB**) solver, including leading order Many-body Perturbation Theory correlation energy calculation (**BMBPT(2)**).
   - Spherical Quasiparticle-Tamm-Dancoff Approximation (**QTDA**) solver.
+  - Spherical Quasiparticle-Random-Phase Approximation (**QRPA**) solver.
 
 With these one can study properties of closed-(sub)shell nuclei as well as basic properties of spherical open-shell nuclei.
 
