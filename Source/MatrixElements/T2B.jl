@@ -1,6 +1,6 @@
 function T2b(Orb::Vector{Orb1B},a::Int64,b::Int64,c::Int64,d::Int64,J::Int64)
-    Grad1 = rGrad(Orb,a,c)
-    Grad2 = rGrad(Orb,b,d)
+    Grad1 = rGrad(a,c,Orb)
+    Grad2 = rGrad(b,d,Orb)
     j_a = Orb[a].j
     j_b = Orb[b].j
     j_c = Orb[c].j
@@ -9,7 +9,7 @@ function T2b(Orb::Vector{Orb1B},a::Int64,b::Int64,c::Int64,d::Int64,J::Int64)
     return T_NN
 end
 
-function rGrad(Orb::Vector{Orb1B},a::Int64,b::Int64)
+function rGrad(a::Int64,b::Int64,Orb::Vector{Orb1B})
     n_a = Orb[a].n
     l_a = Orb[a].l
     j_a = Orb[a].j

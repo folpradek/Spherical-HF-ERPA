@@ -1,23 +1,26 @@
-function QTDA_export(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::qpOrb2B,Rho::O1B,E_QTDA::Matrix{Vector{Float64}},X_QTDA::Matrix{Matrix{Float64}},rB_QTDA::ReducedTransition)
-    # Export of QTDA summary ...
-    @time QTDA_summary(Params,Orb_2qp)
+function QRPA_export(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::qpOrb2B,Stability::Bool,E_corr::Float64,Rho::O1B,E_QRPA::Matrix{Vector{ComplexF64}},X_QRPA::Matrix{Matrix{ComplexF64}},Y_QRPA::Matrix{Matrix{ComplexF64}},rB_QRPA::ReducedTransition)
+    # Export of QRPA summary ...
+    @time QRPA_summary(Params,Orb_2qp,Stability,E_corr)
 
-    # Export of QTDA energies & amplitudes in binary format ...
-    @time QTDA_binary_export(Params,Orb_2qp,E_QTDA,X_QTDA)
+    # Export of QRPA energies & amplitudes in binary format ...
+    @time QRPA_binary_export(Params,Orb_2qp,E_QRPA,X_QRPA,Y_QRPA)
 
-    # Export of QTDA spectra ...
-    @time QTDA_spectrum_export(Params,Orb_2qp,E_QTDA)
+    # Export of QRPA spectra ...
+    @time QRPA_spectrum_export(Params,Orb_2qp,E_QRPA)
 
-    # Export of QTDA plot-ready spectra ...
-    @time QTDA_spectrum_plot_export(Params,Orb_2qp,E_QTDA)
+    # Export of QRPA plot-ready spectra ...
+    @time QRPA_spectrum_plot_export(Params,Orb_2qp,E_QRPA)
 
-    # Export QTDA electric transitions ...
-    @time QTDA_transitions_export(Params,Orb,Orb_2qp,Rho,E_QTDA,rB_QTDA)
+    # Export of QRPA norms of X & Y in human-readable format ...
+    @time QRPA_amplitudes_export(Params,Orb_2qp,E_QRPA,X_QRPA,Y_QRPA)
+
+    # Export QRPA electric transitions ...
+    @time QRPA_transitions_export(Params,Orb,Orb_2qp,Rho,E_QRPA,rB_QRPA)
     
     return
 end
 
-function QTDA_summary(Params::Parameters,Orb_2qp::qpOrb2B)
+function QRPA_summary(Params::Parameters,Orb_2qp::qpOrb2B,Stability::Bool,E_corr::Float64)
     # Read parameters ...
     A = Params.Calc.A
     Z = Params.Calc.Z
@@ -26,15 +29,16 @@ function QTDA_summary(Params::Parameters,Orb_2qp::qpOrb2B)
     N_2max = 2*N_max
     J_max = N_2max + 1
     CMS = Params.Calc.CMS
-    Orthogon = Params.Calc.QTDA.Ortho
+    Orthogon = Params.Calc.QRPA.Ortho
     Output_File = Params.Calc.Path
 
-    # Set the path for "QTDA_Summary.dat" output file ...
-    Output_Path = "IO/" * Output_File * "/QTDA/QTDA_Summary.dat"
+    # Set the path for "QRPA_Summary.dat" output file ...
+    Output_Path = "IO/" * Output_File * "/QRPA/QRPA_Summary.dat"
 
-    println("\nPreparing QTDA summary file ...")
+    # Write the summary of QRPA calculation ...
+    println("\nPreparing QRPA summary file ...")
     Summary =  open(Output_Path, "w")
-        println(Summary, "Spherical Quasiparticle Tamm-Dancoff Approximation review:")
+        println(Summary, "Spherical Quasiparticle Random-Phase Approximation review:")
         println(Summary, "\nNuclid data:    A = " * string(A) * ", Z = " * string(Z))
         println(Summary, "\nCalculation data:    hw = " * string(hw) * " , N_max = " * string(N_max) *
                 ", s.p. J-basis size = " * string(div((N_max+1)*(N_max+2),2)) * ", s.p. M-basis size = " * string(div((N_max+1)*(N_max+2)*(N_max+3),6)))
@@ -51,6 +55,16 @@ function QTDA_summary(Params::Parameters,Orb_2qp::qpOrb2B)
         else
             println(Summary, "\nOrthogonalization of spurious Goldstone levels (0+, 1-) is NOT included ...")
         end
+        println(Summary, "\nStability of the QRPA system:")
+
+        if Stability == true
+            println(Summary, "\tQRPA system is STABLE ... no complex eigenvalues detected ...")
+        else
+            println(Summary, "\tQRPA system is UNSTABLE ... complex eigenvalues detected ...")
+        end
+
+        println(Summary, "\nInformation on dimensions of QRPA 1-phonon 2qp subspaces ...")
+
         N_qp = 0
         @inbounds for J in 0:J_max
             @inbounds for P in 1:2
@@ -58,8 +72,6 @@ function QTDA_summary(Params::Parameters,Orb_2qp::qpOrb2B)
                 N_qp += n_qp
             end
         end
-
-        println(Summary, "\nInformation on dimensions of QTDA 1-phonon subspaces ...")
 
         println(Summary, "\nTotal number of 1-phonon quasiparticle states in J-scheme = " * string(sum(Orb_2qp.N)))
         println(Summary, "Total number of 1-phonon quasiparticle states in M-scheme = " * string(N_qp))
@@ -83,14 +95,17 @@ function QTDA_summary(Params::Parameters,Orb_2qp::qpOrb2B)
             println(Summary, Row)
         end
 
+        @printf(Summary, "\nE_corr     = %12.6f \t MeV ... QRPA ground-state correlation energy", E_corr)
+        @printf(Summary, "\nE_corr / A = %12.6f \t MeV ... QRPA ground-state correlation energy per nuclon\n", E_corr / Float64(A))
+
     close(Summary)
 
-    println("\nQTDA summary exported ...")
+    println("\nQRPA summary exported ...")
 
     return
 end
 
-function QTDA_binary_export(Params::Parameters,Orb_2qp::qpOrb2B,E_QTDA::Matrix{Vector{Float64}},X_QTDA::Matrix{Matrix{Float64}})
+function QRPA_binary_export(Params::Parameters,Orb_2qp::qpOrb2B,E_QRPA::Matrix{Vector{ComplexF64}},X_QRPA::Matrix{Matrix{ComplexF64}},Y_QRPA::Matrix{Matrix{ComplexF64}})
     # Read parameters ...
     N_max = Params.Calc.Nmax
     J_max = 2*N_max + 1
@@ -98,23 +113,24 @@ function QTDA_binary_export(Params::Parameters,Orb_2qp::qpOrb2B,E_QTDA::Matrix{V
 
     # Set-up export buffer  ...
     Buffer_size, Buffer_count = 10000000, 0
-    Buffer = Vector{Float64}(undef,Buffer_size)
+    Buffer = Vector{ComplexF64}(undef,Buffer_size)
 
-    println("\nPerforming binary export of QTDA energies E & amplitudes X ...")
+    println("\nPerforming binary export of QRPA energies E & amplitudes X & Y ...")
 
     # Set the out-put file paths ...
-    Output_Path_X = "IO/" * Output_File * "/Bin/QTDA_X.bin"
-    Output_Path_E = "IO/" * Output_File * "/Bin/QTDA_E.bin"
+    Output_Path_X = "IO/" * Output_File * "/Bin/QRPA_X.bin"
+    Output_Path_Y = "IO/" * Output_File * "/Bin/QRPA_Y.bin"
+    Output_Path_E = "IO/" * Output_File * "/Bin/QRPA_E.bin"
 
-    # Binary export of QTDA solutions ...
+    # Binary export of QRPA solutions ...
         # Amplitudes X ...
     open(Output_Path_X, "w") do Export_File
         @inbounds for J in 0:J_max
             @inbounds for P in 1:2
                 N_qp = Orb_2qp.N[P,J+1]
                 @inbounds for nu in 1:N_qp
-                    @inbounds for ph in 1:N_qp
-                        X = X_QTDA[P,J+1][nu,ph]
+                    @inbounds for qp in 1:N_qp
+                        X = X_QRPA[P,J+1][nu,qp]
                         Buffer_count += 1
                         Buffer[Buffer_count] = X
                         if Buffer_count == Buffer_size
@@ -128,14 +144,36 @@ function QTDA_binary_export(Params::Parameters,Orb_2qp::qpOrb2B,E_QTDA::Matrix{V
     end
         # Reset the export buffer  ...
     Buffer_count = 0
-    Buffer = Vector{Float64}(undef,Buffer_size)
+    Buffer = Vector{ComplexF64}(undef,Buffer_size)
+        # Amplitudes Y ...
+    open(Output_Path_Y, "w") do Export_File
+        @inbounds for J in 0:J_max
+            @inbounds for P in 1:2
+                N_qp = Orb_2qp.N[P,J+1]
+                @inbounds for nu in 1:N_qp
+                    @inbounds for qp in 1:N_qp
+                        Y = Y_QRPA[P,J+1][nu,qp]
+                        Buffer_count += 1
+                        Buffer[Buffer_count] = Y
+                        if Buffer_count == Buffer_size
+                            write(Export_File,Buffer)
+                            Buffer_count = 0
+                        end
+                    end
+                end
+            end
+        end
+    end
+        # Reset the export buffer  ...
+    Buffer_count = 0
+    Buffer = Vector{ComplexF64}(undef,Buffer_size)
         # Energies E ...
     open(Output_Path_E, "w") do Export_File
         @inbounds for J in 0:J_max
             @inbounds for P in 1:2
                 N_qp = Orb_2qp.N[P,J+1]
                 @inbounds for nu in 1:N_qp
-                    E = E_QTDA[P,J+1][nu]
+                    E = E_QRPA[P,J+1][nu]
                     Buffer_count += 1
                     Buffer[Buffer_count] = E
                     if Buffer_count == Buffer_size
@@ -147,33 +185,33 @@ function QTDA_binary_export(Params::Parameters,Orb_2qp::qpOrb2B,E_QTDA::Matrix{V
         end
     end
 
-    println("\tBinary export of QTDA energies E amplitudes X completed ...")
+    println("\tBinary export of QRPA energies E amplitudes X & Y completed ...")
 
     return
 end
 
-function QTDA_spectrum_export(Params::Parameters,Orb_2qp::qpOrb2B,E_QTDA::Matrix{Vector{Float64}})
+function QRPA_spectrum_export(Params::Parameters,Orb_2qp::qpOrb2B,E_QRPA::Matrix{Vector{ComplexF64}})
     # Read parameters ...
     N_max = Params.Calc.Nmax
     J_max = 2*N_max + 1
     Output_File = Params.Calc.Path
 
     # Set the out-put file paths ...
-    Output_Path = "IO/" * Output_File * "/QTDA/Spectra/QTDA.dat"
+    Output_Path = "IO/" * Output_File * "/QRPA/Spectra/QRPA.dat"
 
-    println("\nPreparing export of QTDA spectra ...")
+    println("\nPreparing export of QRPA spectra ...")
 
-    # QTDA spectrum export
+    # QRPA spectrum export ...
     open(Output_Path, "w") do Write_File
-        @printf(Write_File, "%-5s %-5s %-10s\n", "J", "P", "E")
+        @printf(Write_File, "%-5s %-5s %-20s %-20s\n", "J", "P", "Re E", "Im E")
         @inbounds for J in 0:J_max
             @inbounds for P in 1:2
                 N_qp = Orb_2qp.N[P,J+1]
                 @inbounds for nu in 1:N_qp
                     if P == 1
-                        @printf(Write_File, "%-5d %-5s %-10.6f\n", J, "+", E_QTDA[P,J+1][nu])
+                        @printf(Write_File, "%-5d %-5s %-20.6f %-20.6f\n", J, "+", real(E_QRPA[P,J+1][nu]), imag(E_QRPA[P,J+1][nu]))
                     else
-                        @printf(Write_File, "%-5d %-5s %-10.6f\n", J, "-", E_QTDA[P,J+1][nu])
+                        @printf(Write_File, "%-5d %-5s %-20.6f %-20.6f\n", J, "-", real(E_QRPA[P,J+1][nu]), imag(E_QRPA[P,J+1][nu]))
                     end
                 end
                 println(Write_File,"\n")
@@ -181,96 +219,196 @@ function QTDA_spectrum_export(Params::Parameters,Orb_2qp::qpOrb2B,E_QTDA::Matrix
         end
     end
 
-    println("\tExport of QTDA spectra succesfully finished ...")
+    println("\tExport of QRPA spectra succesfully finished ...")
 
     return
 end
 
-function QTDA_spectrum_plot_export(Params::Parameters,Orb_2qp::qpOrb2B,E_QTDA::Matrix{Vector{Float64}})
+function QRPA_spectrum_plot_export(Params::Parameters,Orb_2qp::qpOrb2B,E_QRPA::Matrix{Vector{ComplexF64}})
     # Read parameters ...
     N_max = Params.Calc.Nmax
     J_max = 2*N_max + 1
     IO = Params.Calc.Path
 
     # Set the out-put file paths ...
-    Output_Path = "IO/" * IO * "/QTDA/Spectra/QTDA_Plot.dat"
+    Output_Path = "IO/" * IO * "/QRPA/Spectra/QRPA_Plot.dat"
 
     # Spectra label gap parameter ...
     Delta = 1.0
 
-    # Prepare the QTDA plot-ready spectra for export ...
-    println("\nPreparing plot-ready export of QTDA spectra ...")
+    # Prepare the QRPA plot-ready spectra for export ...
+    println("\nPreparing plot-ready export of QRPA spectra ...")
 
     # Count the total number of 1-phonon excitations ...
     N_qp = Int64(sum(Orb_2qp.N))
 
     # Initialite array for solution export ...
-    QTDA_export = Matrix{Float64}(undef,4,N_qp+1)
+    QRPA_export = Matrix{Float64}(undef,4,N_qp+1)
 
     # 0+ ground state addition ...
-    QTDA_export[1,1] = 0.0
-    QTDA_export[2,1] = 1.0
-    QTDA_export[3,1] = 0.0
-    QTDA_export[4,1] = 0.0
+    QRPA_export[1,1] = 0.0
+    QRPA_export[2,1] = 1.0
+    QRPA_export[3,1] = 0.0
+    QRPA_export[4,1] = 0.0
 
-    # Allocate QTDA spectrum export array ...
+    # Allocate QRPA spectrum export array ...
     qp_count = 1
     @inbounds for J in 0:J_max
         @inbounds for P in 1:2
-            N_ab = Orb_2qp.N[P,J+1]
-            @inbounds for nu in 1:N_ab
+            N_qg = Orb_2qp.N[P,J+1]
+            @inbounds for nu in 1:N_qg
                 qp_count += 1
-                QTDA_export[1,qp_count] = Float64(J)
-                QTDA_export[2,qp_count] = Float64(P)
-                QTDA_export[3,qp_count] = E_QTDA[P,J+1][nu]
-                QTDA_export[4,qp_count] = E_QTDA[P,J+1][nu]
+                QRPA_export[1,qp_count] = Float64(J)
+                QRPA_export[2,qp_count] = Float64(P)
+                QRPA_export[3,qp_count] = real(E_QRPA[P,J+1][nu])
+                QRPA_export[4,qp_count] = real(E_QRPA[P,J+1][nu])
             end
         end
     end
 
-    # Retrieve QTDA energies for export ...
-    E_QTDA_export = @views QTDA_export[3,:]
+    # Retrieve QRPA energies for export ...
+    E_QRPA_export = @views QRPA_export[3,:]
 
     # Reorder spectrum ascending in real part of energy ...
-    Sort = sortperm(E_QTDA_export, by = x -> real(x))
+    Sort = sortperm(E_QRPA_export, by = x -> real(x))
         # Perform the reordering ...
-    QTDA_export .= @views QTDA_export[:,Sort]
+    QRPA_export .= @views QRPA_export[:,Sort]
 
     # Adjust the positions of J & P labels ...
     @inbounds for nu in 2:(N_qp+1)
-        E_1 = QTDA_export[4,nu-1]
-        E_2 = QTDA_export[4,nu]
+        E_1 = QRPA_export[4,nu-1]
+        E_2 = QRPA_export[4,nu]
         if E_2 < E_1
-            QTDA_export[4,nu] = E_1 + 1.0
+            QRPA_export[4,nu] = E_1 + 1.0
         elseif abs(E_2 - E_1) < Delta
-            QTDA_export[4,nu] = E_1 + 1.0
+            QRPA_export[4,nu] = E_1 + 1.0
         end
     end
 
-    # QTDA spectrum plot data export ...
-    println("\nPerforming the export of plot-ready QTDA spectra ...")
+    # QRPA spectrum plot data export ...
+    println("\nPerforming the export of plot-ready QRPA spectra ...")
     open(Output_Path, "w") do Write_File
         @printf(Write_File, "%-5s %-5s %-12s %-12s\n", "J", "P", "E", "label")
         @inbounds for nu in 1:N_qp
-            J = Int64(round(QTDA_export[1,nu]))
+            J = Int64(round(QRPA_export[1,nu]))
             P = "P"
-            if abs(QTDA_export[2,nu] - 1.0) < 1e-3
+            if abs(QRPA_export[2,nu] - 1.0) < 1e-3
                 P = "+"
             else
                 P = "-"
             end
-            E = QTDA_export[3,nu]
-            E_m = QTDA_export[4,nu]
+            E = QRPA_export[3,nu]
+            E_m = QRPA_export[4,nu]
             @printf(Write_File, "%-5s %-5s %-12.6f %-12.6f\n", J, P, E, E_m)
         end
     end
 
-    println("\tQTDA plot-ready spectra successfully exported ...")
+    println("\nQRPA plot-ready spectra successfully exported ...")
 
     return
 end
 
-function QTDA_transitions_export(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::qpOrb2B,Rho::O1B,E_QTDA::Matrix{Vector{Float64}},rB_QTDA::ReducedTransition)
+function QRPA_amplitudes_export(Params::Parameters,Orb_2qp::qpOrb2B,E_QRPA::Matrix{Vector{ComplexF64}},X_QRPA::Matrix{Matrix{ComplexF64}},Y_QRPA::Matrix{Matrix{ComplexF64}})
+    # Read parameters ...
+    N_max = Params.Calc.Nmax
+    N_2max = 2*N_max
+    J_max = N_2max + 1
+    Output_File = Params.Calc.Path
+
+    # Set export paths ...
+    Output_Path = "IO/" * Output_File * "/QRPA/Amplitudes/QRPA_Amplitudes_Ordered.dat"
+
+    println("\nPreparing export norms of the QRPA amplitudes X & Y ...")
+
+    # First a systematic export according to J & P numbers ...
+    open(Output_Path, "w") do Write_File
+        @printf(Write_File, "%-12s %-12s %-12s\n", "E", "|X|^2", "|Y|^2")
+        @inbounds for J in 0:J_max
+            @inbounds for P in 1:2
+                if P == 1
+                    println(Write_File, "\nJ = " * string(J) * ",\tP = +")
+                else
+                    println(Write_File, "\nJ = " * string(J) * ",\tP = -")
+                end
+                N_qp = Orb_2qp.N[P,J+1]
+                @inbounds for nu in 1:N_qp
+                    x = @views norm(X_QRPA[P,J+1][:,nu])^2
+                    y = @views norm(Y_QRPA[P,J+1][:,nu])^2
+                    @printf(Write_File, "%-12.8f %-12.8f %-12.8f\n", real(E_QRPA[P,J+1][nu]), x, y)
+                end
+            end
+        end
+    end
+
+    # Second, perform an energy ordered export suitable for analysis ...
+
+    # Set export path ...
+    Output_Path = "IO/" * Output_File * "/QRPA/Amplitudes/QRPA_Amplitudes.dat"
+
+    # Count the total number of 1-phonon levels ...
+    N_qp = sum(Orb_2qp.N)
+
+    # Initialize vectors for export ...
+    E_QRPA_ord = Vector{Float64}(undef,N_qp)
+    x_QRPA = Vector{Float64}(undef,N_qp)
+    y_QRPA = Vector{Float64}(undef,N_qp)
+    J_QRPA = Vector{Int64}(undef,N_qp)
+    P_QRPA = Vector{Int64}(undef,N_qp)
+
+    # Allocate the QRPA 1-phonon levels ...
+    qp_count = 0
+    @inbounds for J in 0:J_max
+        @inbounds for P in 1:2
+            N_qp = Orb_2qp.N[P,J+1]
+            @inbounds for nu in 1:N_qp
+                qp_count += 1
+                E_QRPA_ord[qp_count] = real(E_QRPA[P,J+1][nu])
+                xSum = 0.0
+                ySum = 0.0
+                @inbounds for qp in 1:N_qp
+                    x = abs2(X_QRPA[P,J+1][qp,nu])
+                    y = abs2(Y_QRPA[P,J+1][qp,nu])
+                    ySum += y
+                    xSum += x
+                end
+                x_QRPA[qp_count] = xSum
+                y_QRPA[qp_count] = ySum
+                J_QRPA[qp_count] = J + 1 
+                P_QRPA[qp_count] = P
+            end
+        end
+    end
+
+    # Determine the reordering of QRPA indices ... ascending in energy ...
+    Sort_Ind = sortperm(E_QRPA_ord)
+
+    # Perform the reordering of QRPA energies & amplitudes ...
+    E_QRPA_ord = E_QRPA_ord[Sort_Ind]
+    x_QRPA = x_QRPA[Sort_Ind]
+    y_QRPA = y_QRPA[Sort_Ind]
+    J_QRPA = J_QRPA[Sort_Ind]
+    P_QRPA = P_QRPA[Sort_Ind]
+
+    # Write out the ordered QRPA energies & norms of amplitudes ...
+    open(Output_Path, "w") do Write_File
+        N_qp = sum(Orb_2qp.N)
+        @printf(Write_File, "%-12s %-12s %-12s %-12s %-12s %-12s\n", "Ind", "E", "J", "P", "|X|^2", "|Y|^2")
+        @inbounds for nu in 1:N_qp
+            P, J = P_QRPA[nu], J_QRPA[nu] - 1
+            if P == 1
+                @printf(Write_File, "%-12d %-12.6f %-12d %-12s %-12.6f %-12.6f\n", nu, E_QRPA_ord[nu], J, "+", x_QRPA[nu], y_QRPA[nu])
+            elseif P == 2
+                @printf(Write_File, "%-12d %-12.6f %-12d %-12s %-12.6f %-12.6f\n", nu, E_QRPA_ord[nu], J, "-", x_QRPA[nu], y_QRPA[nu])
+            end
+        end
+    end
+
+    println("\tExport of QRPA norms of X & Y completed ...")
+
+    return
+end
+
+function QRPA_transitions_export(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::qpOrb2B,Rho::O1B,E_QRPA::Matrix{Vector{ComplexF64}},rB_QRPA::ReducedTransition)
     # Read parameters ...
     Z = Params.Calc.Z
     Output_File = Params.Calc.Path
@@ -278,20 +416,20 @@ function QTDA_transitions_export(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::
     # Define basic constants ...
     hc, pmc2 = 197.326980, 938.272013
 
-    println("\nPreparing export of information on QTDA 1-phonon electromagnetic transitions ...")
-
     # Import the LHO to reference basis transformation matrix ...
     @time C = O1b_import(Params,Orb,"IO/" * Params.Calc.Path * "/Bin/C.bin")
 
     # Calculate proton radii moments rN ...
-        # Case of QTDA ...
+        # Case of QRPA ...
     pR2 = OBDM_rN(Params,2,Rho,C,Orb) 
-    pR4 = OBDM_rN(Params,4,Rho,C,Orb)
+    pR4 = OBDM_rN(Params,4,Rho,C,Orb) 
 
-    # Set the path for "QTDA_Summary.dat" output file ...
-    Output_Path = "IO/" * Output_File * "/QTDA/QTDA_Summary.dat"
+    println("\nPreparing export of information on QRPA 1-phonon electromagnetic transitions ...")
 
-    # Initialize electromagnetic moments ...
+    # Set the path for "QRPA_Summary.dat" output file ...
+    Output_Path = "IO/" * Output_File * "/QRPA/QRPA_Summary.dat"
+
+    # Initialize QRPA electromagnetic moments ...
         # Physical moments ...
     m_n1_phE0, m_0_phE0, m_1_phE0, m_2_phE0, m_3_phE0 = 0.0, 0.0, 0.0, 0.0, 0.0
     m_n1_phE1, m_0_phE1, m_1_phE1, m_2_phE1, m_3_phE1 = 0.0, 0.0, 0.0, 0.0, 0.0
@@ -314,12 +452,11 @@ function QTDA_transitions_export(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::
     TRK_E2 = hc^2 / pmc2 * 50.0 / (8.0 * pi) * Float64(Z) * pR2
     TRK_E3 = hc^2 / pmc2 * 147.0 / (8.0 * pi) * Float64(Z) * pR4
 
-
     # Calculate the electromagnetic moments m_k ...
         # E0 moments ...
         J, P = 0, 1
         @inbounds for nu = 1:Orb_2qp.N[P,J+1]
-            E, phB, isB, ivB = real(E_QTDA[P,J+1][nu]), rB_QTDA.E0.ph[nu], rB_QTDA.E0.is[nu], rB_QTDA.E0.iv[nu]
+            E, phB, isB, ivB = real(E_QRPA[P,J+1][nu]), rB_QRPA.E0.ph[nu], rB_QRPA.E0.is[nu], rB_QRPA.E0.iv[nu]
 
             # Case of m_-1 ...
             if abs(E) > 1e-3
@@ -357,7 +494,7 @@ function QTDA_transitions_export(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::
         # E1 moments ...
         J, P = 1, 2
         @inbounds for nu = 1:Orb_2qp.N[P,J+1]
-            E, phB, isB, ivB = real(E_QTDA[P,J+1][nu]), rB_QTDA.E1.ph[nu], rB_QTDA.E1.is[nu], rB_QTDA.E1.iv[nu]
+            E, phB, isB, ivB = real(E_QRPA[P,J+1][nu]), rB_QRPA.E1.ph[nu], rB_QRPA.E1.is[nu], rB_QRPA.E1.iv[nu]
 
             # Case of m_-1 ...
             if abs(E) > 1e-3
@@ -395,7 +532,7 @@ function QTDA_transitions_export(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::
         # E2 moments ...
         J, P = 2, 1
         @inbounds for nu = 1:Orb_2qp.N[P,J+1]
-            E, phB, isB, ivB = real(E_QTDA[P,J+1][nu]), rB_QTDA.E2.ph[nu], rB_QTDA.E2.is[nu], rB_QTDA.E2.iv[nu]
+            E, phB, isB, ivB = real(E_QRPA[P,J+1][nu]), rB_QRPA.E2.ph[nu], rB_QRPA.E2.is[nu], rB_QRPA.E2.iv[nu]
 
             # Case of m_-1 ...
             if abs(E) > 1e-3
@@ -432,7 +569,7 @@ function QTDA_transitions_export(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::
         # E3 moments ...
         J, P = 3, 2
         @inbounds for nu = 1:Orb_2qp.N[P,J+1]
-            E, phB, isB, ivB = real(E_QTDA[P,J+1][nu]), rB_QTDA.E3.ph[nu], rB_QTDA.E3.is[nu], rB_QTDA.E3.iv[nu]
+            E, phB, isB, ivB = real(E_QRPA[P,J+1][nu]), rB_QRPA.E3.ph[nu], rB_QRPA.E3.is[nu], rB_QRPA.E3.iv[nu]
 
             # Case of m_-1 ...
             if abs(E) > 1e-3
@@ -467,9 +604,9 @@ function QTDA_transitions_export(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::
             m_3_ivE3 += ivm
         end
 
-    # Export the electromagnetic moments & TRK sum-rule values to the summary file ...
+    # Export the moments & TRK sum-rule values to the summary file ...
     Summary =  open(Output_Path, "a")
-        println(Summary, "\nReview of QTDA electrogmagnetic transition moments m_k ...")
+        println(Summary, "\nReview of QRPA electrogmagnetic transition moments m_k ...")
 
         println(Summary, "\n\tE0 physical:")
         @printf(Summary, "m _-1 = %20.8f\te^2 fm^4 / MeV\n", m_n1_phE0)
@@ -561,121 +698,125 @@ function QTDA_transitions_export(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::
 
 
 
-        println(Summary, "\nReview of QTDA physical Thomas-Reiche-Kuhn (TRK) energy-weighted sum-rule values ...\n")
-        @printf(Summary, "S_E0 = %20.8f\te^2 fm^4 MeV\n", TRK_E0)
-        @printf(Summary, "S_E1 = %20.8f\te^2 fm^2 MeV\n", TRK_E1)
-        @printf(Summary, "S_E2 = %20.8f\te^2 fm^4 MeV\n", TRK_E2)
-        @printf(Summary, "S_E3 = %20.8f\te^2 fm^6 MeV\n", TRK_E3)
+        println(Summary, "\nReview of QRPA physical Thomas-Reiche-Kuhn (TRK) energy-weighted sum-rule values ...\n")
+        @printf(Summary, "S_E0 = %20.8f\te^2 fm^4 Mev\n", TRK_E0)
+        @printf(Summary, "S_E1 = %20.8f\te^2 fm^2 Mev\n", TRK_E1)
+        @printf(Summary, "S_E2 = %20.8f\te^2 fm^4 Mev\n", TRK_E2)
+        @printf(Summary, "S_E3 = %20.8f\te^2 fm^6 Mev\n", TRK_E3)
 
     close(Summary)
 
-    println("\tPreparing export of QTDA 1-phonon electromagnetic transition intensities ...")
+    println("\tPreparing export of QRPA 1-phonon electromagnetic transition intensities ...")
 
     # Set the path for export of reduced transition intensities B ...
     Output_File = "IO/" * Params.Calc.Path
 
-    # QTDA E0 export ...
-        open(Output_File * "/QTDA/Transitions/E0/QTDA_E0.dat", "w") do Write_File
+    # QRPA E0 export ...
+            # Standard E0 mode ...
+        open(Output_File * "/QRPA/Transitions/E0/QRPA_E0.dat", "w") do Write_File
             J, P = 0, 1
             @printf(Write_File, "%-20s %-20s %-20s %-20s\n", "E", "B_ph", "B_is", "B_iv")
             @inbounds for nu = 1:Orb_2qp.N[P,J+1]
-                @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f\n", E_QTDA[P,J+1][nu], rB_QTDA.E0.ph[nu], rB_QTDA.E0.is[nu], rB_QTDA.E0.iv[nu])
+                @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f\n", real(E_QRPA[P,J+1][nu]), rB_QRPA.E0.ph[nu], rB_QRPA.E0.is[nu], rB_QRPA.E0.iv[nu])
             end
         end
 
-    # QTDA E1 export ...
+    # QRPA E1 export ...
             # Standard E1 mode ...
-        open(Output_File * "/QTDA/Transitions/E1/QTDA_E1.dat", "w") do Write_File
+        open(Output_File * "/QRPA/Transitions/E1/QRPA_E1.dat", "w") do Write_File
             J, P = 1, 2
             @printf(Write_File, "%-20s %-20s %-20s %-20s\n", "E", "B_ph", "B_is", "B_iv")
             @inbounds for nu = 1:Orb_2qp.N[P,J+1]
-                @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f\n", E_QTDA[P,J+1][nu], rB_QTDA.E1.ph[nu], rB_QTDA.E1.is[nu], rB_QTDA.E1.iv[nu])
+                @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f\n", real(E_QRPA[P,J+1][nu]), rB_QRPA.E1.ph[nu], rB_QRPA.E1.is[nu], rB_QRPA.E1.iv[nu])
             end
         end
             # Full vortical mode ...
-        open(Output_File * "/QTDA/Transitions/E1/QTDA_E1_V.dat", "w") do Write_File
+        open(Output_File * "/QRPA/Transitions/E1/QRPA_E1_V.dat", "w") do Write_File
             J, P = 1, 2
             @printf(Write_File, "%-20s %-20s %-20s %-20s\n", "E", "B_ph", "B_is", "B_iv")
             @inbounds for nu in 1:Orb_2qp.N[P,J+1]
-                @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f\n", E_QTDA[P,J+1][nu], rB_QTDA.E1_V.ph[nu], rB_QTDA.E1_V.is[nu], rB_QTDA.E1_V.iv[nu])
+                @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f\n", real(E_QRPA[P,J+1][nu]), rB_QRPA.E1_V.ph[nu], rB_QRPA.E1_V.is[nu], rB_QRPA.E1_V.iv[nu])
             end
         end
             # Convective vortical mode ...
-        open(Output_File * "/QTDA/Transitions/E1/QTDA_E1_V_conv.dat", "w") do Write_File
+        open(Output_File * "/QRPA/Transitions/E1/QRPA_E1_V_conv.dat", "w") do Write_File
             J, P = 1, 2
             @printf(Write_File, "%-20s %-20s %-20s %-20s\n", "E", "B_ph", "B_is", "B_iv")
             @inbounds for nu in 1:Orb_2qp.N[P,J+1]
-                @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f\n", E_QTDA[P,J+1][nu], rB_QTDA.E1_VC.ph[nu], rB_QTDA.E1_VC.is[nu], rB_QTDA.E1_VC.iv[nu])
+                @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f\n", real(E_QRPA[P,J+1][nu]), rB_QRPA.E1_VC.ph[nu], rB_QRPA.E1_VC.is[nu], rB_QRPA.E1_VC.iv[nu])
             end
         end
             # Spin vortical mode ...
-        open(Output_File * "/QTDA/Transitions/E1/QTDA_E1_V_spin.dat", "w") do Write_File
+        open(Output_File * "/QRPA/Transitions/E1/QRPA_E1_V_spin.dat", "w") do Write_File
             J, P = 1, 2
             @printf(Write_File, "%-20s %-20s %-20s %-20s\n", "E", "B_ph", "B_is", "B_iv")
             @inbounds for nu in 1:Orb_2qp.N[P,J+1]
-                @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f\n", E_QTDA[P,J+1][nu], rB_QTDA.E1_VS.ph[nu], rB_QTDA.E1_VS.is[nu], rB_QTDA.E1_VS.iv[nu])
+                @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f\n", real(E_QRPA[P,J+1][nu]), rB_QRPA.E1_VS.ph[nu], rB_QRPA.E1_VS.is[nu], rB_QRPA.E1_VS.iv[nu])
             end
         end
             # Full toroidal mode ...
-        open(Output_File * "/QTDA/Transitions/E1/QTDA_E1_T.dat", "w") do Write_File
+        open(Output_File * "/QRPA/Transitions/E1/QRPA_E1_T.dat", "w") do Write_File
             J, P = 1, 2
             @printf(Write_File, "%-20s %-20s %-20s %-20s\n", "E", "B_ph", "B_is", "B_iv")
             @inbounds for nu in 1:Orb_2qp.N[P,J+1]
-                @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f\n", E_QTDA[P,J+1][nu], rB_QTDA.E1_T.ph[nu], rB_QTDA.E1_T.is[nu], rB_QTDA.E1_T.iv[nu])
+                @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f\n", real(E_QRPA[P,J+1][nu]), rB_QRPA.E1_T.ph[nu], rB_QRPA.E1_T.is[nu], rB_QRPA.E1_T.iv[nu])
             end
         end
             # Convective toroidal mode ...
-        open(Output_File * "/QTDA/Transitions/E1/QTDA_E1_T_conv.dat", "w") do Write_File
+        open(Output_File * "/QRPA/Transitions/E1/QRPA_E1_T_conv.dat", "w") do Write_File
             J, P = 1, 2
             @printf(Write_File, "%-20s %-20s %-20s %-20s\n", "E", "B_ph", "B_is", "B_iv")
             @inbounds for nu in 1:Orb_2qp.N[P,J+1]
-                @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f\n", E_QTDA[P,J+1][nu], rB_QTDA.E1_TC.ph[nu], rB_QTDA.E1_TC.is[nu], rB_QTDA.E1_TC.iv[nu])
+                @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f\n", real(E_QRPA[P,J+1][nu]), rB_QRPA.E1_TC.ph[nu], rB_QRPA.E1_TC.is[nu], rB_QRPA.E1_TC.iv[nu])
             end
         end
             # Spin toroidal mode ...
-        open(Output_File * "/QTDA/Transitions/E1/QTDA_E1_T_spin.dat", "w") do Write_File
+        open(Output_File * "/QRPA/Transitions/E1/QRPA_E1_T_spin.dat", "w") do Write_File
             J, P = 1, 2
             @printf(Write_File, "%-20s %-20s %-20s %-20s\n", "E", "B_ph", "B_is", "B_iv")
             @inbounds for nu in 1:Orb_2qp.N[P,J+1]
-                @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f\n", E_QTDA[P,J+1][nu], rB_QTDA.E1_TS.ph[nu], rB_QTDA.E1_TS.is[nu], rB_QTDA.E1_TS.iv[nu])
+                @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f\n", real(E_QRPA[P,J+1][nu]), rB_QRPA.E1_TS.ph[nu], rB_QRPA.E1_TS.is[nu], rB_QRPA.E1_TS.iv[nu])
             end
         end
             # Isoscalar electric dipole compression mode ...
-        open(Output_File * "/QTDA/Transitions/E1/QTDA_E1_C.dat", "w") do Write_File
+        open(Output_File * "/QRPA/Transitions/E1/QRPA_E1_C.dat", "w") do Write_File
             J, P = 1, 2
             @printf(Write_File, "%-20s %-20s %-20s %-20s\n", "E", "B_ph", "B_is", "B_iv")
             @inbounds for nu in 1:Orb_2qp.N[P,J+1]
-                @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f\n", E_QTDA[P,J+1][nu], rB_QTDA.E1_C.ph[nu], rB_QTDA.E1_C.is[nu], rB_QTDA.E1_C.iv[nu])
+                @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f\n", real(E_QRPA[P,J+1][nu]), rB_QRPA.E1_C.ph[nu], rB_QRPA.E1_C.is[nu], rB_QRPA.E1_C.iv[nu])
             end
         end
             # NLO LWA electric dipole mode ...
-        open(Output_File * "/QTDA/Transitions/E1/QTDA_E1_NLO_LWA.dat", "w") do Write_File
+        open(Output_File * "/QRPA/Transitions/E1/QRPA_E1_NLO_LWA.dat", "w") do Write_File
             J, P = 1, 2
             @printf(Write_File, "%-20s %-20s %-20s %-20s\n", "E", "B_ph", "B_is", "B_iv")
             @inbounds for nu in 1:Orb_2qp.N[P,J+1]
-                @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f\n", E_QTDA[P,J+1][nu], rB_QTDA.E1_NLO_LWA.ph[nu], rB_QTDA.E1_NLO_LWA.is[nu], rB_QTDA.E1_NLO_LWA.iv[nu])
+                @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f\n", real(E_QRPA[P,J+1][nu]), rB_QRPA.E1_NLO_LWA.ph[nu], rB_QRPA.E1_NLO_LWA.is[nu], rB_QRPA.E1_NLO_LWA.iv[nu])
             end
         end
 
-    # QTDA E2 export ...
-        open(Output_File * "/QTDA/Transitions/E2/QTDA_E2.dat", "w") do Write_File
+
+    # QRPA E2 export ...
+            # Standard E2 mode ...
+        open(Output_File * "/QRPA/Transitions/E2/QRPA_E2.dat", "w") do Write_File
             J, P = 2, 1
             @printf(Write_File, "%-20s %-20s %-20s %-20s\n", "E", "B_ph", "B_is", "B_iv")
             @inbounds for nu = 1:Orb_2qp.N[P,J+1]
-                @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f\n", E_QTDA[P,J+1][nu], rB_QTDA.E2.ph[nu], rB_QTDA.E2.is[nu], rB_QTDA.E2.iv[nu])
+                @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f\n", real(E_QRPA[P,J+1][nu]), rB_QRPA.E2.ph[nu], rB_QRPA.E2.is[nu], rB_QRPA.E2.iv[nu])
             end
         end
 
-    # QTDA E3 export ...
-        open(Output_File * "/QTDA/Transitions/E3/QTDA_E3.dat", "w") do Write_File
+    # QRPA E3 export ...
+            # Standard E3 mode ...
+        open(Output_File * "/QRPA/Transitions/E3/QRPAE3.dat", "w") do Write_File
             J, P = 3, 2
             @printf(Write_File, "%-20s %-20s %-20s %-20s\n", "E", "B_ph", "B_is", "B_iv")
             @inbounds for nu = 1:Orb_2qp.N[P,J+1]
-                @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f\n", E_QTDA[P,J+1][nu], rB_QTDA.E3.ph[nu], rB_QTDA.E3.is[nu], rB_QTDA.E3.iv[nu])
+                @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f\n", real(E_QRPA[P,J+1][nu]), rB_QRPA.E3.ph[nu], rB_QRPA.E3.is[nu], rB_QRPA.E3.iv[nu])
             end
         end
 
-    println("\t\tExport of information on QTDA 1-phonon electromagnetic transitions completed ...")
+    println("\t\tExport of information on QRPA 1-phonon electromagnetic transitions completed ...")
 
     return
 end

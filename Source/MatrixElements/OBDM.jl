@@ -16,7 +16,7 @@ function OBDM_export(Params::Parameters,Orb::Vector{Orb1B},Summary_File::String,
     # Evaluate nucleon densities on a grid ...
     Rho_grid = OBDM_radial_density_grid(Params,Rho,C,Orb)
 
-    # Evaluate charge density on a grid & calculte anomalous magnetic moment correction ...
+    # Evaluate charge density on a grid & calculate anomalous magnetic moment correction ...
     Rho_grid, kR2 = OBDM_radial_chdensity_grid(Params,Rho,C,Orb,R_CMS,Rho_grid[1],Rho_grid[2],Rho_grid[3])
 
     # Calculate radii from the radial densities ...
@@ -48,7 +48,7 @@ function OBDM_radial_cms(Params::Parameters,Rho::O1B,C::O1B,Orb::Vector{Orb1B})
     nRadial_r1, nRadial_r2 = zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max)
 
     # Transform Radial Moment matrices to the reference basis ...
-    @inbounds for a in 1:a_max
+    @inbounds Threads.@threads for a in 1:a_max
         l_a = Orb[a].l
         j_a = Orb[a].j
         @inbounds for b in 1:a_max
@@ -227,9 +227,14 @@ function OBDM_radial_radii(r_grid::Vector{Float64},pRho_grid::Vector{Float64},nR
 end
 
 function OBDM_radial_density_export(Densities_File::String,Rho_grid::Vector{Vector{Float64}})
-    # Export radial grid & densities to .dat file ...
+    # Export radial grid & densities to file ...
+    r_grid, pRho, nRho, chRho = Rho_grid
+    N = minimum((length(r_grid), length(pRho), length(nRho), length(chRho)))
     open(Densities_File, "w") do Export_File
-        writedlm(Export_File, hcat(Rho_grid[1], Rho_grid[2], Rho_grid[3], Rho_grid[4]), "\t")
+        @printf(Export_File, "%-14s %-14s %-14s %-14s\n", "r", "pRho", "nRho", "chRho")
+        @inbounds for i in 1:N
+            @printf(Export_File, "%-14.8f %-14.8f %-14.8f %-14.8f\n",r_grid[i], pRho[i], nRho[i], chRho[i])
+        end
     end
 
     return
@@ -325,4 +330,72 @@ end
     rho = x / (r * sqrt(pi)) * ((exp(-((r-x)/r_p)^2) - exp(-((r+x)/r_p)^2)) / r_p -
                                 (exp(-((r-x)/r_m)^2) - exp(-((r+x)/r_m)^2)) / r_m)
     return rho
+end
+
+function OBDM_rN(Params::Parameters,N::Int64,Rho::O1B,C::O1B,Orb::Vector{Orb1B})
+    # Read parameters ...
+    hw, A = Params.Calc.hw, Float64(Params.Calc.A)
+    N_max = Params.Calc.Nmax
+    a_max = div((N_max + 1)*(N_max + 2),2)
+
+    # Basic constants ...
+    hc, m_p = 197.326980, 938.272013
+    nu_proton = 0.5 * m_p * hw / hc^2
+
+    # Preallocate grid ...
+    r1, r2 = 0.0 + 1e-8, 2.5 * 1.2 * A^(1/3)
+    N_Sampling = 2^13 + 1 # 8192 + 1 grid points ...
+    r_grid, pRho_grid = collect(range(r1, stop = r2, length = N_Sampling)), zeros(Float64,N_Sampling)
+
+    # Evaluate the radial grid ...
+    @inbounds Threads.@threads for i in 1:N_Sampling
+        r = r_grid[i]
+        pSum = 0.0
+        @inbounds for a in 1:a_max
+            l_a, j_a = Orb[a].l, Orb[a].j
+            pRad = 0.0
+            @inbounds for k in 1:a_max
+                l_k, j_k, n_k = Orb[k].l, Orb[k].j, Orb[k].n
+                if (j_a == j_k) && (l_a == l_k)
+                    pPsi = Psi_rad_LHO(r,n_k,l_k,nu_proton) * C.p[k,a]
+                    pRad += pPsi
+                end
+            end
+            pSum += Float64(j_a + 1) * Rho.p[a,a] * pRad^2
+        end
+        pRho_grid[i] = pSum / (4.0 * π)
+    end
+
+    rN = integrate_trap(r_grid, r_grid.^(N+2) .* pRho_grid) / integrate_trap(r_grid, r_grid.^2 .* pRho_grid)
+
+    return rN
+end
+function OBDM_chR2(Params::Parameters,Orb::Vector{Orb1B},C::O1B,Rho::O1B)
+    # Read parameters ...
+    Z, N = Float64(Params.Calc.Z), Float64(Params.Calc.A - Params.Calc.Z)
+
+    # Calculation of 1-body & 2-body CMS...
+    if Params.Calc.CMS == "CMS1+2B" || Params.Calc.CMS  == "CMS2B"
+        R_CMS = OBDM_radial_cms(Params,Rho,C,Orb)
+    else
+        R_CMS = [0.0, 0.0, 0.0, 0.0]
+    end
+
+    println("\nCalculating the charge-radius squared chR2 ...")
+
+    # Evaluate nucleon densities on a grid ...
+    Rho_grid = OBDM_radial_density_grid(Params,Rho,C,Orb)
+
+        #Evaluate charge density on a grid & calculate anomalous magnetic moment correction ...
+        #Rho_grid, kR2 = OBDM_radial_chdensity_grid(Params,Rho,C,Orb,R_CMS,Rho_grid[1],Rho_grid[2],Rho_grid[3])
+
+    # Calculate radii from the radial densities ...
+    pR2, nR2, chR2 = OBDM_radial_radii(Rho_grid[1],Rho_grid[2],Rho_grid[3],Rho_grid[2])
+
+    # Calculate the chR2 charge-radius squared
+    chR2 = pR2 + R_CMS[1] + R_CMS[2] - 0.106 * N / Z + 0.8414 - 0.143
+
+    println("\tThe charge-radius squared chR2 computed ...")
+
+    return chR2
 end

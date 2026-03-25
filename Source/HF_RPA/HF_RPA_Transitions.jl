@@ -1,309 +1,607 @@
 function HF_RPA_rM(Params::Parameters,N_nu::Matrix{Int64},Orb_Phonon::Matrix{Vector{Int64}},Phonon::Vector{PhState},Particle::pnSVector,Hole::pnSVector,X_TDA::Matrix{Matrix{Float64}},X_RPA::Matrix{Matrix{ComplexF64}},Y_RPA::Matrix{Matrix{ComplexF64}},TrOp::Tr1B)
-    # Read calculation parameters ...
-    Orthogon = Params.Calc.RPA.Ortho
-
+    # Evaluate the reduced transition matrix elements M^lambda ...
     println("\nCalculating reduced transition matrix elements rM ...")
 
-    # E0
-    J = 0
-    P = 1
+    # Case of E0 ...
+    J, P = 0, 1
     N_ph = N_nu[J+1,P]
-    prME0_TDA = Vector{ComplexF64}(undef,N_ph)
-    prME0_RPA = Vector{ComplexF64}(undef,N_ph)
-    nrME0_TDA = Vector{ComplexF64}(undef,N_ph)
-    nrME0_RPA = Vector{ComplexF64}(undef,N_ph)
-    @inbounds for nu in 1:N_ph
-        pME0Sum_TDA = ComplexF64(0.0)
-        pME0Sum_RPA = ComplexF64(0.0)
-        nME0Sum_TDA = ComplexF64(0.0)
-        nME0Sum_RPA = ComplexF64(0.0)
-        @inbounds  for Ind_ph in 1:N_ph
-            ph = Orb_Phonon[J+1,P][Ind_ph]
-            p, h = Phonon[ph].p, Phonon[ph].h
-            t_ph = Phonon[ph].tz
+
+    # Initialize TDA matrix elements ...
+    prM_E0_TDA = Vector{ComplexF64}(undef,N_ph)
+    nrM_E0_TDA = Vector{ComplexF64}(undef,N_ph)
+
+    # Initialize RPA matrix elements ...
+    prM_E0_RPA = Vector{ComplexF64}(undef,N_ph)
+    nrM_E0_RPA = Vector{ComplexF64}(undef,N_ph)
+
+    # Evaluate TDA & RPA E0 matrix elements ...
+    @inbounds Threads.@threads for nu in 1:N_ph
+
+        pM_E0Sum_TDA = ComplexF64(0.0)
+        nM_E0Sum_TDA = ComplexF64(0.0)
+
+        pM_E0Sum_RPA = ComplexF64(0.0)
+        nM_E0Sum_RPA = ComplexF64(0.0)
+
+        @inbounds for ph in 1:N_ph
+            i_ph = Orb_Phonon[J+1,P][ph]
+            p, h, t_ph = Phonon[i_ph].p, Phonon[i_ph].h, Phonon[i_ph].tz
+
             if t_ph == -1
-                a_p = Particle.p[p].a
-                a_h = Hole.p[h].a
+                a_p, a_h = Particle.p[p].a, Hole.p[h].a
+
+                pM_E0_TDA = ComplexF64(TrOp.E0.p[a_p,a_h] * X_TDA[J+1,P][ph,nu])
+                pM_E0Sum_TDA += pM_E0_TDA
+
+                pM_E0_RPA = ComplexF64(TrOp.E0.p[a_p,a_h]) * (X_RPA[J+1,P][ph,nu] + Y_RPA[J+1,P][ph,nu])
+                pM_E0Sum_RPA += pM_E0_RPA
+
             elseif t_ph == 1
-                a_p = Particle.n[p].a
-                a_h = Hole.n[h].a
+                a_p, a_h = Particle.n[p].a, Hole.n[h].a
+
+                nM_E0_TDA = ComplexF64(TrOp.E0.n[a_p,a_h] * X_TDA[J+1,P][ph,nu])
+                nM_E0Sum_TDA += nM_E0_TDA
+
+                nM_E0_RPA = ComplexF64(TrOp.E0.n[a_p,a_h]) * (X_RPA[J+1,P][ph,nu] + Y_RPA[J+1,P][ph,nu])
+                nM_E0Sum_RPA += nM_E0_RPA
+
             end
 
-            if t_ph == -1
-                ME0_TDA = TrOp.E0.p[a_p,a_h] * X_TDA[J+1,P][Ind_ph,nu]
-                pME0Sum_TDA += ME0_TDA
-
-                ME0_RPA = TrOp.E0.p[a_p,a_h] * (X_RPA[J+1,P][Ind_ph,nu] + Y_RPA[J+1,P][Ind_ph,nu])
-                pME0Sum_RPA += ME0_RPA
-            end
-
-            if t_ph == 1
-                ME0_TDA = TrOp.E0.n[a_p,a_h] * X_TDA[J+1,P][Ind_ph,nu]
-                nME0Sum_TDA += ME0_TDA
-
-                ME0_RPA = TrOp.E0.n[a_p,a_h] * (X_RPA[J+1,P][Ind_ph,nu] + Y_RPA[J+1,P][Ind_ph,nu])
-                nME0Sum_RPA += ME0_RPA
-            end
 
         end
-        prME0_TDA[nu] = pME0Sum_TDA
-        nrME0_TDA[nu] = nME0Sum_TDA
-        prME0_RPA[nu] = pME0Sum_RPA
-        nrME0_RPA[nu] = nME0Sum_RPA
+        prM_E0_TDA[nu] = pM_E0Sum_TDA
+        nrM_E0_TDA[nu] = nM_E0Sum_TDA
+
+        prM_E0_RPA[nu] = pM_E0Sum_RPA
+        nrM_E0_RPA[nu] = nM_E0Sum_RPA
     end
 
-    # E1
-    J = 1
-    P = 2
+    # Case of E1 ...
+    J, P = 1, 2
     N_ph = N_nu[J+1,P]
-    prME1_TDA = Vector{ComplexF64}(undef,N_ph)
-    prME1_RPA = Vector{ComplexF64}(undef,N_ph)
-    nrME1_TDA = Vector{ComplexF64}(undef,N_ph)
-    nrME1_RPA = Vector{ComplexF64}(undef,N_ph)
-    @inbounds  for nu in 1:N_ph
-        if (Orthogon == true && nu != 1) || (Orthogon == false)
-            pME1Sum_TDA = ComplexF64(0.0)
-            pME1Sum_RPA = ComplexF64(0.0)
-            nME1Sum_TDA = ComplexF64(0.0)
-            nME1Sum_RPA = ComplexF64(0.0)
-            @inbounds  for Ind_ph in 1:N_ph
-                ph = Orb_Phonon[J+1,P][Ind_ph]
-                p, h = Phonon[ph].p, Phonon[ph].h
-                t_ph = Phonon[ph].tz
-                if t_ph == -1
-                    a_p = Particle.p[p].a
-                    a_h = Hole.p[h].a
-                elseif t_ph == 1
-                    a_p = Particle.n[p].a
-                    a_h = Hole.n[h].a
-                end
 
-                if t_ph == -1
-                    ME1_TDA = TrOp.E1.p[a_p,a_h] * X_TDA[J+1,P][Ind_ph,nu] * -1.0
-                    pME1Sum_TDA += ME1_TDA
+    # Initialize TDA matrix elements ...
+    prM_E1_TDA = Vector{ComplexF64}(undef,N_ph)
+    prM_E1VC_TDA = Vector{ComplexF64}(undef,N_ph)
+    prM_E1VS_TDA = Vector{ComplexF64}(undef,N_ph)
+    prM_E1TC_TDA = Vector{ComplexF64}(undef,N_ph)
+    prM_E1TS_TDA = Vector{ComplexF64}(undef,N_ph)
+    prM_E1sTC_TDA = Vector{ComplexF64}(undef,N_ph)
+    prM_E1sTS_TDA = Vector{ComplexF64}(undef,N_ph)
+    prM_E1C_TDA = Vector{ComplexF64}(undef,N_ph)
+    prM_E1sC_TDA = Vector{ComplexF64}(undef,N_ph)
 
-                    ME1_RPA = TrOp.E1.p[a_p,a_h] * (-1.0 * X_RPA[J+1,P][Ind_ph,nu] + Y_RPA[J+1,P][Ind_ph,nu])
-                    pME1Sum_RPA += ME1_RPA
-                end
+    nrM_E1_TDA = Vector{ComplexF64}(undef,N_ph)
+    nrM_E1VC_TDA = Vector{ComplexF64}(undef,N_ph)
+    nrM_E1VS_TDA = Vector{ComplexF64}(undef,N_ph)
+    nrM_E1TC_TDA = Vector{ComplexF64}(undef,N_ph)
+    nrM_E1TS_TDA = Vector{ComplexF64}(undef,N_ph)
+    nrM_E1sTC_TDA = Vector{ComplexF64}(undef,N_ph)
+    nrM_E1sTS_TDA = Vector{ComplexF64}(undef,N_ph)
+    nrM_E1C_TDA = Vector{ComplexF64}(undef,N_ph)
+    nrM_E1sC_TDA = Vector{ComplexF64}(undef,N_ph)
 
-                if t_ph == 1
-                    ME1_TDA = TrOp.E1.n[a_p,a_h] * X_TDA[J+1,P][Ind_ph,nu] * -1.0
-                    nME1Sum_TDA += ME1_TDA
+    # Initialize RPA matrix elements ...
+    prM_E1_RPA = Vector{ComplexF64}(undef,N_ph)
+    prM_E1VC_RPA = Vector{ComplexF64}(undef,N_ph)
+    prM_E1VS_RPA = Vector{ComplexF64}(undef,N_ph)
+    prM_E1TC_RPA = Vector{ComplexF64}(undef,N_ph)
+    prM_E1TS_RPA = Vector{ComplexF64}(undef,N_ph)
+    prM_E1sTC_RPA = Vector{ComplexF64}(undef,N_ph)
+    prM_E1sTS_RPA = Vector{ComplexF64}(undef,N_ph)
+    prM_E1C_RPA = Vector{ComplexF64}(undef,N_ph)
+    prM_E1sC_RPA = Vector{ComplexF64}(undef,N_ph)
 
-                    ME1_RPA = TrOp.E1.n[a_p,a_h] * (-1.0 * X_RPA[J+1,P][Ind_ph,nu] + Y_RPA[J+1,P][Ind_ph,nu])
-                    nME1Sum_RPA += ME1_RPA
-                end
+    nrM_E1_RPA = Vector{ComplexF64}(undef,N_ph)
+    nrM_E1VC_RPA = Vector{ComplexF64}(undef,N_ph)
+    nrM_E1VS_RPA = Vector{ComplexF64}(undef,N_ph)
+    nrM_E1TC_RPA = Vector{ComplexF64}(undef,N_ph)
+    nrM_E1TS_RPA = Vector{ComplexF64}(undef,N_ph)
+    nrM_E1sTC_RPA = Vector{ComplexF64}(undef,N_ph)
+    nrM_E1sTS_RPA = Vector{ComplexF64}(undef,N_ph)
+    nrM_E1C_RPA = Vector{ComplexF64}(undef,N_ph)
+    nrM_E1sC_RPA = Vector{ComplexF64}(undef,N_ph)
 
-            end
-            prME1_TDA[nu] = pME1Sum_TDA
-            nrME1_TDA[nu] = nME1Sum_TDA
-            prME1_RPA[nu] = pME1Sum_RPA
-            nrME1_RPA[nu] = nME1Sum_RPA
-        end
-    end
+    # Evaluate TDA & RPA E1 matrix elements ...
+    @inbounds Threads.@threads for nu in 1:N_ph
+        pM_E1Sum_TDA = ComplexF64(0.0)
+        pM_E1VCSum_TDA = ComplexF64(0.0)
+        pM_E1VSSum_TDA = ComplexF64(0.0)
+        pM_E1TCSum_TDA = ComplexF64(0.0)
+        pM_E1TSSum_TDA = ComplexF64(0.0)
+        pM_E1sTCSum_TDA = ComplexF64(0.0)
+        pM_E1sTSSum_TDA = ComplexF64(0.0)
+        pM_E1CSum_TDA = ComplexF64(0.0)
+        pM_E1sCSum_TDA = ComplexF64(0.0)
 
-    # E2
-    J = 2
-    P = 1
-    N_ph = N_nu[J+1,P]
-    prME2_TDA = Vector{ComplexF64}(undef,N_ph)
-    prME2_RPA = Vector{ComplexF64}(undef,N_ph)
-    nrME2_TDA = Vector{ComplexF64}(undef,N_ph)
-    nrME2_RPA = Vector{ComplexF64}(undef,N_ph)
-    @inbounds  for nu in 1:N_ph
-        pME2Sum_TDA = ComplexF64(0.0)
-        pME2Sum_RPA = ComplexF64(0.0)
-        nME2Sum_TDA = ComplexF64(0.0)
-        nME2Sum_RPA = ComplexF64(0.0)
-        @inbounds  for Ind_ph in 1:N_ph
-            ph = Orb_Phonon[J+1,P][Ind_ph]
-            p, h = Phonon[ph].p, Phonon[ph].h
-            t_ph = Phonon[ph].tz
+        nM_E1Sum_TDA = ComplexF64(0.0)
+        nM_E1VCSum_TDA = ComplexF64(0.0)
+        nM_E1VSSum_TDA = ComplexF64(0.0)
+        nM_E1TCSum_TDA = ComplexF64(0.0)
+        nM_E1TSSum_TDA = ComplexF64(0.0)
+        nM_E1sTCSum_TDA = ComplexF64(0.0)
+        nM_E1sTSSum_TDA = ComplexF64(0.0)
+        nM_E1CSum_TDA = ComplexF64(0.0)
+        nM_E1sCSum_TDA = ComplexF64(0.0)
+
+        pM_E1Sum_RPA = ComplexF64(0.0)
+        pM_E1VCSum_RPA = ComplexF64(0.0)
+        pM_E1VSSum_RPA = ComplexF64(0.0)
+        pM_E1TCSum_RPA = ComplexF64(0.0)
+        pM_E1TSSum_RPA = ComplexF64(0.0)
+        pM_E1sTCSum_RPA = ComplexF64(0.0)
+        pM_E1sTSSum_RPA = ComplexF64(0.0)
+        pM_E1CSum_RPA = ComplexF64(0.0)
+        pM_E1sCSum_RPA = ComplexF64(0.0)
+
+        nM_E1Sum_RPA = ComplexF64(0.0)
+        nM_E1VCSum_RPA = ComplexF64(0.0)
+        nM_E1VSSum_RPA = ComplexF64(0.0)
+        nM_E1TCSum_RPA = ComplexF64(0.0)
+        nM_E1TSSum_RPA = ComplexF64(0.0)
+        nM_E1sTCSum_RPA = ComplexF64(0.0)
+        nM_E1sTSSum_RPA = ComplexF64(0.0)
+        nM_E1CSum_RPA = ComplexF64(0.0)
+        nM_E1sCSum_RPA = ComplexF64(0.0)
+
+        @inbounds for ph in 1:N_ph
+            i_ph = Orb_Phonon[J+1,P][ph]
+            p, h, t_ph = Phonon[i_ph].p, Phonon[i_ph].h, Phonon[i_ph].tz
+
             if t_ph == -1
-                a_p = Particle.p[p].a
-                a_h = Hole.p[h].a
+                a_p, a_h = Particle.p[p].a, Hole.p[h].a
+                    
+                pM_E1_TDA = ComplexF64(-1.0 * TrOp.E1.p[a_p,a_h] * X_TDA[J+1,P][ph,nu])
+                pM_E1VCME_TDA = ComplexF64(-1.0 * TrOp.E1_VC.p[a_p,a_h] * X_TDA[J+1,P][ph,nu])
+                pM_E1VSME_TDA = ComplexF64(-1.0 * TrOp.E1_VS.p[a_p,a_h] * X_TDA[J+1,P][ph,nu])
+                pM_E1TCME_TDA = ComplexF64(-1.0 * TrOp.E1_TC.p[a_p,a_h] * X_TDA[J+1,P][ph,nu])
+                pM_E1TSME_TDA = ComplexF64(-1.0 * TrOp.E1_TS.p[a_p,a_h] * X_TDA[J+1,P][ph,nu])
+                pM_E1sTCME_TDA = ComplexF64(-1.0 * TrOp.E1_sTC.p[a_p,a_h] * X_TDA[J+1,P][ph,nu])
+                pM_E1sTSME_TDA = ComplexF64(-1.0 * TrOp.E1_sTS.p[a_p,a_h] * X_TDA[J+1,P][ph,nu])
+                pM_E1CME_TDA = ComplexF64(-1.0 * TrOp.E1_C.p[a_p,a_h] * X_TDA[J+1,P][ph,nu])
+                pM_E1sCME_TDA = ComplexF64(-1.0 * TrOp.E1_sC.p[a_p,a_h] * X_TDA[J+1,P][ph,nu])
+
+                pM_E1Sum_TDA += pM_E1_TDA
+                pM_E1VCSum_TDA += pM_E1VCME_TDA
+                pM_E1VSSum_TDA += pM_E1VSME_TDA
+                pM_E1TCSum_TDA += pM_E1TCME_TDA
+                pM_E1TSSum_TDA += pM_E1TSME_TDA
+                pM_E1sTCSum_TDA += pM_E1sTCME_TDA
+                pM_E1sTSSum_TDA += pM_E1sTSME_TDA
+                pM_E1CSum_TDA += pM_E1CME_TDA
+                pM_E1sCSum_TDA += pM_E1sCME_TDA
+
+                pM_E1_RPA = ComplexF64(TrOp.E1.p[a_p,a_h]) * (-1.0 * X_RPA[J+1,P][ph,nu] + Y_RPA[J+1,P][ph,nu])
+                pM_E1VCME_RPA = ComplexF64(-1.0 * TrOp.E1_VC.p[a_p,a_h]) * (-1.0 * X_RPA[J+1,P][ph,nu] + Y_RPA[J+1,P][ph,nu])
+                pM_E1VSME_RPA = ComplexF64(-1.0 * TrOp.E1_VS.p[a_p,a_h]) * (-1.0 * X_RPA[J+1,P][ph,nu] + Y_RPA[J+1,P][ph,nu])
+                pM_E1TCME_RPA = ComplexF64(-1.0 * TrOp.E1_TC.p[a_p,a_h]) * (-1.0 * X_RPA[J+1,P][ph,nu] + Y_RPA[J+1,P][ph,nu])
+                pM_E1TSME_RPA = ComplexF64(-1.0 * TrOp.E1_TS.p[a_p,a_h]) * (-1.0 * X_RPA[J+1,P][ph,nu] + Y_RPA[J+1,P][ph,nu])
+                pM_E1sTCME_RPA = ComplexF64(-1.0 * TrOp.E1_sTC.p[a_p,a_h]) * (-1.0 * X_RPA[J+1,P][ph,nu] + Y_RPA[J+1,P][ph,nu])
+                pM_E1sTSME_RPA = ComplexF64(-1.0 * TrOp.E1_sTS.p[a_p,a_h]) * (-1.0 * X_RPA[J+1,P][ph,nu] + Y_RPA[J+1,P][ph,nu])
+                pM_E1CME_RPA = ComplexF64(-1.0 * TrOp.E1_C.p[a_p,a_h]) * (-1.0 * X_RPA[J+1,P][ph,nu] + Y_RPA[J+1,P][ph,nu])
+                pM_E1sCME_RPA = ComplexF64(-1.0 * TrOp.E1_sC.p[a_p,a_h]) * (-1.0 * X_RPA[J+1,P][ph,nu] + Y_RPA[J+1,P][ph,nu])
+
+                pM_E1Sum_RPA += pM_E1_RPA
+                pM_E1VCSum_RPA += pM_E1VCME_RPA
+                pM_E1VSSum_RPA += pM_E1VSME_RPA
+                pM_E1TCSum_RPA += pM_E1TCME_RPA
+                pM_E1TSSum_RPA += pM_E1TSME_RPA
+                pM_E1sTCSum_RPA += pM_E1sTCME_RPA
+                pM_E1sTSSum_RPA += pM_E1sTSME_RPA
+                pM_E1CSum_RPA += pM_E1CME_RPA
+                pM_E1sCSum_RPA += pM_E1sCME_RPA
+
             elseif t_ph == 1
-                a_p = Particle.n[p].a
-                a_h = Hole.n[h].a
-            end
+                a_p, a_h = Particle.n[p].a, Hole.n[h].a
 
-            if t_ph == -1
-                ME2_TDA = TrOp.E2.p[a_p,a_h] * X_TDA[J+1,P][Ind_ph,nu]
-                pME2Sum_TDA += ME2_TDA
+                nM_E1_TDA = ComplexF64(-1.0 * TrOp.E1.n[a_p,a_h] * X_TDA[J+1,P][ph,nu])
+                nM_E1VCME_TDA = ComplexF64(-1.0 * TrOp.E1_VC.n[a_p,a_h] * X_TDA[J+1,P][ph,nu])
+                nM_E1VSME_TDA = ComplexF64(-1.0 * TrOp.E1_VS.n[a_p,a_h] * X_TDA[J+1,P][ph,nu])
+                nM_E1TCME_TDA = ComplexF64(-1.0 * TrOp.E1_TC.n[a_p,a_h] * X_TDA[J+1,P][ph,nu])
+                nM_E1TSME_TDA = ComplexF64(-1.0 * TrOp.E1_TS.n[a_p,a_h] * X_TDA[J+1,P][ph,nu])
+                nM_E1sTCME_TDA = ComplexF64(-1.0 * TrOp.E1_sTC.n[a_p,a_h] * X_TDA[J+1,P][ph,nu])
+                nM_E1sTSME_TDA = ComplexF64(-1.0 * TrOp.E1_sTS.n[a_p,a_h] * X_TDA[J+1,P][ph,nu])
+                nM_E1CME_TDA = ComplexF64(-1.0 * TrOp.E1_C.n[a_p,a_h] * X_TDA[J+1,P][ph,nu])
+                nM_E1sCME_TDA = ComplexF64(-1.0 * TrOp.E1_sC.n[a_p,a_h] * X_TDA[J+1,P][ph,nu])
 
-                ME2_RPA = TrOp.E2.p[a_p,a_h] * (X_RPA[J+1,P][Ind_ph,nu] + Y_RPA[J+1,P][Ind_ph,nu])
-                pME2Sum_RPA += ME2_RPA
-            end
+                nM_E1Sum_TDA += nM_E1_TDA
+                nM_E1VCSum_TDA += nM_E1VCME_TDA
+                nM_E1VSSum_TDA += nM_E1VSME_TDA
+                nM_E1TCSum_TDA += nM_E1TCME_TDA
+                nM_E1TSSum_TDA += nM_E1TSME_TDA
+                nM_E1sTCSum_TDA += nM_E1sTCME_TDA
+                nM_E1sTSSum_TDA += nM_E1sTSME_TDA
+                nM_E1CSum_TDA += nM_E1CME_TDA
+                nM_E1sCSum_TDA += nM_E1sCME_TDA
 
-            if t_ph == 1
-                ME2_TDA = TrOp.E2.n[a_p,a_h] * X_TDA[J+1,P][Ind_ph,nu]
-                nME2Sum_TDA += ME2_TDA
+                nM_E1_RPA = ComplexF64(TrOp.E1.n[a_p,a_h]) * (-1.0 * X_RPA[J+1,P][ph,nu] + Y_RPA[J+1,P][ph,nu])
+                nM_E1VCME_RPA = ComplexF64(-1.0 * TrOp.E1_VC.n[a_p,a_h]) * (-1.0 * X_RPA[J+1,P][ph,nu] + Y_RPA[J+1,P][ph,nu])
+                nM_E1VSME_RPA = ComplexF64(-1.0 * TrOp.E1_VS.n[a_p,a_h])* (-1.0 * X_RPA[J+1,P][ph,nu] + Y_RPA[J+1,P][ph,nu])
+                nM_E1TCME_RPA = ComplexF64(-1.0 * TrOp.E1_TC.n[a_p,a_h]) * (-1.0 * X_RPA[J+1,P][ph,nu] + Y_RPA[J+1,P][ph,nu])
+                nM_E1TSME_RPA = ComplexF64(-1.0 * TrOp.E1_TS.n[a_p,a_h]) * (-1.0 * X_RPA[J+1,P][ph,nu] + Y_RPA[J+1,P][ph,nu])
+                nM_E1sTCME_RPA = ComplexF64(-1.0 * TrOp.E1_sTC.n[a_p,a_h]) * (-1.0 * X_RPA[J+1,P][ph,nu] + Y_RPA[J+1,P][ph,nu])
+                nM_E1sTSME_RPA = ComplexF64(-1.0 * TrOp.E1_sTS.n[a_p,a_h]) * (-1.0 * X_RPA[J+1,P][ph,nu] + Y_RPA[J+1,P][ph,nu])
+                nM_E1CME_RPA = ComplexF64(-1.0 * TrOp.E1_C.n[a_p,a_h]) * (-1.0 * X_RPA[J+1,P][ph,nu] + Y_RPA[J+1,P][ph,nu])
+                nM_E1sCME_RPA = ComplexF64(-1.0 * TrOp.E1_sC.n[a_p,a_h]) * (-1.0 * X_RPA[J+1,P][ph,nu] + Y_RPA[J+1,P][ph,nu])
 
-                ME2_RPA = TrOp.E2.n[a_p,a_h] * (X_RPA[J+1,P][Ind_ph,nu] + Y_RPA[J+1,P][Ind_ph,nu])
-                nME2Sum_RPA += ME2_RPA
+                nM_E1Sum_RPA += nM_E1_RPA
+                nM_E1VCSum_RPA += nM_E1VCME_RPA
+                nM_E1VSSum_RPA += nM_E1VSME_RPA
+                nM_E1TCSum_RPA += nM_E1TCME_RPA
+                nM_E1TSSum_RPA += nM_E1TSME_RPA
+                nM_E1sTCSum_RPA += nM_E1sTCME_RPA
+                nM_E1sTSSum_RPA += nM_E1sTSME_RPA
+                nM_E1CSum_RPA += nM_E1CME_RPA
+                nM_E1sCSum_RPA += nM_E1sCME_RPA
+
             end
 
         end
-        prME2_TDA[nu] = pME2Sum_TDA
-        nrME2_TDA[nu] = nME2Sum_TDA
-        prME2_RPA[nu] = pME2Sum_RPA
-        nrME2_RPA[nu] = nME2Sum_RPA
+
+        prM_E1_TDA[nu] = pM_E1Sum_TDA
+        prM_E1VC_TDA[nu] = pM_E1VCSum_TDA
+        prM_E1VS_TDA[nu] = pM_E1VSSum_TDA
+        prM_E1TC_TDA[nu] = pM_E1TCSum_TDA
+        prM_E1TS_TDA[nu] = pM_E1TSSum_TDA
+        prM_E1sTC_TDA[nu] = pM_E1sTCSum_TDA
+        prM_E1sTS_TDA[nu] = pM_E1sTSSum_TDA
+        prM_E1C_TDA[nu] = pM_E1CSum_TDA
+        prM_E1sC_TDA[nu] = pM_E1sCSum_TDA
+
+        nrM_E1_TDA[nu] = nM_E1Sum_TDA
+        nrM_E1VC_TDA[nu] = nM_E1VCSum_TDA
+        nrM_E1VS_TDA[nu] = nM_E1VSSum_TDA
+        nrM_E1TC_TDA[nu] = nM_E1TCSum_TDA
+        nrM_E1TS_TDA[nu] = nM_E1TSSum_TDA
+        nrM_E1sTC_TDA[nu] = nM_E1sTCSum_TDA
+        nrM_E1sTS_TDA[nu] = nM_E1sTSSum_TDA
+        nrM_E1C_TDA[nu] = nM_E1CSum_TDA
+        nrM_E1sC_TDA[nu] = nM_E1sCSum_TDA
+
+        prM_E1_RPA[nu] = pM_E1Sum_RPA
+        prM_E1VC_RPA[nu] = pM_E1VCSum_RPA
+        prM_E1VS_RPA[nu] = pM_E1VSSum_RPA
+        prM_E1TC_RPA[nu] = pM_E1TCSum_RPA
+        prM_E1TS_RPA[nu] = pM_E1TSSum_RPA
+        prM_E1sTC_RPA[nu] = pM_E1sTCSum_RPA
+        prM_E1sTS_RPA[nu] = pM_E1sTSSum_RPA
+        prM_E1C_RPA[nu] = pM_E1CSum_RPA
+        prM_E1sC_RPA[nu] = pM_E1sCSum_RPA
+
+        nrM_E1_RPA[nu] = nM_E1Sum_RPA
+        nrM_E1VC_RPA[nu] = nM_E1VCSum_RPA
+        nrM_E1VS_RPA[nu] = nM_E1VSSum_RPA
+        nrM_E1TC_RPA[nu] = nM_E1TCSum_RPA
+        nrM_E1TS_RPA[nu] = nM_E1TSSum_RPA
+        nrM_E1sTC_RPA[nu] = nM_E1sTCSum_RPA
+        nrM_E1sTS_RPA[nu] = nM_E1sTSSum_RPA
+        nrM_E1C_RPA[nu] = nM_E1CSum_RPA
+        nrM_E1sC_RPA[nu] = nM_E1sCSum_RPA
+
     end
 
-    # E3
-    J = 3
-    P = 2
+    # Case of E2 ...
+    J, P = 2, 1
     N_ph = N_nu[J+1,P]
-    prME3_TDA = Vector{ComplexF64}(undef,N_ph)
-    prME3_RPA = Vector{ComplexF64}(undef,N_ph)
-    nrME3_TDA = Vector{ComplexF64}(undef,N_ph)
-    nrME3_RPA = Vector{ComplexF64}(undef,N_ph)
-    @inbounds  for nu in 1:N_ph
-        pME3Sum_TDA = ComplexF64(0.0)
-        pME3Sum_RPA = ComplexF64(0.0)
-        nME3Sum_TDA = ComplexF64(0.0)
-        nME3Sum_RPA = ComplexF64(0.0)
-        @inbounds  for Ind_ph in 1:N_ph
-            ph = Orb_Phonon[J+1,P][Ind_ph]
-            p, h = Phonon[ph].p, Phonon[ph].h
-            t_ph = Phonon[ph].tz
+
+    # Initialize TDA matrix elements ...
+    prM_E2_TDA = Vector{ComplexF64}(undef,N_ph)
+    nrM_E2_TDA = Vector{ComplexF64}(undef,N_ph)
+
+    # Initialize RPA matrix elements ...
+    prM_E2_RPA = Vector{ComplexF64}(undef,N_ph)
+    nrM_E2_RPA = Vector{ComplexF64}(undef,N_ph)
+
+    # Evaluate TDA & RPA E2 matrix elements ...
+    @inbounds Threads.@threads for nu in 1:N_ph
+
+        pM_E2Sum_TDA = ComplexF64(0.0)
+        nM_E2Sum_TDA = ComplexF64(0.0)
+
+        pM_E2Sum_RPA = ComplexF64(0.0)
+        nM_E2Sum_RPA = ComplexF64(0.0)
+
+        @inbounds for ph in 1:N_ph
+            i_ph = Orb_Phonon[J+1,P][ph]
+            p, h, t_ph = Phonon[i_ph].p, Phonon[i_ph].h, Phonon[i_ph].tz
+
             if t_ph == -1
-                a_p = Particle.p[p].a
-                a_h = Hole.p[h].a
+                a_p, a_h = Particle.p[p].a, Hole.p[h].a
+
+                pM_E2_TDA = ComplexF64(TrOp.E2.p[a_p,a_h] * X_TDA[J+1,P][ph,nu])
+                pM_E2Sum_TDA += pM_E2_TDA
+
+                pM_E2_RPA = ComplexF64(TrOp.E2.p[a_p,a_h]) * (X_RPA[J+1,P][ph,nu] + Y_RPA[J+1,P][ph,nu])
+                pM_E2Sum_RPA += pM_E2_RPA
+
             elseif t_ph == 1
-                a_p = Particle.n[p].a
-                a_h = Hole.n[h].a
-            end
+                a_p, a_h = Particle.n[p].a, Hole.n[h].a
 
-            if t_ph == -1
-                ME3_TDA = TrOp.E3.p[a_p,a_h] * X_TDA[J+1,P][Ind_ph,nu] * -1.0
-                pME3Sum_TDA += ME3_TDA
+                nM_E2_TDA = ComplexF64(TrOp.E2.n[a_p,a_h] * X_TDA[J+1,P][ph,nu])
+                nM_E2Sum_TDA += nM_E2_TDA
 
-                ME3_RPA = TrOp.E3.p[a_p,a_h] * (-1.0 * X_RPA[J+1,P][Ind_ph,nu] + Y_RPA[J+1,P][Ind_ph,nu])
-                pME3Sum_RPA += ME3_RPA
-            end
+                nM_E2_RPA = ComplexF64(TrOp.E2.n[a_p,a_h]) * (X_RPA[J+1,P][ph,nu] + Y_RPA[J+1,P][ph,nu])
+                nM_E2Sum_RPA += nM_E2_RPA
 
-            if t_ph == 1
-                ME3_TDA = TrOp.E3.n[a_p,a_h] * X_TDA[J+1,P][Ind_ph,nu] * -1.0
-                nME3Sum_TDA += ME3_TDA
-
-                ME3_RPA = TrOp.E3.n[a_p,a_h] * (-1.0 * X_RPA[J+1,P][Ind_ph,nu] + Y_RPA[J+1,P][Ind_ph,nu])
-                nME3Sum_RPA += ME3_RPA
             end
 
         end
-        prME3_TDA[nu] = pME3Sum_TDA
-        nrME3_TDA[nu] = nME3Sum_TDA
-        prME3_RPA[nu] = pME3Sum_RPA
-        nrME3_RPA[nu] = nME3Sum_RPA
+
+        prM_E2_TDA[nu] = pM_E2Sum_TDA
+        nrM_E2_TDA[nu] = nM_E2Sum_TDA
+
+        prM_E2_RPA[nu] = pM_E2Sum_RPA
+        nrM_E2_RPA[nu] = nM_E2Sum_RPA
+
     end
 
-    rM0_TDA = pnCVector(prME0_TDA,nrME0_TDA)
-    rM1_TDA = pnCVector(prME1_TDA,nrME1_TDA)
-    rM2_TDA = pnCVector(prME2_TDA,nrME2_TDA)
-    rM3_TDA = pnCVector(prME3_TDA,nrME3_TDA)
+    # Case of E3 ...
+    J, P = 3, 2
+    N_ph = N_nu[J+1,P]
 
-    rM0_RPA = pnCVector(prME0_RPA,nrME0_RPA)
-    rM1_RPA = pnCVector(prME1_RPA,nrME1_RPA)
-    rM2_RPA = pnCVector(prME2_RPA,nrME2_RPA)
-    rM3_RPA = pnCVector(prME3_RPA,nrME3_RPA)
+    # Initialize TDA matrix elements ...
+    prM_E3_TDA = Vector{ComplexF64}(undef,N_ph)
+    nrM_E3_TDA = Vector{ComplexF64}(undef,N_ph)
 
-    rM_TDA = ReducedMultipole(rM0_TDA,rM1_TDA,rM2_TDA,rM3_TDA)
-    rM_RPA = ReducedMultipole(rM0_RPA,rM1_RPA,rM2_RPA,rM3_RPA)
+    # Initialize RPA matrix elements ...
+    prM_E3_RPA = Vector{ComplexF64}(undef,N_ph)
+    nrM_E3_RPA = Vector{ComplexF64}(undef,N_ph)
 
-    println("\nReduced transition matrix elements rM calculated ...")
+    # Evaluate TDA & RPA E3 matrix elements ...
+    @inbounds Threads.@threads for nu in 1:N_ph
+
+        pM_E3Sum_TDA = ComplexF64(0.0)
+        nM_E3Sum_TDA = ComplexF64(0.0)
+
+        pM_E3Sum_RPA = ComplexF64(0.0)
+        nM_E3Sum_RPA = ComplexF64(0.0)
+
+        @inbounds for ph in 1:N_ph
+            i_ph = Orb_Phonon[J+1,P][ph]
+            p, h, t_ph = Phonon[i_ph].p, Phonon[i_ph].h, Phonon[i_ph].tz
+
+            if t_ph == -1
+                a_p, a_h = Particle.p[p].a, Hole.p[h].a
+
+                pM_E3_TDA = ComplexF64(TrOp.E3.p[a_p,a_h] * X_TDA[J+1,P][ph,nu])
+                pM_E3Sum_TDA += pM_E3_TDA
+
+                pM_E3_RPA = ComplexF64(TrOp.E3.p[a_p,a_h]) * (X_RPA[J+1,P][ph,nu] + Y_RPA[J+1,P][ph,nu])
+                pM_E3Sum_RPA += pM_E3_RPA
+
+            elseif t_ph == 1
+                a_p, a_h = Particle.n[p].a, Hole.n[h].a
+
+                nM_E3_TDA = ComplexF64(TrOp.E3.n[a_p,a_h] * X_TDA[J+1,P][ph,nu])
+                nM_E3Sum_TDA += nM_E3_TDA
+
+                nM_E3_RPA = ComplexF64(TrOp.E3.n[a_p,a_h]) * (X_RPA[J+1,P][ph,nu] + Y_RPA[J+1,P][ph,nu])
+                nM_E3Sum_RPA += nM_E3_RPA
+
+            end
+
+        end
+
+        prM_E3_TDA[nu] = pM_E3Sum_TDA
+        nrM_E3_TDA[nu] = nM_E3Sum_TDA
+
+        prM_E3_RPA[nu] = pM_E3Sum_RPA
+        nrM_E3_RPA[nu] = nM_E3Sum_RPA
+
+    end
+
+    # Allocate the reduced multipole transition matrix elements ...
+        # Case of TDA ...
+    rM_E0_TDA = pnCVector(prM_E0_TDA,nrM_E0_TDA)
+    rM_E1_TDA = pnCVector(prM_E1_TDA,nrM_E1_TDA)
+    rM_E2_TDA = pnCVector(prM_E2_TDA,nrM_E2_TDA)
+    rM_E3_TDA = pnCVector(prM_E3_TDA,nrM_E3_TDA)
+    rM_E1VC_TDA = pnCVector(prM_E1VC_TDA,nrM_E1VC_TDA)
+    rM_E1VS_TDA = pnCVector(prM_E1VS_TDA,nrM_E1VS_TDA)
+    rM_E1TC_TDA = pnCVector(prM_E1TC_TDA,nrM_E1TC_TDA)
+    rM_E1TS_TDA = pnCVector(prM_E1TS_TDA,nrM_E1TS_TDA)
+    rM_E1sTC_TDA = pnCVector(prM_E1sTC_TDA,nrM_E1sTC_TDA)
+    rM_E1sTS_TDA = pnCVector(prM_E1sTS_TDA,nrM_E1sTS_TDA)
+    rM_E1C_TDA = pnCVector(prM_E1C_TDA,nrM_E1C_TDA)
+    rM_E1sC_TDA = pnCVector(prM_E1sC_TDA,nrM_E1sC_TDA)
+
+    rM_TDA = ReducedMultipole(rM_E0_TDA,rM_E1_TDA,rM_E2_TDA,rM_E3_TDA,rM_E1VC_TDA,
+                              rM_E1VS_TDA,rM_E1TC_TDA,rM_E1TS_TDA,rM_E1sTC_TDA,
+                              rM_E1sTS_TDA,rM_E1C_TDA,rM_E1sC_TDA)
+        # Case of RPA
+    rM_E0_RPA = pnCVector(prM_E0_RPA,nrM_E0_RPA)
+    rM_E1_RPA = pnCVector(prM_E1_RPA,nrM_E1_RPA)
+    rM_E2_RPA = pnCVector(prM_E2_RPA,nrM_E2_RPA)
+    rM_E3_RPA = pnCVector(prM_E3_RPA,nrM_E3_RPA)
+    rM_E1VC_RPA = pnCVector(prM_E1VC_RPA,nrM_E1VC_RPA)
+    rM_E1VS_RPA = pnCVector(prM_E1VS_RPA,nrM_E1VS_RPA)
+    rM_E1TC_RPA = pnCVector(prM_E1TC_RPA,nrM_E1TC_RPA)
+    rM_E1TS_RPA = pnCVector(prM_E1TS_RPA,nrM_E1TS_RPA)
+    rM_E1sTC_RPA = pnCVector(prM_E1sTC_RPA,nrM_E1sTC_RPA)
+    rM_E1sTS_RPA = pnCVector(prM_E1sTS_RPA,nrM_E1sTS_RPA)
+    rM_E1C_RPA = pnCVector(prM_E1C_RPA,nrM_E1C_RPA)
+    rM_E1sC_RPA = pnCVector(prM_E1sC_RPA,nrM_E1sC_RPA)
+
+    rM_RPA = ReducedMultipole(rM_E0_RPA,rM_E1_RPA,rM_E2_RPA,rM_E3_RPA,rM_E1VC_RPA,
+                             rM_E1VS_RPA,rM_E1TC_RPA,rM_E1TS_RPA,rM_E1sTC_RPA,
+                             rM_E1sTS_RPA,rM_E1C_RPA,rM_E1sC_RPA)
+
+    println("\tReduced 1-body transition matrix elements rM calculated ...")
 
     return rM_TDA, rM_RPA
 end
 
-function HF_RPA_rB(Params::Parameters,N_nu::Matrix{Int64},rM::ReducedMultipole)
+function HF_RPA_rB(Params::Parameters,N_nu::Matrix{Int64},rM::ReducedMultipole,E_phonon::Matrix{Vector{Float64}})
     # Read parameters ...
-    Orthogon = Params.Calc.RPA.Ortho
+    A = Params.Calc.A
+    Z = Params.Calc.Z
 
-    println("\nCalculating reduced transition intensities rB ...")
+    # Define basic constants ...
+    hc = 197.326980
+    g_p = 5.586
+    g_n = -3.826
 
-    # E0
-    J = 0
-    P = 1
+    println("\nCalculating the reduced transition intensities rB ...")
+
+    # Case of E0 ...
+    J, P = 0, 1
     N_ph = N_nu[J+1,P]
 
-    rB_phE0 = zeros(Float64,N_ph)
-    rB_isE0 = zeros(Float64,N_ph)
-    rB_ivE0 = zeros(Float64,N_ph)
+    # Initialize the reduced transition intensities B ...
+    rB_E0 = Vector{Vector{Float64}}(undef,3)
 
-    @inbounds for nu in 1:N_ph
-        rB_phE0[nu] = abs(rM.E0.p[nu])^2
-        rB_isE0[nu] = 0.25 * abs(rM.E0.p[nu] + rM.E0.n[nu])^2
-        rB_ivE0[nu] = 0.25 * abs(rM.E0.p[nu] - rM.E0.n[nu])^2
+    # Initialize the sub-components of the reduced transition intensities B ...
+        # Physical (ph), Isoscalar (is), Isovector (iv) ...
+    @inbounds for i in 1:3
+        rB_E0[i] = Vector{Float64}(undef,N_ph)
     end
 
-    # E1
-    J = 1
-    P = 2
+    # Evaluate the reduced transition intensities B ...
+    @inbounds Threads.@threads for nu in 1:N_ph
+        rB_E0[1][nu] = abs(rM.E0.p[nu])^2
+        rB_E0[2][nu] = 0.25 * abs(rM.E0.p[nu] + rM.E0.n[nu])^2
+        rB_E0[3][nu] = 0.25 * abs(rM.E0.p[nu] - rM.E0.n[nu])^2
+    end
+
+    # Case of E1 ...
+    J, P = 1, 2
     N_ph = N_nu[J+1,P]
 
-    rB_phE1 = zeros(Float64,N_ph)
-    rB_isE1 = zeros(Float64,N_ph)
-    rB_ivE1 = zeros(Float64,N_ph)
+    # Initialize the reduced transition intensities B ...
+    rB_E1 = Vector{Vector{Float64}}(undef,3)
+    rB_E1V = Vector{Vector{Float64}}(undef,3)
+    rB_E1VC = Vector{Vector{Float64}}(undef,3)
+    rB_E1VS = Vector{Vector{Float64}}(undef,3)
+    rB_E1T = Vector{Vector{Float64}}(undef,3)
+    rB_E1TC = Vector{Vector{Float64}}(undef,3)
+    rB_E1TS = Vector{Vector{Float64}}(undef,3)
+    rB_E1C = Vector{Vector{Float64}}(undef,3)
+    rB_E1_NLO_LWA = Vector{Vector{Float64}}(undef,3)
 
-    if Orthogon == true
-        @inbounds for nu in 1:N_ph
-            rB_phE1[nu] = abs(rM.E1.p[nu])^2
-            rB_isE1[nu] = 0.25 * abs(rM.E1.p[nu] + rM.E1.n[nu])^2
-            rB_ivE1[nu] = 0.25 * abs(rM.E1.p[nu] - rM.E1.n[nu])^2
-        end
-    else
-        A = Params.Calc.A
-        Z = Params.Calc.Z
-        e_p = Float64(A - Z) / Float64(A)
-        e_n = Float64(Z) / Float64(A)
-        @inbounds for nu in 1:N_ph
-            rB_phE1[nu] = abs(rM.E1.p[nu])^2
-            rB_isE1[nu] = 0.25 * abs(rM.E1.p[nu] + rM.E1.n[nu])^2
-            rB_ivE1[nu] = abs(e_p * rM.E1.p[nu] - e_n * rM.E1.n[nu])^2
-        end
+    # Initialize the sub-components of the reduced transition intensities B ...
+        # Physical (ph), Isoscalar (is), Isovector (iv) ...
+    @inbounds for i in 1:3
+        rB_E1[i] = Vector{Float64}(undef,N_ph)
+        rB_E1V[i] = Vector{Float64}(undef,N_ph)
+        rB_E1VC[i] = Vector{Float64}(undef,N_ph)
+        rB_E1VS[i] = Vector{Float64}(undef,N_ph)
+        rB_E1T[i] = Vector{Float64}(undef,N_ph)
+        rB_E1TC[i] = Vector{Float64}(undef,N_ph)
+        rB_E1TS[i] = Vector{Float64}(undef,N_ph)
+        rB_E1C[i] = Vector{Float64}(undef,N_ph)
+        rB_E1_NLO_LWA[i] = Vector{Float64}(undef,N_ph)
     end
 
-    # E2
-    J = 2
-    P = 1
+    # Define effective E1 isovector charges ...
+    e_p = Float64(A - Z) / Float64(A)
+    e_n = Float64(Z) / Float64(A)
+
+    # Evaluate the reduced transition intensities B ...
+    @inbounds Threads.@threads for nu in 1:N_ph
+        E = E_phonon[J+1,P][nu]
+            # Physical components ...
+        rB_E1[1][nu] = abs(rM.E1.p[nu])^2
+        rB_E1V[1][nu] = abs(rM.E1_VC.p[nu] + 0.5 * g_p * rM.E1_VS.p[nu] + 0.5 * g_n * rM.E1_VS.n[nu])^2
+        rB_E1VC[1][nu] = abs(rM.E1_VC.p[nu])^2
+        rB_E1VS[1][nu] = abs(0.5 * g_p * rM.E1_VS.p[nu] + 0.5 * g_n * rM.E1_VS.n[nu])^2
+
+        rB_E1T[1][nu] = abs(rM.E1_TC.p[nu] + 0.5 * g_p * rM.E1_TS.p[nu] + 0.5 * g_n * rM.E1_TS.n[nu])^2
+        rB_E1TC[1][nu] = abs(rM.E1_TC.p[nu])^2
+        rB_E1TS[1][nu] = abs(0.5 * g_p * rM.E1_TS.p[nu] + 0.5 * g_n * rM.E1_TS.n[nu])^2
+
+        rB_E1C[1][nu] = abs(rM.E1_C.p[nu])^2
+
+        rB_E1_NLO_LWA[1][nu] = abs(rM.E1.p[nu] + E / hc * (rM.E1_TC.p[nu] + 0.5 * g_p * rM.E1_TS.p[nu] + 0.5 * g_n * rM.E1_TS.n[nu]))^2
+
+            # Isoscalar components ...
+        rB_E1[2][nu] = 0.25 * abs(rM.E1.p[nu] + rM.E1.n[nu])^2
+        rB_E1V[2][nu] = abs(0.5 * (rM.E1_VC.p[nu] + rM.E1_VC.n[nu]) + 0.125 * (g_p + g_n) * (rM.E1_VS.p[nu] + rM.E1_VS.n[nu]))^2
+        rB_E1VC[2][nu] = abs(0.5 * (rM.E1_VC.p[nu] + rM.E1_VC.n[nu]))^2
+        rB_E1VS[2][nu] = abs(0.125 * (g_p + g_n) * (rM.E1_VS.p[nu] + rM.E1_VS.n[nu]))^2
+        
+        rB_E1T[2][nu] = abs(0.5 * (rM.E1_TC.p[nu] + rM.E1_sTC.p[nu] + rM.E1_TC.n[nu] + rM.E1_sTC.n[nu]) + 0.125 * (g_p + g_n) * (rM.E1_TS.p[nu] + rM.E1_sTS.p[nu] + rM.E1_TS.n[nu] + rM.E1_sTS.n[nu]))^2
+        rB_E1TC[2][nu] = abs(0.5 * (rM.E1_TC.p[nu] + rM.E1_sTC.p[nu] + rM.E1_TC.n[nu] + rM.E1_sTC.n[nu]))^2
+        rB_E1TS[2][nu] = abs(0.125 * (g_p + g_n) * (rM.E1_TS.p[nu] + rM.E1_sTS.p[nu] + rM.E1_TS.n[nu] + rM.E1_sTS.n[nu]))^2
+
+        rB_E1C[2][nu] = 0.25 * abs(rM.E1_C.p[nu] + rM.E1_sC.p[nu] + rM.E1_C.n[nu] + rM.E1_sC.n[nu])^2
+
+        rB_E1_NLO_LWA[2][nu] = 0.25 * abs(rM.E1.p[nu] + rM.E1.n[nu] +  E / hc * ((rM.E1_TC.p[nu] + rM.E1_sTC.p[nu] + rM.E1_TC.n[nu] + rM.E1_sTC.n[nu]) + 0.25 * (g_p + g_n) * (rM.E1_TS.p[nu] + rM.E1_sTS.p[nu] + rM.E1_TS.n[nu] + rM.E1_sTS.n[nu])))^2
+
+            # Isovector components ...
+        rB_E1[3][nu] = abs(e_p * rM.E1.p[nu] - e_n * rM.E1.n[nu])^2
+        rB_E1V[3][nu] = abs(0.5 * (rM.E1_VC.p[nu] - rM.E1_VC.n[nu]) + 0.125 * (g_p - g_n) * (rM.E1_VS.p[nu] - rM.E1_VS.n[nu]))^2
+        rB_E1VC[3][nu] = abs(0.5 * (rM.E1_VC.p[nu] - rM.E1_VC.n[nu]))^2
+        rB_E1VS[3][nu] = abs(0.125 * (g_p - g_n) * (rM.E1_VS.p[nu] - rM.E1_VS.n[nu]))^2
+        
+        rB_E1T[3][nu] = abs(0.5 * (rM.E1_TC.p[nu] - rM.E1_TC.n[nu]) + 0.125 * (g_p - g_n) * (rM.E1_TS.p[nu] - rM.E1_TS.n[nu]))^2
+        rB_E1TC[3][nu] = abs(0.5 * (rM.E1_TC.p[nu] - rM.E1_TC.n[nu]))^2
+        rB_E1TS[3][nu] = abs(0.125 * (g_p - g_n) * (rM.E1_TS.p[nu] - rM.E1_TS.n[nu]))^2
+
+        rB_E1C[3][nu] = 0.25 * abs(rM.E1_C.p[nu] - rM.E1_C.n[nu])^2
+
+        rB_E1_NLO_LWA[3][nu] = abs(e_p * rM.E1.p[nu] - e_n * rM.E1.n[nu] +  0.5 * E / hc * ((rM.E1_TC.p[nu] - rM.E1_TC.n[nu]) + 0.125 * (g_p - g_n) * (rM.E1_TS.p[nu] - rM.E1_TS.n[nu])))^2
+
+    end
+
+    # Case of E2 ...
+    J, P = 2, 1
     N_ph = N_nu[J+1,P]
 
-    rB_phE2 = zeros(Float64,N_ph)
-    rB_isE2 = zeros(Float64,N_ph)
-    rB_ivE2 = zeros(Float64,N_ph)
+    # Initialize the reduced transition intensities B ...
+    rB_E2 = Vector{Vector{Float64}}(undef,3)
 
-    @inbounds for nu in 1:N_ph
-        rB_phE2[nu] = abs(rM.E2.p[nu])^2
-        rB_isE2[nu] = 0.25 * abs(rM.E2.p[nu] + rM.E2.n[nu])^2
-        rB_ivE2[nu] = 0.25 * abs(rM.E2.p[nu] - rM.E2.n[nu])^2
+    # Initialize the sub-components of the reduced transition intensities B ...
+        # Physical (ph), Isoscalar (is), Isovector (iv) ...
+    @inbounds for i in 1:3
+        rB_E2[i] = Vector{Float64}(undef,N_ph)
     end
 
-    # E3
-    J = 3
-    P = 2
+    # Evaluate the reduced transition intensities B ...
+    @inbounds Threads.@threads for nu in 1:N_ph
+        rB_E2[1][nu] = abs(rM.E2.p[nu])^2
+        rB_E2[2][nu] = 0.25 * abs(rM.E2.p[nu] + rM.E2.n[nu])^2
+        rB_E2[3][nu] = 0.25 * abs(rM.E2.p[nu] - rM.E2.n[nu])^2
+    end
+
+    # Case of E3 ...
+    J, P = 3, 2
     N_ph = N_nu[J+1,P]
 
-    rB_phE3 = zeros(Float64,N_ph)
-    rB_isE3 = zeros(Float64,N_ph)
-    rB_ivE3 = zeros(Float64,N_ph)
+    # Initialize the reduced transition intensities B ...
+    rB_E3 = Vector{Vector{Float64}}(undef,3)
 
-    @inbounds for nu in 1:N_ph
-        rB_phE3[nu] = abs(rM.E3.p[nu])^2
-        rB_isE3[nu] = 0.25 * abs(rM.E3.p[nu] + rM.E3.n[nu])^2
-        rB_ivE3[nu] = 0.25 * abs(rM.E3.p[nu] - rM.E3.n[nu])^2
+    # Initialize the sub-components of the reduced transition intensities B ...
+        # Physical (ph), Isoscalar (is), Isovector (iv) ...
+    @inbounds for i in 1:3
+        rB_E3[i] = Vector{Float64}(undef,N_ph)
     end
 
-    rB_E0 = Transition(rB_phE0,rB_isE0,rB_ivE0)
-    rB_E1 = Transition(rB_phE1,rB_isE1,rB_ivE1)
-    rB_E2 = Transition(rB_phE2,rB_isE2,rB_ivE2)
-    rB_E3 = Transition(rB_phE3,rB_isE3,rB_ivE3)
+    # Evaluate the reduced transition intensities B ...
+    @inbounds Threads.@threads for nu in 1:N_ph
+        rB_E3[1][nu] = abs(rM.E3.p[nu])^2
+        rB_E3[2][nu] = 0.25 * abs(rM.E3.p[nu] + rM.E3.n[nu])^2
+        rB_E3[3][nu] = 0.25 * abs(rM.E3.p[nu] - rM.E3.n[nu])^2
+    end
 
-    rB_ph = ReducedTransition(rB_E0,rB_E1,rB_E2,rB_E3)
+    # Allocate the reduced transition intensity matrix elements for the EX transitions ...
+    rB_E0 = Transition(rB_E0[1],rB_E0[2],rB_E0[3])
+    rB_E1 = Transition(rB_E1[1],rB_E1[2],rB_E1[3])
+    rB_E2 = Transition(rB_E2[1],rB_E2[2],rB_E2[3])
+    rB_E3 = Transition(rB_E3[1],rB_E3[2],rB_E3[3])
+    rB_E1V = Transition(rB_E1V[1],rB_E1V[2],rB_E1V[3])
+    rB_E1VC = Transition(rB_E1VC[1],rB_E1VC[2],rB_E1VC[3])
+    rB_E1VS = Transition(rB_E1VS[1],rB_E1VS[2],rB_E1VS[3])
+    rB_E1T = Transition(rB_E1T[1],rB_E1T[2],rB_E1T[3])
+    rB_E1TC = Transition(rB_E1TC[1],rB_E1TC[2],rB_E1TC[3])
+    rB_E1TS = Transition(rB_E1TS[1],rB_E1TS[2],rB_E1TS[3])
+    rB_E1C = Transition(rB_E1C[1],rB_E1C[2],rB_E1C[3])
+    rB_E1_NLO_LWA = Transition(rB_E1_NLO_LWA[1],rB_E1_NLO_LWA[2],rB_E1_NLO_LWA[3])
 
-    println("\nReduced transition intensities rB evaluated ...")
+    rB = ReducedTransition(rB_E0,rB_E1,rB_E2,rB_E3,rB_E1V,rB_E1VC,rB_E1VS,rB_E1T,rB_E1TC,rB_E1TS,rB_E1C,rB_E1_NLO_LWA)
 
-    return rB_ph
+    println("\tReduced transition intensities rB evaluated ...")
+
+    return rB
 end
 
 function HF_RPA_transition_densities_export(Params::Parameters,Orb::Vector{Orb1B},N_nu::Matrix{Int64},Orb_Phonon::Matrix{Vector{Int64}},Phonon::Vector{PhState},Particle::pnSVector,Hole::pnSVector,X_RPA::Matrix{Matrix{ComplexF64}},Y_RPA::Matrix{Matrix{ComplexF64}},TrOp::Tr1B)

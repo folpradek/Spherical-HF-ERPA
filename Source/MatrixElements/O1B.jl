@@ -169,3 +169,21 @@ function qpO1B_import(Params::Parameters,Orb::Vector{Orb1B},Import_Path::String)
 
     return qpO1B(O1B(pA11,nA11),O1B(pA20,nA20))
 end
+
+function qpN1B_make(Params::Parameters,U::O1B,V::O1B)
+    # Read parameters ...
+    N_max = Params.Calc.Nmax
+    a_max = div((N_max + 1)*(N_max + 2),2)
+
+    # Read the 1-body operator A matrix from given file ...
+    pN11, pN20 = Matrix{Float64}(undef,a_max,a_max), Matrix{Float64}(undef,a_max,a_max)
+    nN11, nN20 = Matrix{Float64}(undef,a_max,a_max), Matrix{Float64}(undef,a_max,a_max)
+
+    # Allocate the components of 1-body particle number operator N in the qp space ...
+    pN11 .= U.p' * U.p .- V.p' * V.p
+    nN11 .= U.n' * U.n .- V.n' * V.n 
+    pN20 .= U.p' * V.p
+    nN20 .= U.n' * V.n
+
+    return qpO1B(O1B(pN11,nN11),O1B(pN20,nN20))
+end

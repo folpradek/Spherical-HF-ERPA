@@ -71,7 +71,7 @@ function HF_SPS_summary(Params::Parameters,h::O1B,Orb::Vector{Orb1B})
                 O_a = 0.0
             end
             E_a = pSPE[a]
-            @printf(Summary, "%4d %4d %4d %8.3f %14.5f\tMeV\n",n_a, l_a, j_a, O_a, E_a)
+            @printf(Summary, "%4d %4d %4d %8.3f %14.5f\n",n_a, l_a, j_a, O_a, E_a)
             pn[l_a+1,j_a+1] += 1
         end
         println(Summary,"____________________________________________________________________")
@@ -90,7 +90,7 @@ function HF_SPS_summary(Params::Parameters,h::O1B,Orb::Vector{Orb1B})
                 O_a = 0.0
             end
             E_a = nSPE[a]
-        @printf(Summary, "%4d %4d %4d %8.3f %14.5f\tMeV\n",n_a, l_a, j_a, O_a, E_a)
+        @printf(Summary, "%4d %4d %4d %8.3f %14.5f\n",n_a, l_a, j_a, O_a, E_a)
             nn[l_a+1,j_a+1] += 1
         end
         println(Summary,"____________________________________________________________________")

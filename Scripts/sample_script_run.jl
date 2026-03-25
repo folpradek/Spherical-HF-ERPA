@@ -72,6 +72,7 @@ function sample_script_run()
                 #Path = "HFB_A18_Z8_hw16.0_Nmax3_N2max6_N3max9",
                 #HFB = HFB_Parameters(Tol = 1e-8, Imax = 150, Pairing = "Full", dLmax = 0.5, BMF = true, LNT = false, HRF = false),
                 #QTDA = QTDA_Parameters(Ortho = true)
+                #QRPA = QRPA_Parameters(Ortho = true)
                 )
 
     # HFB calculation call ...
@@ -79,6 +80,9 @@ function sample_script_run()
 
     # QTDA calculation call ...
     QTDA(Parameters(IntParams,CalcParams))
+    
+    # QRPA calculation call ...
+    QRPA(Parameters(IntParams,CalcParams))
 
 end
 

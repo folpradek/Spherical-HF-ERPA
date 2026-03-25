@@ -6,6 +6,7 @@ module NuJuliet
     include("Import_Structures.jl")
     include("Functions/Functions.jl")
     include("MatrixElements/Orb.jl")
+    include("MatrixElements/rME.jl")
     include("MatrixElements/O1B.jl")
     include("MatrixElements/T1B.jl")
     include("MatrixElements/Tr1B.jl")
@@ -40,7 +41,6 @@ module NuJuliet
     include("HF_RPA/HF_RPA_Diagonalize.jl")
     include("HF_RPA/HF_RPA_Energy.jl")
     include("HF_RPA/HF_RPA_OBDM.jl")
-    include("HF_RPA/HF_RPA_Collectivity.jl")
     include("HF_RPA/HF_RPA_Transitions.jl")
     include("HF_RPA/HF_RPA_Export.jl")
 
@@ -55,7 +55,6 @@ module NuJuliet
     include("HF_RRPA/HF_RRPA_Spurious.jl")
     include("HF_RRPA/HF_RRPA_Transitions.jl")
     include("HF_RRPA/HF_RRPA_Energy.jl")
-    include("HF_RRPA/HF_RRPA_Collectivity.jl")
     include("HF_RRPA/HF_RRPA_Export.jl")
 
     # BCS ...
@@ -69,7 +68,6 @@ module NuJuliet
     include("BCS/BCS_Energy.jl")
     include("BCS/BCS_BMBPT.jl")
     include("BCS/BCS_Export.jl")
-
 
     # HFB solver ...
     include("HFB/HFB.jl")
@@ -90,10 +88,21 @@ module NuJuliet
     include("QTDA/QTDA.jl")
     include("QTDA/QTDA_Solver.jl")
     include("QTDA/QTDA_Allocate.jl")
+    include("QTDA/QTDA_Spurious.jl")
     include("QTDA/QTDA_Diagonalize.jl")
     include("QTDA/QTDA_Transitions.jl")
     include("QTDA/QTDA_Export.jl")
 
+    # QRPA solver ...
+    include("QRPA/QRPA.jl")
+    include("QRPA/QRPA_Solver.jl")
+    include("QRPA/QRPA_Allocate.jl")
+    include("QRPA/QRPA_Spurious.jl")
+    include("QRPA/QRPA_Diagonalize.jl")
+    include("QRPA/QRPA_Energy.jl")
+    include("QRPA/QRPA_OBDM.jl")
+    include("QRPA/QRPA_Transitions.jl")
+    include("QRPA/QRPA_Export.jl")
 
     # pHF-RPA ... for testing purposes !!!
         # placement is really temporary ...

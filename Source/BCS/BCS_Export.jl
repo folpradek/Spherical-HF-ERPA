@@ -88,7 +88,7 @@ function BCS_summary_SQS(Params::Parameters,SPE::pnVector,SQE::pnVector,U::pnVec
             else
                 O_a = 0.0
             end
-            @printf(Summary, "%4s %4s %4s %8.3f %14.5f %14.3f %14.3f %14.5f\tMeV\n",n_a, l_a, j_a, O_a, SPE.p[a], U.p[a]^2, V.p[a]^2, SQE.p[a])
+            @printf(Summary, "%4s %4s %4s %8.3f %14.5f %14.3f %14.3f %14.5f\n",n_a, l_a, j_a, O_a, SPE.p[a], U.p[a]^2, V.p[a]^2, SQE.p[a])
             pn[l_a+1,j_a+1] += 1
         end
         println(Summary,"____________________________________________________________________")
@@ -105,7 +105,7 @@ function BCS_summary_SQS(Params::Parameters,SPE::pnVector,SQE::pnVector,U::pnVec
             else
                 O_a = 0.0
             end
-            @printf(Summary, "%4s %4s %4s %8.3f %14.5f %14.3f %14.3f %14.5f\tMeV\n",n_a, l_a, j_a, O_a, SPE.n[a], U.n[a]^2, V.n[a]^2, SQE.n[a])
+            @printf(Summary, "%4s %4s %4s %8.3f %14.5f %14.3f %14.3f %14.5f\n",n_a, l_a, j_a, O_a, SPE.n[a], U.n[a]^2, V.n[a]^2, SQE.n[a])
             nn[l_a+1,j_a+1] += 1
         end
         println(Summary,"____________________________________________________________________")

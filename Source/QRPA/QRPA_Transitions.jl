@@ -1,25 +1,25 @@
-function QTDA_rM(Params::Parameters,Orb_2qp::qpOrb2B,X_QTDA::Matrix{Matrix{Float64}},qpTrOp::qpTr1B)
-    # Evaluate the reduced transition matrix elements M^lambda ...
-    println("\nCalculating the QTDA 1-phonon reduced transition matrix elements rM^lambda ...")
+function QRPA_rM(Params::Parameters,Orb_2qp::qpOrb2B,X_QRPA::Matrix{Matrix{ComplexF64}},Y_QRPA::Matrix{Matrix{ComplexF64}},qpTrOp::qpTr1B)
+    # Evaluate the reduced transition metrix elements M^lambda ...
+    println("\nCalculating the QRPA 1-phonon reduced transition matrix elements rM^lambda ...")
 
     # Case of E0 ...
     J, P = 0, 1
     N_qp = Orb_2qp.N[P,J+1]
     pM_E0 = Vector{ComplexF64}(undef,N_qp)
     nM_E0 = Vector{ComplexF64}(undef,N_qp)
-
-    # Evaluate the E0 reduced transition matrix elements ...
     @inbounds Threads.@threads for nu in 1:N_qp
         pM_E0Sum, nM_E0Sum = ComplexF64(0.0), ComplexF64(0.0)
-        @inbounds  for i_qp in 1:N_qp
+        @inbounds for i_qp in 1:N_qp
             a, b, T_ab = Orb_2qp.i[P,J+1][i_qp].a, Orb_2qp.i[P,J+1][i_qp].b, Orb_2qp.i[P,J+1][i_qp].T
+            Amp = (X_QRPA[P,J+1][i_qp,nu] - Y_QRPA[P,J+1][i_qp,nu]) * ComplexF64(1.0 / sqrt(1.0 + kronecker_delta(a,b)))
+
             if T_ab == -1
-                pE0ME = ComplexF64(X_QTDA[P,J+1][i_qp,nu] * qpTrOp.E0.qp20.p[a,b] / sqrt(1.0 + kronecker_delta(a,b)))
+                pE0ME = Amp * ComplexF64(qpTrOp.E0.qp20.p[a,b])
                 pM_E0Sum += pE0ME
             end
 
             if T_ab == 1
-                nE0ME = ComplexF64(X_QTDA[P,J+1][i_qp,nu] * qpTrOp.E0.qp20.n[a,b] / sqrt(1.0 + kronecker_delta(a,b)))
+                nE0ME = Amp * ComplexF64(qpTrOp.E0.qp20.n[a,b])
                 nM_E0Sum += nE0ME
             end
         end
@@ -65,17 +65,18 @@ function QTDA_rM(Params::Parameters,Orb_2qp::qpOrb2B,X_QTDA::Matrix{Matrix{Float
 
         @inbounds for i_qp in 1:N_qp
             a, b, T_ab = Orb_2qp.i[P,J+1][i_qp].a, Orb_2qp.i[P,J+1][i_qp].b, Orb_2qp.i[P,J+1][i_qp].T
+            Amp = (X_QRPA[P,J+1][i_qp,nu] - Y_QRPA[P,J+1][i_qp,nu]) * ComplexF64(1.0 / sqrt(1.0 + kronecker_delta(a,b)))
 
             if T_ab == -1
-                pE1ME = ComplexF64(X_QTDA[P,J+1][i_qp,nu] * qpTrOp.E1.qp20.p[a,b] / sqrt(1.0 + kronecker_delta(a,b)))
-                pE1_VCME = ComplexF64(X_QTDA[P,J+1][i_qp,nu] * qpTrOp.E1_VC.qp20.p[a,b] / sqrt(1.0 + kronecker_delta(a,b)))
-                pE1_VSME = ComplexF64(X_QTDA[P,J+1][i_qp,nu] * qpTrOp.E1_VS.qp20.p[a,b] / sqrt(1.0 + kronecker_delta(a,b)))
-                pE1_TCME = ComplexF64(X_QTDA[P,J+1][i_qp,nu] * qpTrOp.E1_TC.qp20.p[a,b] / sqrt(1.0 + kronecker_delta(a,b)))
-                pE1_TSME = ComplexF64(X_QTDA[P,J+1][i_qp,nu] * qpTrOp.E1_TS.qp20.p[a,b] / sqrt(1.0 + kronecker_delta(a,b)))
-                pE1_CME = ComplexF64(X_QTDA[P,J+1][i_qp,nu] * qpTrOp.E1_C.qp20.p[a,b] / sqrt(1.0 + kronecker_delta(a,b)))
-                pE1_sTCME = ComplexF64(X_QTDA[P,J+1][i_qp,nu] * qpTrOp.E1_sTC.qp20.p[a,b] / sqrt(1.0 + kronecker_delta(a,b)))
-                pE1_sTSME = ComplexF64(X_QTDA[P,J+1][i_qp,nu] * qpTrOp.E1_sTS.qp20.p[a,b] / sqrt(1.0 + kronecker_delta(a,b)))
-                pE1_sCME = ComplexF64(X_QTDA[P,J+1][i_qp,nu] * qpTrOp.E1_sC.qp20.p[a,b] / sqrt(1.0 + kronecker_delta(a,b)))
+                pE1ME = Amp * ComplexF64(qpTrOp.E1.qp20.p[a,b])
+                pE1_VCME = Amp * ComplexF64(qpTrOp.E1_VC.qp20.p[a,b])
+                pE1_VSME = Amp * ComplexF64(qpTrOp.E1_VS.qp20.p[a,b])
+                pE1_TCME = Amp * ComplexF64(qpTrOp.E1_TC.qp20.p[a,b])
+                pE1_TSME = Amp * ComplexF64(qpTrOp.E1_TS.qp20.p[a,b])
+                pE1_CME = Amp * ComplexF64(qpTrOp.E1_C.qp20.p[a,b])
+                pE1_sTCME = Amp * ComplexF64(qpTrOp.E1_sTC.qp20.p[a,b])
+                pE1_sTSME = Amp * ComplexF64(qpTrOp.E1_sTS.qp20.p[a,b])
+                pE1_sCME = Amp * ComplexF64(qpTrOp.E1_sC.qp20.p[a,b])
 
                 pM_E1Sum += pE1ME
                 pM_E1_VCSum += pE1_VCME
@@ -89,15 +90,15 @@ function QTDA_rM(Params::Parameters,Orb_2qp::qpOrb2B,X_QTDA::Matrix{Matrix{Float
             end
 
             if T_ab == 1
-                nE1ME = ComplexF64(X_QTDA[P,J+1][i_qp,nu] * qpTrOp.E1.qp20.n[a,b] / sqrt(1.0 + kronecker_delta(a,b)))
-                nE1_VCME = ComplexF64(X_QTDA[P,J+1][i_qp,nu] * qpTrOp.E1_VC.qp20.n[a,b] / sqrt(1.0 + kronecker_delta(a,b)))
-                nE1_VSME = ComplexF64(X_QTDA[P,J+1][i_qp,nu] * qpTrOp.E1_VS.qp20.n[a,b] / sqrt(1.0 + kronecker_delta(a,b)))
-                nE1_TCME = ComplexF64(X_QTDA[P,J+1][i_qp,nu] * qpTrOp.E1_TC.qp20.n[a,b] / sqrt(1.0 + kronecker_delta(a,b)))
-                nE1_TSME = ComplexF64(X_QTDA[P,J+1][i_qp,nu] * qpTrOp.E1_TS.qp20.n[a,b] / sqrt(1.0 + kronecker_delta(a,b)))
-                nE1_CME = ComplexF64(X_QTDA[P,J+1][i_qp,nu] * qpTrOp.E1_C.qp20.n[a,b] / sqrt(1.0 + kronecker_delta(a,b)))
-                nE1_sTCME = ComplexF64(X_QTDA[P,J+1][i_qp,nu] * qpTrOp.E1_sTC.qp20.n[a,b] / sqrt(1.0 + kronecker_delta(a,b)))
-                nE1_sTSME = ComplexF64(X_QTDA[P,J+1][i_qp,nu] * qpTrOp.E1_sTS.qp20.n[a,b] / sqrt(1.0 + kronecker_delta(a,b)))
-                nE1_sCME = ComplexF64(X_QTDA[P,J+1][i_qp,nu] * qpTrOp.E1_sC.qp20.n[a,b] / sqrt(1.0 + kronecker_delta(a,b)))
+                nE1ME = Amp * ComplexF64(qpTrOp.E1.qp20.n[a,b])
+                nE1_VCME = Amp * ComplexF64(qpTrOp.E1_VC.qp20.n[a,b])
+                nE1_VSME = Amp * ComplexF64(qpTrOp.E1_VS.qp20.n[a,b])
+                nE1_TCME = Amp * ComplexF64(qpTrOp.E1_TC.qp20.n[a,b])
+                nE1_TSME = Amp * ComplexF64(qpTrOp.E1_TS.qp20.n[a,b])
+                nE1_CME = Amp * ComplexF64(qpTrOp.E1_C.qp20.n[a,b])
+                nE1_sTCME = Amp * ComplexF64(qpTrOp.E1_sTC.qp20.n[a,b])
+                nE1_sTSME = Amp * ComplexF64(qpTrOp.E1_sTS.qp20.n[a,b])
+                nE1_sCME = Amp * ComplexF64(qpTrOp.E1_sC.qp20.n[a,b])
 
                 nM_E1Sum += nE1ME
                 nM_E1_VCSum += nE1_VCME
@@ -130,15 +131,16 @@ function QTDA_rM(Params::Parameters,Orb_2qp::qpOrb2B,X_QTDA::Matrix{Matrix{Float
     # Evaluate the E2 reduced transition matrix elements ...
     @inbounds Threads.@threads for nu in 1:N_qp
         pM_E2Sum, nM_E2Sum = ComplexF64(0.0), ComplexF64(0.0)
-        @inbounds  for i_qp in 1:N_qp
+        @inbounds for i_qp in 1:N_qp
             a, b, T_ab = Orb_2qp.i[P,J+1][i_qp].a, Orb_2qp.i[P,J+1][i_qp].b, Orb_2qp.i[P,J+1][i_qp].T
+            Amp = (X_QRPA[P,J+1][i_qp,nu] - Y_QRPA[P,J+1][i_qp,nu]) * ComplexF64(1.0 / sqrt(1.0 + kronecker_delta(a,b)))
             if T_ab == -1
-                pE2ME = ComplexF64(X_QTDA[P,J+1][i_qp,nu] * qpTrOp.E2.qp20.p[a,b] / sqrt(1.0 + kronecker_delta(a,b)))
+                pE2ME = Amp * ComplexF64(qpTrOp.E2.qp20.p[a,b])
                 pM_E2Sum += pE2ME
             end
 
             if T_ab == 1
-                nE2ME = ComplexF64(X_QTDA[P,J+1][i_qp,nu] * qpTrOp.E2.qp20.n[a,b] / sqrt(1.0 + kronecker_delta(a,b)))
+                nE2ME = Amp * ComplexF64(qpTrOp.E2.qp20.n[a,b])
                 nM_E2Sum += nE2ME
             end
         end
@@ -155,16 +157,17 @@ function QTDA_rM(Params::Parameters,Orb_2qp::qpOrb2B,X_QTDA::Matrix{Matrix{Float
     # Evaluate the E3 reduced transition matrix elements ...
     @inbounds Threads.@threads for nu in 1:N_qp
         pM_E3Sum, nM_E3Sum = ComplexF64(0.0), ComplexF64(0.0)
-        @inbounds  for i_qp in 1:N_qp
+        @inbounds for i_qp in 1:N_qp
             a, b, T_ab = Orb_2qp.i[P,J+1][i_qp].a, Orb_2qp.i[P,J+1][i_qp].b, Orb_2qp.i[P,J+1][i_qp].T
+            Amp = (X_QRPA[P,J+1][i_qp,nu] - Y_QRPA[P,J+1][i_qp,nu]) * ComplexF64(1.0 / sqrt(1.0 + kronecker_delta(a,b)))
             if T_ab == -1
-                ME = ComplexF64(X_QTDA[P,J+1][i_qp,nu] * qpTrOp.E3.qp20.p[a,b] / sqrt(1.0 + kronecker_delta(a,b)))
-                pM_E3Sum += ME
+                pE3ME = Amp * ComplexF64(qpTrOp.E3.qp20.p[a,b])
+                pM_E3Sum += pE3ME
             end
 
             if T_ab == 1
-                ME = ComplexF64(X_QTDA[P,J+1][i_qp,nu] * qpTrOp.E3.qp20.n[a,b] / sqrt(1.0 + kronecker_delta(a,b)))
-                nM_E3Sum += ME
+                nE3ME = Amp * ComplexF64(qpTrOp.E3.qp20.n[a,b])
+                nM_E3Sum += nE3ME
             end
         end
         pM_E3[nu] = pM_E3Sum
@@ -187,15 +190,15 @@ function QTDA_rM(Params::Parameters,Orb_2qp::qpOrb2B,X_QTDA::Matrix{Matrix{Float
     rM_E1_sTS = pnCVector(pM_E1_sTS,nM_E1_sTS)
     rM_E1_sC = pnCVector(pM_E1_sC,nM_E1_sC)
 
-    rM_QTDA = ReducedMultipole(rM_E0,rM_E1,rM_E2,rM_E3,rM_E1_VC,rM_E1_VS,rM_E1_TC,
+    rM_QRPA = ReducedMultipole(rM_E0,rM_E1,rM_E2,rM_E3,rM_E1_VC,rM_E1_VS,rM_E1_TC,
                                rM_E1_TS,rM_E1_sTC,rM_E1_sTS,rM_E1_C,rM_E1_sC)
 
-    println("\tQTDA 1-phonon reduced transition matrix elements rM^lambda succesfully calculated ...")
+    println("\tQRPA 1-phonon reduced transition matrix elements rM^lambda succesfully calculated ...")
 
-    return rM_QTDA
+    return rM_QRPA
 end
 
-function QTDA_rB(Params::Parameters,Orb_2qp::qpOrb2B,rM::ReducedMultipole,E_QTDA::Matrix{Vector{Float64}})
+function QRPA_rB(Params::Parameters,Orb_2qp::qpOrb2B,rM::ReducedMultipole,E_QRPA::Matrix{Vector{ComplexF64}})
     # Read parameters ...
     A = Params.Calc.A
     Z = Params.Calc.Z
@@ -204,9 +207,9 @@ function QTDA_rB(Params::Parameters,Orb_2qp::qpOrb2B,rM::ReducedMultipole,E_QTDA
     hc = 197.326980
     g_p = 5.586
     g_n = -3.826
-    
+
     # Evaluate the reduced transition intensities B ...
-    println("\nCalculating the QTDA 1-phonon reduced transition intensities rB^lambda ...")
+    println("\nCalculating the QRPA 1-phonon reduced transition intensities rB^lambda ...")
 
     # Case of E0 ...
     J, P = 0, 1
@@ -258,7 +261,7 @@ function QTDA_rB(Params::Parameters,Orb_2qp::qpOrb2B,rM::ReducedMultipole,E_QTDA
 
     # Evaluate the components of B_E1 ...
     @inbounds Threads.@threads for nu in 1:N_qp
-        E = E_QTDA[P,J+1][nu]
+        E = real(E_QRPA[P,J+1][nu])
             # Physical components ...
         rB_E1[1][nu] = abs(rM.E1.p[nu])^2
         rB_E1_V[1][nu] = abs(rM.E1_VC.p[nu] + 0.5 * g_p * rM.E1_VS.p[nu] + 0.5 * g_n * rM.E1_VS.n[nu])^2
@@ -352,7 +355,7 @@ function QTDA_rB(Params::Parameters,Orb_2qp::qpOrb2B,rM::ReducedMultipole,E_QTDA
 
     rB = ReducedTransition(rB_E0,rB_E1,rB_E2,rB_E3,rB_E1_V,rB_E1_VC,rB_E1_VS,rB_E1_T,rB_E1_TC,rB_E1_TS,rB_E1_C,rB_E1_NLO_LWA)
 
-    println("\tQTDA reduced transition intensities rB evaluated ...")
+    println("\tQRPA reduced transition intensities rB evaluated ...")
 
     return rB
 end

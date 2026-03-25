@@ -76,6 +76,10 @@
         Ortho::Bool = true
     end
 
+    Base.@kwdef struct QRPA_Parameters
+        Ortho::Bool = true
+    end
+
     Base.@kwdef struct Calculation_Parameters
         A::Int64 = 0
         Z::Int64 = 0
@@ -93,6 +97,7 @@
         BCS::BCS_Parameters = BCS_Parameters()
         HFB::HFB_Parameters = HFB_Parameters()
         QTDA::QTDA_Parameters = QTDA_Parameters()
+        QRPA::QRPA_Parameters = QRPA_Parameters()
     end
 
     struct Parameters
@@ -202,7 +207,6 @@
     end
 
     # Temporary 2-body NN operator structures ...
-
     struct O2B_Temp
         pp::Matrix{Matrix{Float64}}
         pn::Matrix{Matrix{Float64}}
@@ -255,6 +259,14 @@
         E1::O1B
         E2::O1B
         E3::O1B
+        E1_VC::O1B
+        E1_VS::O1B
+        E1_TC::O1B
+        E1_TS::O1B
+        E1_sTC::O1B
+        E1_sTS::O1B
+        E1_C::O1B
+        E1_sC::O1B
         M1::O1B
         M2::O1B
         M3::O1B
@@ -265,6 +277,14 @@
         E1::qpO1B
         E2::qpO1B
         E3::qpO1B
+        E1_VC::qpO1B
+        E1_VS::qpO1B
+        E1_TC::qpO1B
+        E1_TS::qpO1B
+        E1_sTC::qpO1B
+        E1_sTS::qpO1B
+        E1_C::qpO1B
+        E1_sC::qpO1B
         M1::qpO1B
         M2::qpO1B
         M3::qpO1B
@@ -275,6 +295,14 @@
         E1::pnCVector
         E2::pnCVector
         E3::pnCVector
+        E1_VC::pnCVector
+        E1_VS::pnCVector
+        E1_TC::pnCVector
+        E1_TS::pnCVector
+        E1_sTC::pnCVector
+        E1_sTS::pnCVector
+        E1_C::pnCVector
+        E1_sC::pnCVector
     end
 
     struct Transition
@@ -288,6 +316,14 @@
         E1::Transition
         E2::Transition
         E3::Transition
+        E1_V::Transition
+        E1_VC::Transition
+        E1_VS::Transition
+        E1_T::Transition
+        E1_TC::Transition
+        E1_TS::Transition
+        E1_C::Transition
+        E1_NLO_LWA::Transition
     end
 
 # HF-RRPA auxilliary structures ...

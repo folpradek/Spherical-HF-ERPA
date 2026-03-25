@@ -732,7 +732,7 @@ end
     return Amp * O_NN.qp22.pp[P,J+1][Ind]
 end
 
-@inline function qpO2b_2002_pn(a::Int64,b::Int64,c::Int64,d::Int64,J::Int64,P::Int64,O_NN::qpO2B,Orb_NN::Orb2B)
+@inline function qpO2b_2002_pn(a::Int64,b::Int64,c::Int64,d::Int64,J::Int64,P::Int64,O_NN::qpO2B,Orb::Vector{Orb1B},Orb_NN::Orb2B)
     if a < b
         a_s, b_s = b, a
         exp_ab = J + 1 + div(Orb[a].j + Orb[b].j, 2)

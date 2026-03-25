@@ -1,5 +1,5 @@
 function HF_RRPA_solver(Params::Parameters)
-    # Make s.p. orbitals - NuHamil ordering convention ... Interaction basis size ...
+    # Make s.p. orbitals ...
     Orb = orbitals_make(Params)
 
     # 1-body kinetic operator ...
@@ -21,32 +21,32 @@ function HF_RRPA_solver(Params::Parameters)
     N_nu, Orb_Phonon = HF_RRPA_phonon_count(Params,N_Phonon,Phonon)
 
     # Start RRPA iteration ...
-    @time E_RPA, X_RPA, Y_RPA, Rho, C = HF_RRPA_solve(Params,N_nu,Orb_Phonon,Phonon,N_Particle,Particle,N_Hole,Hole,Orb,Orb_NN_Bare,Orb_NNN_Bare,T,V_NN_Bare,V_NNN_Bare)
+    @time E_RPA, X_RPA, Y_RPA, Rho, C, h = HF_RRPA_solve(Params,N_nu,Orb_Phonon,Phonon,N_Particle,Particle,N_Hole,Hole,Orb,Orb_NN_Bare,Orb_NNN_Bare,T,V_NN_Bare,V_NNN_Bare)
+
+    # Evaluate the RRPA charge radius chR ...
+    chR2 = OBDM_chR2(Params,Orb,C,Rho)
 
     # Initialize transition operators ...
-    TrOp = Tr1b_initialize(Params,Orb)
+    TrOp = Tr1b_initialize(Params,Orb,chR2)
 
-    TrOp = Tr1b_transformation(Params,TrOp,Orb,C)
+    TrOp = Tr1b_transformation(Params,Orb,C,TrOp)
 
     # Electromagnetic reduced multipole operators ...
-    rM = HF_RRPA_rM(Params,N_nu,Orb_Phonon,Phonon,Particle,Hole,X_RPA,Y_RPA,TrOp,Rho)
+    rM = HF_RRPA_rM(Params,N_nu,Orb_Phonon,Phonon,Particle,Hole,Rho,TrOp,X_RPA,Y_RPA)
 
     # Electromagnetic reduced transition intensities ...
-    rB = HF_RRPA_rB(Params,N_nu,rM)
-
-    # Collectiviy of 1-phonon RRPA states ...
-    CI = HF_RRPA_collectivity(Params,N_nu,X_RPA,Y_RPA)
+    rB = HF_RRPA_rB(Params,N_nu,rM,E_RPA)
 
     # RRPA ground state energy ...
-    E_RPA_corr = HF_RRPA_energy(Params,N_nu,N_Particle,Particle,N_Hole,Hole,E_RPA,Y_RPA)
+    E_corr = HF_RRPA_energy(Params,N_nu,N_Particle,Particle,N_Hole,Hole,E_RPA,Y_RPA)
 
     # RRPA solutions export ...
-    @time HF_RRPA_export(Params,Orb,N_nu,E_RPA_corr,E_RPA,X_RPA,Y_RPA,CI,rB,Rho,C)
+    @time HF_RRPA_export(Params,Orb,N_nu,E_corr,C,Rho,h,E_RPA,X_RPA,Y_RPA,rB)
 
-    # RRPA transition radial densities export ...
-    # Requires manual control in corresponding function in HF_RRPA_Transitions.jl file
-    #   !!! One has to manually choose the phonon transition to export !!!
-    #@time HF_RRPA_Transition_Densities_Export(Params,Orb,N_nu,Orb_Phonon,Phonon,Particle,Hole,X_RPA,Y_RPA,TrOp)
+        # RRPA transition radial densities export ...
+        # Requires manual control in corresponding function in HF_RRPA_Transitions.jl file
+        #   !!! One has to manually choose the phonon transition to export !!!
+        #@time HF_RRPA_Transition_Densities_Export(Params,Orb,N_nu,Orb_Phonon,Phonon,Particle,Hole,X_RPA,Y_RPA,TrOp)
 
     # Deallocate the NN & NNN interaction & perform the Garbace Collection ...
     V_NN_Bare, V_NNN_Bare = nothing, nothing
@@ -200,15 +200,15 @@ function HF_RRPA_solve(Params::Parameters,N_nu::Matrix{Int64},Orb_Phonon::Matrix
     @time A, B = HF_RRPA_allocate(Params,N_nu,Orb_Phonon,Phonon,Particle,Hole,Orb,Orb_NN_Res,V_NN_Res,Rho,H)
 
     # Initialize transition operators ...
-    @time TrOp = Tr1b_initialize(Params,Orb)
+    @time TrOp = Tr1b_initialize(Params,Orb,1.0)
 
-    @time TrOp = Tr1b_transformation(Params,TrOp,Orb,O1B(C_LHO_HF.p * C_HF_RRPA.p, C_LHO_HF.n * C_HF_RRPA.n))
+    @time TrOp = Tr1b_transformation(Params,Orb,O1B(C_LHO_HF.p * C_HF_RRPA.p, C_LHO_HF.n * C_HF_RRPA.n),TrOp)
 
     # Solve RPA eqs. ...
     println("\nSolving the RPA Generalized-Eigenvalue Problem ...")
     @time E_RPA, X_RPA, Y_RPA = HF_RRPA_diagonalize(Params,A,B,N_nu,Orb_Phonon,Phonon,Particle,Hole,TrOp,Rho,X_RPA,Y_RPA)
 
-    # Intermediate evaluation of ERPA correlation energy ... testing purposes!
+    # Intermediate evaluation of RRPA correlation energy ... testing purposes!
     HF_RRPA_energy_bosonic(Params,N_nu,N_Particle,Particle,N_Hole,Hole,E_RPA,Y_RPA)
 
     HF_RRPA_energy_density(Params,N_nu,N_Particle,Particle,N_Hole,Hole,Orb,H,Orb_NN_Res,V_NN_Res,A,E_RPA,Y_RPA,Rho)
@@ -219,5 +219,5 @@ function HF_RRPA_solve(Params::Parameters,N_nu::Matrix{Int64},Orb_Phonon::Matrix
     V_NN_Res = nothing
     GC.gc()
 
-    return E_RPA, X_RPA, Y_RPA, Rho, O1B(C_LHO_HF.p * C_HF_RRPA.p, C_LHO_HF.n * C_HF_RRPA.n)
+    return E_RPA, X_RPA, Y_RPA, Rho, O1B(C_LHO_HF.p * C_HF_RRPA.p, C_LHO_HF.n * C_HF_RRPA.n), H
 end

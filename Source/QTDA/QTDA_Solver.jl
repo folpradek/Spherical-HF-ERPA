@@ -12,33 +12,40 @@ function QTDA_solver(Params::Parameters)
     @time U = O1b_import(Params,Orb,"IO/" * Params.Calc.Path * "/Bin/U.bin")
     @time V = O1b_import(Params,Orb,"IO/" * Params.Calc.Path * "/Bin/V.bin")
 
+    # Construct the 1-body density operators Rho & Kappa ...
+    Rho, Kappa = HFB_density_operator(Params,U,V,Orb)
+
     # Import H_N ... 1-body quasiparticle Hamiltonian ...
     @time H_N = qpO1B_import(Params,Orb,"IO/" * Params.Calc.Path * "/Bin/qpH1B.bin")
 
     # Import residual 2-body NN interaction quasiparticle Hamiltonian ...
     @time H_NN, Orb_NN = qpO2b_import(Params,Orb,"IO/" * Params.Calc.Path * "/Bin/qpH2B.bin")
 
+    # Evaluate the reference charge radius chR ...
+    chR2 = OBDM_chR2(Params,Orb,C,Rho)
+
     # Initialize the quasiparticle transition operators ...
-        # To be double-checked on ...
-    @time qpTrOp = qpTr1b_initialize(Params,Orb,C,U,V)
+    @time qpTrOp = qpTr1b_initialize(Params,Orb,chR2,C,U,V)
+
+    # Initialize the 1-body particle number operator in quasiparticle representation ...
+    qpN = qpN1B_make(Params,U,V)
 
     # Allocate the QTDA matrix A ...
     @time A = QTDA_allocate(Params,Orb,Orb_NN,Orb_2qp,H_N,H_NN)
 
     # Solve QTDA eigenvalue problem ...
-    @time E_QTDA, X_QTDA= QTDA_diagonalize(Params,Orb,Orb_2qp,A)
+    @time E_QTDA, X_QTDA= QTDA_diagonalize(Params,Orb,Orb_2qp,A,qpN,qpTrOp)
 
-        # This needs to be checked on ...
     # Calculate the QTDA reduced electromagnetic transition amplitudes  M ...
     @time rM_QTDA = QTDA_rM(Params,Orb_2qp,X_QTDA,qpTrOp)
 
     # Calculate the QTDA reduced electromagnetic transition intensities  B ...
-    @time rB_QTDA = QTDA_rB(Params,Orb_2qp,rM_QTDA)
+    @time rB_QTDA = QTDA_rB(Params,Orb_2qp,rM_QTDA,E_QTDA)
 
     # Export of QTDA solutions ...
-    @time QTDA_export(Params,Orb,Orb_2qp,E_QTDA,X_QTDA,rB_QTDA)
+    @time QTDA_export(Params,Orb,Orb_2qp,Rho,E_QTDA,X_QTDA,rB_QTDA)
 
-    println("\nQTDA solver executed properly ...\n")
+    println("\tQTDA solver executed properly ...\n")
 
     return
 end

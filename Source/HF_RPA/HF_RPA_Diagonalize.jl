@@ -5,6 +5,9 @@ function HF_RPA_diagonalize(Params::Parameters,A::Matrix{Matrix{Float64}},B::Mat
     J_max = N_2max + 1
     Orthogon = Params.Calc.RPA.Ortho
 
+    # Initialize the stability boolean ...
+    Stability = true
+
     # Initialite the list of values of J & P for iteration ...
     JP_List = JP_initialize(J_max)
 
@@ -18,12 +21,9 @@ function HF_RPA_diagonalize(Params::Parameters,A::Matrix{Matrix{Float64}},B::Mat
     Y_RPA = Matrix{Matrix{ComplexF64}}(undef,J_max+1,2)
     E_RPA = Matrix{Vector{ComplexF64}}(undef,J_max+1,2)
 
-    #BLAS.set_num_threads(Threads.nthreads())
-
     # Diagonalization of TDA & RPA matrices with orthogonalization of spurious 1- states ...
     @inbounds Threads.@threads for JP in JP_List
-        J = JP[1]
-        P = JP[2]
+        J, P = JP[1], JP[2]
         N_ph = N_nu[J+1,P]
 
         # TDA method ...
@@ -97,8 +97,6 @@ function HF_RPA_diagonalize(Params::Parameters,A::Matrix{Matrix{Float64}},B::Mat
 
         E_TDA[J+1,P] = E_TDA_JP
         X_TDA[J+1,P] = X_TDA_JP
-
-
 
         # RPA diagonalization ...
         A_JP = A[J+1,P]
@@ -352,6 +350,14 @@ function HF_RPA_diagonalize(Params::Parameters,A::Matrix{Matrix{Float64}},B::Mat
                 end
             end
         end
+
+        # Determine stability of QRPA system ...
+        @inbounds for nu in 1:N_ph
+            if abs(imag(E_RPA_JP[nu])) > 1e-8
+                println("\t\t\tRPA INSTABILITY DETECTED in channel:\tJ = $J, P = +")
+                Stability = false
+            end
+        end
         
         E_RPA[J+1,P] = E_RPA_JP
         X_RPA[J+1,P] = X_RPA_JP
@@ -361,5 +367,5 @@ function HF_RPA_diagonalize(Params::Parameters,A::Matrix{Matrix{Float64}},B::Mat
 
     println("\nDiagonalization done ...")
 
-    return E_TDA, X_TDA, E_RPA, X_RPA, Y_RPA
+    return E_TDA, X_TDA, E_RPA, X_RPA, Y_RPA, Stability
 end

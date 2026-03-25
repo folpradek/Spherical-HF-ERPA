@@ -95,7 +95,7 @@ function HFB_summary_SQS(Params::Parameters,SQE::pnVector,Rho::O1B,Orb::Vector{O
             l_a = Orb[a].l
             j_a = Orb[a].j
             n_a = pn[l_a+1,j_a+1]
-            @printf(Summary, "%4d %4d %4d %10.3f %14.5f\tMeV\n", n_a, l_a, j_a,Rho.p[a,a],SQE.p[a])
+            @printf(Summary, "%4d %4d %4d %10.3f %14.5f\n", n_a, l_a, j_a,Rho.p[a,a],SQE.p[a])
             pn[l_a+1,j_a+1] += 1
         end
         println(Summary,"_______________________________________________________________________________________________________")
@@ -107,7 +107,7 @@ function HFB_summary_SQS(Params::Parameters,SQE::pnVector,Rho::O1B,Orb::Vector{O
             l_a = Orb[a].l
             j_a = Orb[a].j
             n_a = nn[l_a+1,j_a+1]
-            @printf(Summary, "%4d %4d %4d %10.3f %14.5f\tMeV\n", n_a, l_a, j_a,Rho.n[a,a],SQE.n[a])
+            @printf(Summary, "%4d %4d %4d %10.3f %14.5f\n", n_a, l_a, j_a,Rho.n[a,a],SQE.n[a])
             nn[l_a+1,j_a+1] += 1
         end
         println(Summary,"_______________________________________________________________________________________________________")

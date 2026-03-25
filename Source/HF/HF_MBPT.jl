@@ -889,11 +889,11 @@ function HF_MBPT_occupation(Params::Parameters,Rho_HF::O1B,Rho_NAT::O1B)
 
     # Export the occupation probabilities to data file ...
     open(Output_Path, "w") do Write_File
-        println(Write_File, "a\tpn_HF\tpn_MBPT\td_pn\tnn_HF\tnn_MBPT\td_nn")
+        @printf(Write_File, "%-6s %-12s %-12s %-12s %-12s %-12s %-12s\n", "a", "pN_HF", "pN_PT", "d_pN", "nN_HF", "nN_PT", "d_nN")
         @inbounds for a in 1:a_max
-            println(Write_File, string(a) * "\t" * string(Rho_HF.p[a,a]) * "\t" * string(Rho_NAT.p[a,a]) *
-                    "\t" * string(round(Rho_HF.p[a,a] - Rho_NAT.p[a,a], digits = 5)) * "\t" * string(Rho_HF.n[a,a]) *
-                    "\t" * string(Rho_NAT.n[a,a]) * "\t" * string(round(Rho_HF.n[a,a] - Rho_NAT.n[a,a], digits = 5)))
+            @printf(Write_File, "%-6d %-12.6f %-12.6f %-12.6f %-12.6f %-12.6f %-12.6f\n",
+                    a, Rho_HF.p[a,a], Rho_NAT.p[a,a], Rho_HF.p[a,a] - Rho_NAT.p[a,a], Rho_HF.n[a,a],
+                    Rho_NAT.n[a,a], Rho_HF.n[a,a] - Rho_NAT.n[a,a])
         end
     end
 
