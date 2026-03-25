@@ -104,15 +104,6 @@ module NuJuliet
     include("QRPA/QRPA_Transitions.jl")
     include("QRPA/QRPA_Export.jl")
 
-    # pHF-RPA ... for testing purposes !!!
-        # placement is really temporary ...
-    #include("Temp/pHF_RPA/HF_ScRPA_TBDM.jl")
-    #include("Temp/pHF_RPA/pHF_RPA_Solver.jl")
-    #include("Temp/pHF_RPA/pHF_RPA.jl")
-    #include("Temp/pHF_RPA/pHF_RPA_Allocate.jl")
-    #include("Temp/pHF_RPA/pHF_RPA_Diagonalize.jl")
-
-
     for n in names(@__MODULE__; all=true)
         if Base.isidentifier(n) && n ∉ (Symbol(@__MODULE__), :eval, :include)
             @eval export $n
