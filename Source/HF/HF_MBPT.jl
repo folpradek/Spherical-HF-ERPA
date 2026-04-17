@@ -139,8 +139,12 @@ function HF_MBPT_energy(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,N_Pa
     # Write the total HF-MBPT(2) energy correction to the summary file ...
     Summary =  open(string("IO/", IO, "/HF/HF_Summary.dat"), "a")
         println(Summary, "\nSpherical Hartree-Fock Leading Order Many-Body Perturbation Theory solution review:")
-        println(Summary, "\nE_0^(2) = " * string(round(dE, sigdigits=9)) * "\t MeV \t\t ... \t LO HF-MBPT(2) correction to ground-state energy")
-        println(Summary, "\nE_0^(2) / A = " * string(round(dE / Float64(Params.Calc.A), sigdigits=9)) * "\t MeV \t\t ... \t LO HF-MBPT(2) correction to ground-state energy per nucleon")
+        @printf(Summary, "\nE_0^(2)     = %15.8f \t MeV \t\t ... \t LO HF-MBPT(2) correction to ground-state energy", dE)
+        @printf(Summary, "\nE_0^(2) / A = %15.8f \t MeV \t\t ... \t LO HF-MBPT(2) correction to ground-state energy per nucleon", dE / Float64(Params.Calc.A))
+        #=
+            println(Summary, "\nE_0^(2) = " * string(round(dE, sigdigits=9)) * "\t MeV \t\t ... \t LO HF-MBPT(2) correction to ground-state energy")
+            println(Summary, "\nE_0^(2) / A = " * string(round(dE / Float64(Params.Calc.A), sigdigits=9)) * "\t MeV \t\t ... \t LO HF-MBPT(2) correction to ground-state energy per nucleon")
+        =#
     close(Summary)
 
     return

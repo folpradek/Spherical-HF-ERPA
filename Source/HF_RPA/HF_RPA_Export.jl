@@ -208,6 +208,10 @@ function HF_RPA_binary_export(Params::Parameters,N_nu::Matrix{Int64},E_TDA::Matr
                         end
                     end
                 end
+                if Buffer_count > 0
+                    write(Export_File,Buffer_TDA[1:Buffer_count])
+                    Buffer_count = 0
+                end
             end
         end
     end
@@ -227,6 +231,10 @@ function HF_RPA_binary_export(Params::Parameters,N_nu::Matrix{Int64},E_TDA::Matr
                         write(Export_File,Buffer_TDA)
                         Buffer_count = 0
                     end
+                end
+                if Buffer_count > 0
+                    write(Export_File,Buffer_TDA[1:Buffer_count])
+                    Buffer_count = 0
                 end
             end
         end
@@ -251,6 +259,10 @@ function HF_RPA_binary_export(Params::Parameters,N_nu::Matrix{Int64},E_TDA::Matr
                         end
                     end
                 end
+                if Buffer_count > 0
+                    write(Export_File,Buffer_RPA[1:Buffer_count])
+                    Buffer_count = 0
+                end
             end
         end
     end
@@ -273,6 +285,10 @@ function HF_RPA_binary_export(Params::Parameters,N_nu::Matrix{Int64},E_TDA::Matr
                         end
                     end
                 end
+                if Buffer_count > 0
+                    write(Export_File,Buffer_RPA[1:Buffer_count])
+                    Buffer_count = 0
+                end
             end
         end
     end
@@ -292,6 +308,10 @@ function HF_RPA_binary_export(Params::Parameters,N_nu::Matrix{Int64},E_TDA::Matr
                         write(Export_File,Buffer_RPA)
                         Buffer_count = 0
                     end
+                end
+                if Buffer_count > 0
+                    write(Export_File,Buffer_RPA[1:Buffer_count])
+                    Buffer_count = 0
                 end
             end
         end
@@ -394,8 +414,8 @@ function HF_RPA_plot_spectrum_export(Params::Parameters,N_nu::Matrix{Int64},E_TD
     nu_count = 1
     @inbounds for J in 0:J_max
         @inbounds for P in 1:2
-            N_ph = N_nu[J+1,P]
-            @inbounds for nu in 1:N_ph
+            N_ph_JP = N_nu[J+1,P]
+            @inbounds for nu in 1:N_ph_JP
                 nu_count += 1
                 TDA_Solution[1,nu_count] = Float64(J)
                 TDA_Solution[2,nu_count] = Float64(P)
@@ -453,11 +473,10 @@ function HF_RPA_plot_spectrum_export(Params::Parameters,N_nu::Matrix{Int64},E_TD
             end
             E = TDA_Solution[3,nu]
             E_m = TDA_Solution[4,nu]
-            @printf(Write_File, "%-5s %-5s %-12.6f %-12.6f\n", J, P, E, E_m)
+            @printf(Write_File, "%-5d %-5s %-12.6f %-12.6f\n", J, P, E, E_m)
         end
     end
     println("\t\tTDA plot-ready spectra successfully exported ...")
-
 
     # RPA spectrum plot data export ...
     println("\tPerforming the export of plot-ready RPA spectra ...")
@@ -473,7 +492,7 @@ function HF_RPA_plot_spectrum_export(Params::Parameters,N_nu::Matrix{Int64},E_TD
             end
             E = RPA_Solution[3,nu]
             E_m = RPA_Solution[4,nu]
-            @printf(Write_File, "%-5s %-5s %-12.6f %-12.6f\n", J, P, E, E_m)
+            @printf(Write_File, "%-5d %-5s %-12.6f %-12.6f\n", J, P, E, E_m)
         end
     end
     println("\t\tRPA plot-ready spectra successfully exported ...")

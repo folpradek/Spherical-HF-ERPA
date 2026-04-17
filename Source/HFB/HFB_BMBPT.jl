@@ -120,9 +120,7 @@ function HFB_BMBPT_energy(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,H_
     # Write the total HFB-BMBPT(2) energy correction to the summary file ...
     Summary =  open(string("IO/" * IO * "/HFB/HFB_Summary.dat"), "a")
         println(Summary, "\nSpherical Hartree-Fock-Bogoliubov Leading Order Bogoliubov Many-Body Perturbation Theory (2) solution review:")
-        println(Summary, "\nE_0^(2) = " * string(round(dE, sigdigits=9)) * "\t MeV \t\t ... \t LO HFB-BMBPT(2) correction to ground-state energy")
-        println(Summary, "\nE_0^(2) / A = " * string(round(dE / Float64(Params.Calc.A), sigdigits=9)) * "\t MeV \t\t ... \t LO HFB-BMBPT(2) correction to ground-state energy per nucleon")
-    close(Summary)
-
+        @printf(Summary, "\nE_0^(2)     = %15.8f \t MeV \t\t ... \t LO HFB-BMBPT(2) correction to ground-state energy", dE) 
+        @printf(Summary, "\nE_0^(2) / A = %15.8f \t MeV / Nucleon \t\t ... \t LO HFB-BMBPT(2) correction to ground-state energy", dE / Float64(Params.Calc.A)) 
     return
 end

@@ -42,7 +42,7 @@ function QRPA_spurious_CM_initialize(Orb_2qp::qpOrb2B,qpTrOp::qpTr1B)
     return Spur_CM
 end
 
-function QRPA_spurious_orthogonalize(N_qp::Int64,Spur::Vector{Float64})
+function QRPA_spurious_orthogonalize(N_qp::Int64,Spur::Vector{Float64},V::AbstractArray{Float64},I::AbstractArray{Float64})
     # Orthogonalization done by Householder reflection algorithm
     # For explanation see ...
     #
@@ -53,50 +53,50 @@ function QRPA_spurious_orthogonalize(N_qp::Int64,Spur::Vector{Float64})
     # Initialize the spurious index ...
     Spur_ind = 0
 
-    # Initialize identity matrix ... 2qp basis ...
-    I = diagm(ones(Float64,N_qp))
+    # Allocate the identity matrix ... 2qp basis ...
+    I .= 0.0
+    @inbounds for a in 1:N_qp
+        I[a,a] = 1.0
+    end
 
     # Project-out the spurious states from the given 2qp basis ...
     @inbounds for a in 1:N_qp
-        Projection = 0.0
-        @inbounds for b in 1:N_qp
-            ME = Spur[b] * I[b,a]
-            Projection += ME
-        end
-        @inbounds for b in 1:N_qp
-            ME = I[b,a] - Projection * Spur[b]
-            I[b,a] = ME
-        end
+        c = @view I[:, a]
+        Projection = dot(Spur,c)
+        @. c = c - Projection * Spur   # fused broadcast, no temp
     end
 
     # Renormalize the basis ...
     @inbounds for a in 1:N_qp
-        b = @views I[:,a] ./ norm(I[:,a]) 
-        @views I[:,a] = b
+        c = @views I[:,a]
+        normalize!(c)
     end
-
-    # Allocate temporary matrix U ...
-    U = zeros(Float64,N_qp,N_qp)
 
     # Determine the index of spurious state ...
-    @views U[:,1] = I[:,1]
+    @views V[:,1] = I[:,1]
 
     @inbounds for nu in 2:N_qp
-        u = @views I[:,nu]
+        v = @view I[:, nu]
         @inbounds for mu in 1:(nu - 1)
-            u -= @views (U[:, mu]' * u) * U[:, mu]
+            c = @view V[:,mu]
+            cv_dot = dot(c,v)
+            @. v = v - cv_dot * c
         end
-        if abs(norm(u)) < 1e-4
+
+        if abs(norm(v)) < 1e-4
             Spur_ind = nu
         end
-        @views U[:, nu] = u ./ norm(u)
+
+        normalize!(v)
+
+        @views V[:,nu] = v
     end
-    @views U[:,Spur_ind] = Spur
+    @views V[:,Spur_ind] = Spur
 
         # Check orthonormality ... precision in order of 1e-15 or smaller is thanks to the Householder algorithm ... very precise
         #println("Orthogonality check (close to identity?) ...")
-        #orthogonality_check = U' * U
+        #orthogonality_check = V' * V
         #display(orthogonality_check)
 
-    return U, Spur_ind
+    return V, Spur_ind
 end

@@ -292,17 +292,17 @@ function QRPA_rB(Params::Parameters,Orb_2qp::qpOrb2B,rM::ReducedMultipole,E_QRPA
 
             # Isovector components ...
         rB_E1[3][nu] = abs(e_p * rM.E1.p[nu] - e_n * rM.E1.n[nu])^2
-        rB_E1_V[3][nu] = abs(0.5 * (rM.E1_VC.p[nu] - rM.E1_VC.n[nu]) + 0.125 * (g_p - g_n) * (rM.E1_VS.p[nu] - rM.E1_VS.n[nu]))^2
+        rB_E1_V[3][nu] = abs(0.5 * (rM.E1_VC.p[nu] - rM.E1_VC.n[nu]) + 0.125 * (g_p - g_n) * (rM.E1_VS.p[nu] + rM.E1_VS.n[nu]))^2
         rB_E1_VC[3][nu] = abs(0.5 * (rM.E1_VC.p[nu] - rM.E1_VC.n[nu]))^2
-        rB_E1_VS[3][nu] = abs(0.125 * (g_p - g_n) * (rM.E1_VS.p[nu] - rM.E1_VS.n[nu]))^2
+        rB_E1_VS[3][nu] = abs(0.125 * (g_p - g_n) * (rM.E1_VS.p[nu] + rM.E1_VS.n[nu]))^2
         
-        rB_E1_T[3][nu] = abs(0.5 * (rM.E1_TC.p[nu] - rM.E1_TC.n[nu]) + 0.125 * (g_p - g_n) * (rM.E1_TS.p[nu] - rM.E1_TS.n[nu]))^2
+        rB_E1_T[3][nu] = abs(0.5 * (rM.E1_TC.p[nu] - rM.E1_TC.n[nu]) + 0.125 * (g_p - g_n) * (rM.E1_TS.p[nu] + rM.E1_TS.n[nu]))^2
         rB_E1_TC[3][nu] = abs(0.5 * (rM.E1_TC.p[nu] - rM.E1_TC.n[nu]))^2
-        rB_E1_TS[3][nu] = abs(0.125 * (g_p - g_n) * (rM.E1_TS.p[nu] - rM.E1_TS.n[nu]))^2
+        rB_E1_TS[3][nu] = abs(0.125 * (g_p - g_n) * (rM.E1_TS.p[nu] + rM.E1_TS.n[nu]))^2
 
         rB_E1_C[3][nu] = 0.25 * abs(rM.E1_C.p[nu] - rM.E1_C.n[nu])^2
 
-        rB_E1_NLO_LWA[3][nu] = abs(e_p * rM.E1.p[nu] - e_n * rM.E1.n[nu] +  0.5 * E / hc * ((rM.E1_TC.p[nu] - rM.E1_TC.n[nu]) + 0.25 * (g_p - g_n) * (rM.E1_TS.p[nu] - rM.E1_TS.n[nu])))^2
+        rB_E1_NLO_LWA[3][nu] = abs(e_p * rM.E1.p[nu] - e_n * rM.E1.n[nu] +  0.5 * E / hc * ((rM.E1_TC.p[nu] - rM.E1_TC.n[nu]) + 0.125 * (g_p - g_n) * (rM.E1_TS.p[nu] + rM.E1_TS.n[nu])))^2
     end
 
     # Case of E2 ...

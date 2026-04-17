@@ -1,13 +1,11 @@
-function HF_RPA(Params::Parameters)
+function HF_ScRPA(Params::Parameters)
     # Initialize Wigner symbols ...
-    #wigner_init_float(Params.Int.N2max + 2, "Jmax", 6)
-    #wigner_init_float(Params.Int.N2max + 11, "Jmax", 9)
-    wigner_init_float(75, "Jmax", 9)
+    wigner_init_float(Params.Int.N2max + 2, "Jmax", 6)
 
     # Calculation parameters
-    println("Starting RPA (TDA) calculations with residual NO2B NN+NNN interaction")
+    println("Starting Self-consistent RPA calculation with residual NO2B NN+NNN interaction")
     println("\nCalculation data:")
-    println("A = " * string(Params.Calc.A) * " , Z = " * string(Params.Calc.Z) * " , HbarOmega = " * string(Params.Calc.Z) *
+    println("A = " * string(Params.Calc.A) * " , Z = " * string(Params.Calc.Z) * " , hw = " * string(Params.Calc.Z) *
             " MeV , N_max = " * string(Params.Calc.Nmax) * " , J-scheme LHO basis size = " * string(div((Params.Calc.Nmax+1)*(Params.Calc.Nmax+2),2)) *
             " , M-scheme LHO basis size = " * string(div((Params.Calc.Nmax+1)*(Params.Calc.Nmax+2)*(Params.Calc.Nmax+3),6)))
 
@@ -45,10 +43,10 @@ function HF_RPA(Params::Parameters)
         mkdir("IO/" * Params.Calc.Path * "/RPA/Amplitudes")
     end
     
-    println("\nStarting RPA & TDA calculation ...")
+    println("\nStarting HF-ScRPA calculation ...")
     # Start RPA & TDA calculation ...
-    @time HF_RPA_solver(Params)
-    
+    HF_ScRPA_solver(Params)
+
     println("\nAll calculations have finished ...\n")
 
     return

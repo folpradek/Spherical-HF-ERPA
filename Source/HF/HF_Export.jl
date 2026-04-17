@@ -26,11 +26,12 @@ function HF_summary(Params::Parameters,E_HF::Float64,T_HF::Float64,Iteration::In
             println(Summary, "\n\t\t\tNo Center-of-Mass System (CMS) motion correction is set ...")
         end
         println(Summary, "\nSpherical Hartree-Fock solution review:")
-        println(Summary, "\nNumber of Iterations = " * string(Iteration) * ", Precision = " * string(round(epsilon, digits=8)) * " MeV")
-        println(Summary, "\nE_HF = " * string(round(E_HF, sigdigits=9)) * "\t MeV \t\t ... \t Mean-field ground state energy")
-        println(Summary, "T_HF = " * string(round(T_HF, sigdigits=9)) * "\t MeV \t\t ... \t Mean-field total kinetic energy")
-        println(Summary, "\nE_HF / A = " * string(round(E_HF / Float64(A), sigdigits=9)) * "\t MeV / Nucleon \t\t ... \t Mean-field ground state energy")
-        println(Summary, "T_HF / A = " * string(round(T_HF / Float64(A), sigdigits=9)) * "\t MeV / Nucleon \t\t ... \t Mean-field total kinetic energy")
+
+        @printf(Summary, "\nNumber of Iterations = %5d, Precision = %.3e \t MeV", Iteration, epsilon)
+        @printf(Summary, "\nE_HF = %15.8f\t MeV \t\t ... \t Mean-field ground state energy\n", E_HF)
+        @printf(Summary, "T_HF = %15.8f\t MeV \t\t ... \t Mean-field kinetic energy\n", T_HF)
+        @printf(Summary, "\nE_HF / A = %15.8f\t MeV / Nucleon \t\t ... \t Mean-field ground state energy per nucleon\n", E_HF / A)
+        @printf(Summary, "T_HF / A = %15.8f\t MeV / Nucleon \t\t ... \t Mean-field total kinetic energy per nucleon\n", T_HF / A)
     close(Summary)
 
     return

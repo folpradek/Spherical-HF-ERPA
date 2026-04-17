@@ -1,21 +1,21 @@
 function HF_RRPA_export(Params::Parameters,Orb::Vector{Orb1B},N_nu::Matrix{Int64},E_corr::Float64,C::O1B,Rho::O1B,h::O1B,E_RPA::Matrix{Vector{ComplexF64}},X_RPA::Matrix{Matrix{ComplexF64}},Y_RPA::Matrix{Matrix{ComplexF64}},rB_RPA::ReducedTransition)
     # Export RRPA summary file ...
-    HF_RRPA_summary(Params,N_nu,E_corr)
-
-    # Export of RRPA spectra ...
-    HF_RRPA_spectrum_export(Params,N_nu,E_RPA)
+    HF_RRPA_export_summary(Params,N_nu,E_corr)
 
     # Export of RRPA energies & amplitudes in binary format ...
-    @time HF_RRPA_binary_export(Params,N_nu,E_RPA,X_RPA,Y_RPA)
+    @time HF_RRPA_export_binary(Params,N_nu,E_RPA,X_RPA,Y_RPA)
 
     # Export of RRPA |X|^2 & |Y|^2 amplitudes, not plot ready ...
-    HF_RRPA_amplitudes_export(Params,N_nu,E_RPA,X_RPA,Y_RPA)
+    HF_RRPA_export_amplitudes(Params,N_nu,E_RPA,X_RPA,Y_RPA)
+
+    # Export of RRPA spectra ...
+    HF_RRPA_export_spectrum(Params,N_nu,E_RPA)
 
     # Export of RRPA plot-ready spectra ...
-    HF_RRPA_spectrum_export_plot(Params,N_nu,E_RPA)
+    HF_RRPA_export_spectrum_plot(Params,N_nu,E_RPA)
 
     # Export single-particle level occupations ...
-    HF_RRPA_occupation_export(Params,Orb,Rho)
+    HF_RRPA_export_occupation(Params,Orb,Rho)
 
     # Calculate & export radial RRPA densities & radii ...
     Summary_File = "IO/" * Params.Calc.Path * "/RRPA/RRPA_Summary.dat"
@@ -23,15 +23,15 @@ function HF_RRPA_export(Params::Parameters,Orb::Vector{Orb1B},N_nu::Matrix{Int64
     @time OBDM_export(Params,Orb,Summary_File,Densities_File,O1B(C.p * Rho.p * C.p', C.n * Rho.n * C.n'),C)
 
     # Determine & export RRPA effective single-particle energies ...
-    @time HF_RRPA_single_particle_spectrum_export(Params,Orb,h)
+    @time HF_RRPA_export_single_particle_spectrum(Params,Orb,h)
 
     # Export of RRPA electromagnetic transitions ...
-    HF_RRPA_transitions_export(Params,Orb,N_nu,C,Rho,E_RPA,rB_RPA)
+    HF_RRPA_export_transitions(Params,Orb,N_nu,C,Rho,E_RPA,rB_RPA)
 
     return
 end
 
-function HF_RRPA_summary(Params::Parameters,N_nu::Matrix{Int64},E_corr::Float64)
+function HF_RRPA_export_summary(Params::Parameters,N_nu::Matrix{Int64},E_corr::Float64)
     # Read parameters ...
     A = Params.Calc.A
     Z = Params.Calc.Z
@@ -111,7 +111,7 @@ function HF_RRPA_summary(Params::Parameters,N_nu::Matrix{Int64},E_corr::Float64)
 
 end
 
-function HF_RRPA_binary_export(Params::Parameters,N_nu::Matrix{Int64},E_RPA::Matrix{Vector{ComplexF64}},X_RPA::Matrix{Matrix{ComplexF64}},Y_RPA::Matrix{Matrix{ComplexF64}})
+function HF_RRPA_export_binary(Params::Parameters,N_nu::Matrix{Int64},E_RPA::Matrix{Vector{ComplexF64}},X_RPA::Matrix{Matrix{ComplexF64}},Y_RPA::Matrix{Matrix{ComplexF64}})
     # Read parameters ...
     N_max = Params.Calc.Nmax
     J_max = 2*N_max + 1
@@ -145,6 +145,10 @@ function HF_RRPA_binary_export(Params::Parameters,N_nu::Matrix{Int64},E_RPA::Mat
                         end
                     end
                 end
+                if Buffer_count > 0
+                    write(Export_File,Buffer[1:Buffer_count])
+                    Buffer_count = 0
+                end
             end
         end
     end
@@ -167,6 +171,10 @@ function HF_RRPA_binary_export(Params::Parameters,N_nu::Matrix{Int64},E_RPA::Mat
                         end
                     end
                 end
+                if Buffer_count > 0
+                    write(Export_File,Buffer[1:Buffer_count])
+                    Buffer_count = 0
+                end
             end
         end
     end
@@ -187,6 +195,10 @@ function HF_RRPA_binary_export(Params::Parameters,N_nu::Matrix{Int64},E_RPA::Mat
                         Buffer_count = 0
                     end
                 end
+                if Buffer_count > 0
+                    write(Export_File,Buffer[1:Buffer_count])
+                    Buffer_count = 0
+                end
             end
         end
     end
@@ -196,7 +208,7 @@ function HF_RRPA_binary_export(Params::Parameters,N_nu::Matrix{Int64},E_RPA::Mat
     return
 end
 
-function HF_RRPA_spectrum_export(Params::Parameters,N_nu::Matrix{Int64},E_RPA::Matrix{Vector{ComplexF64}})
+function HF_RRPA_export_spectrum(Params::Parameters,N_nu::Matrix{Int64},E_RPA::Matrix{Vector{ComplexF64}})
     # Read calculation parameters ...
     N_max = Params.Calc.Nmax
     N_2max = 2*N_max
@@ -231,7 +243,7 @@ function HF_RRPA_spectrum_export(Params::Parameters,N_nu::Matrix{Int64},E_RPA::M
     return
 end
 
-function HF_RRPA_spectrum_export_plot(Params::Parameters,N_nu::Matrix{Int64},E_RPA::Matrix{Vector{ComplexF64}})
+function HF_RRPA_export_spectrum_plot(Params::Parameters,N_nu::Matrix{Int64},E_RPA::Matrix{Vector{ComplexF64}})
     # Read calculation parameters ...
     N_max = Params.Calc.Nmax
     N_2max = 2*N_max
@@ -316,7 +328,7 @@ function HF_RRPA_spectrum_export_plot(Params::Parameters,N_nu::Matrix{Int64},E_R
     return
 end
 
-function HF_RRPA_occupation_export(Params::Parameters,Orb::Vector{Orb1B},Rho::O1B)
+function HF_RRPA_export_occupation(Params::Parameters,Orb::Vector{Orb1B},Rho::O1B)
     # Read parameters ...
     N_max = Params.Calc.Nmax
     a_max = div((N_max+1)*(N_max+2),2)
@@ -376,7 +388,7 @@ function HF_RRPA_occupation_export(Params::Parameters,Orb::Vector{Orb1B},Rho::O1
     return
 end
 
-function HF_RRPA_single_particle_spectrum_export(Params::Parameters,Orb::Vector{Orb1B},h::O1B)
+function HF_RRPA_export_single_particle_spectrum(Params::Parameters,Orb::Vector{Orb1B},h::O1B)
     # Read parameters ...
     N_max = Params.Calc.Nmax
     a_max = div((N_max+1)*(N_max+2),2)
@@ -448,7 +460,7 @@ function HF_RRPA_single_particle_spectrum_export(Params::Parameters,Orb::Vector{
     return
 end
 
-function HF_RRPA_amplitudes_export(Params::Parameters,N_nu::Matrix{Int64},E_RPA::Matrix{Vector{ComplexF64}},X_RPA::Matrix{Matrix{ComplexF64}},Y_RPA::Matrix{Matrix{ComplexF64}})
+function HF_RRPA_export_amplitudes(Params::Parameters,N_nu::Matrix{Int64},E_RPA::Matrix{Vector{ComplexF64}},X_RPA::Matrix{Matrix{ComplexF64}},Y_RPA::Matrix{Matrix{ComplexF64}})
     # Read parameters ...
     N_max = Params.Calc.Nmax
     N_2max = 2*N_max
@@ -548,7 +560,7 @@ function HF_RRPA_amplitudes_export(Params::Parameters,N_nu::Matrix{Int64},E_RPA:
     return
 end
 
-function HF_RRPA_transitions_export(Params::Parameters,Orb::Vector{Orb1B},N_nu::Matrix{Int64},C::O1B,Rho::O1B,E_RPA::Matrix{Vector{ComplexF64}},rB_RPA::ReducedTransition)
+function HF_RRPA_export_transitions(Params::Parameters,Orb::Vector{Orb1B},N_nu::Matrix{Int64},C::O1B,Rho::O1B,E_RPA::Matrix{Vector{ComplexF64}},rB_RPA::ReducedTransition)
     # Read parameters ...
     Z = Params.Calc.Z
     Output_File = Params.Calc.Path

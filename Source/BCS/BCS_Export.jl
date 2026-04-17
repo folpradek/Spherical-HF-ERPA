@@ -34,6 +34,30 @@ function BCS_summary(Params::Parameters,Params_Ref::Parameters,E_MF::Float64,E_B
             println(Summary, "\n\nBCS equations did NOT converge in " * string(Iteration) * " iterations with precision epsilon = " * string(epsilon) * " ...")
         end
         println(Summary, "\n\nBCS solution review:")
+
+        @printf(Summary, "\nE_tot      = %15.8f\t MeV \t\t ... \t Total BCS ground-state energy\n", E_MF + sum(E_BCS))
+        @printf(Summary, "E_MF       = %15.8f\t MeV \t\t ... \t Mean-field ground-state energy\n", E_MF)
+        @printf(Summary, "E_BCS      = %15.8f\t MeV \t\t ... \t BCS pairing ground-state energy\n", sum(E_BCS))
+        @printf(Summary, "E_BCS (2N) = %15.8f\t MeV \t\t ... \t BCS pairing NN ground-state energy\n", E_BCS[1])
+        @printf(Summary, "E_BCS (3N) = %15.8f\t MeV \t\t ... \t BCS pairing NNN ground-state energy\n", E_BCS[2])
+        @printf(Summary, "T_BCS      = %15.8f\t MeV \t\t ... \t BCS mean-field ground-state kinetic energy\n", T_BCS)
+        @printf(Summary, "\nE_tot / A      = %15.8f\t MeV / Nucleon \t\t ... \t Total BCS ground-state energy per nucleon\n", (E_MF + sum(E_BCS)) / A)
+        @printf(Summary, "E_MF / A       = %15.8f\t MeV / Nucleon \t\t ... \t Mean-field ground-state energy per nucleon\n", E_MF / A)
+        @printf(Summary, "E_BCS / A      = %15.8f\t MeV / Nucleon \t\t ... \t BCS pairing ground-state energy per nucleon\n", sum(E_BCS) / A)
+        @printf(Summary, "E_BCS / A (2N) = %15.8f\t MeV / Nucleon \t\t ... \t BCS pairing NN ground-state energy per nucleon\n", E_BCS[1] / A)
+        @printf(Summary, "E_BCS / A (3N) = %15.8f\t MeV / Nucleon \t\t ... \t BCS pairing NNN ground-state energy per nucleon\n", E_BCS[2] / A)
+        @printf(Summary, "T_BCS / A      = %15.8f\t MeV / Nucleon \t\t ... \t BCS mean-field ground-state kinetic energy per nucleon\n", T_BCS / A)
+        @printf(Summary, "\n\nValues of BCS chemical potentials:\n")
+        @printf(Summary, "\npLambda =  %15.8f MeV\n", Lambda.p)
+        @printf(Summary, "nLambda =  %15.8f MeV\n", Lambda.n)
+        println(Summary, "\nBCS particle number dispersions dZ & dN:")
+        println(Summary, "\ndZ = " * string(round(dZ, sigdigits=6)))
+        println(Summary, "dN = " * string(round(dN, sigdigits=6)))
+        println(Summary, "\ndZ / Z = " * string(round(dA.p / Float64(Z), sigdigits=6)))
+        println(Summary, "dN / N = " * string(round(dA.n / Float64(A - Z), sigdigits=6)))
+    close(Summary)
+
+    #=
         println(Summary, "\nE_tot      = " * string(round(E_MF + sum(E_BCS), sigdigits=9)) * "\t MeV \t\t ... \t Total BCS ground-state energy")
         println(Summary, "E_MF       = " * string(round(E_MF, sigdigits=9)) * "\t MeV \t\t ... \t Mean-field ground-state energy")
         println(Summary, "E_BCS      = " * string(round(sum(E_BCS), sigdigits=9)) * "\t MeV \t\t ... \t BCS pairing ground-state energy")
@@ -55,6 +79,7 @@ function BCS_summary(Params::Parameters,Params_Ref::Parameters,E_MF::Float64,E_B
         println(Summary, "\ndZ / Z = " * string(round(dA.p / Float64(Z), sigdigits=6)))
         println(Summary, "dN / N = " * string(round(dA.n / Float64(A - Z), sigdigits=6)))
     close(Summary)
+    =#
 
     return
 end

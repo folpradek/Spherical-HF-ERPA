@@ -123,6 +123,10 @@ function QTDA_binary_export(Params::Parameters,Orb_2qp::qpOrb2B,E_QTDA::Matrix{V
                         end
                     end
                 end
+                if Buffer_count > 0
+                    write(Export_File,Buffer[1:Buffer_count])
+                    Buffer_count = 0
+                end
             end
         end
     end
@@ -142,6 +146,10 @@ function QTDA_binary_export(Params::Parameters,Orb_2qp::qpOrb2B,E_QTDA::Matrix{V
                         write(Export_File,Buffer)
                         Buffer_count = 0
                     end
+                end
+                if Buffer_count > 0
+                    write(Export_File,Buffer[1:Buffer_count])
+                    Buffer_count = 0
                 end
             end
         end

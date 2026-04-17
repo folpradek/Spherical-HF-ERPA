@@ -6,12 +6,17 @@ function KroneckerDelta(a::Int,b::Int)
     end
 end
 
-function kronecker_delta(a::Int,b::Int)
+@inline function kronecker_delta(a::Int,b::Int)
     if a == b
         return 1
     else
         return 0
     end
+end
+
+@inline function phase(Arg::Int)
+    Phase = isodd(Arg) ? -1.0 : 1.0
+    return Phase
 end
 
 pretty_summarysize(x) = Base.format_bytes(Base.summarysize(x))

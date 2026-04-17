@@ -420,12 +420,12 @@ function qpO2b_import(Params::Parameters,Orb::Vector{Orb1B},Import_Path::String)
         return reinterpret(Float64,Bytes)
     end
 
+    # Define the buffer size ...
     Buffer_size = 1000000
 
     # Import the given 2-body quasiparticle NN operator ...
     println("\nReading given 2-body quasiparticle NN operator ...")
     @inbounds Threads.@threads for HJP in HJP_chunk
-    #@inbounds for HJP in HJP_chunk
         H, J, P = HJP[1], HJP[2], HJP[3]
 
         N = N_chunk[H,J+1,P]

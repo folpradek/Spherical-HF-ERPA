@@ -343,17 +343,17 @@ function HF_RRPA_rB(Params::Parameters,N_nu::Matrix{Int64},rM::ReducedMultipole,
 
             # Isovector components ...
         rB_E1[3][nu] = abs(e_p * rM.E1.p[nu] - e_n * rM.E1.n[nu])^2
-        rB_E1V[3][nu] = abs(0.5 * (rM.E1_VC.p[nu] - rM.E1_VC.n[nu]) + 0.125 * (g_p - g_n) * (rM.E1_VS.p[nu] - rM.E1_VS.n[nu]))^2
+        rB_E1V[3][nu] = abs(0.5 * (rM.E1_VC.p[nu] - rM.E1_VC.n[nu]) + 0.125 * (g_p - g_n) * (rM.E1_VS.p[nu] + rM.E1_VS.n[nu]))^2
         rB_E1VC[3][nu] = abs(0.5 * (rM.E1_VC.p[nu] - rM.E1_VC.n[nu]))^2
-        rB_E1VS[3][nu] = abs(0.125 * (g_p - g_n) * (rM.E1_VS.p[nu] - rM.E1_VS.n[nu]))^2
+        rB_E1VS[3][nu] = abs(0.125 * (g_p - g_n) * (rM.E1_VS.p[nu] + rM.E1_VS.n[nu]))^2
         
-        rB_E1T[3][nu] = abs(0.5 * (rM.E1_TC.p[nu] - rM.E1_TC.n[nu]) + 0.125 * (g_p - g_n) * (rM.E1_TS.p[nu] - rM.E1_TS.n[nu]))^2
+        rB_E1T[3][nu] = abs(0.5 * (rM.E1_TC.p[nu] - rM.E1_TC.n[nu]) + 0.125 * (g_p - g_n) * (rM.E1_TS.p[nu] + rM.E1_TS.n[nu]))^2
         rB_E1TC[3][nu] = abs(0.5 * (rM.E1_TC.p[nu] - rM.E1_TC.n[nu]))^2
-        rB_E1TS[3][nu] = abs(0.125 * (g_p - g_n) * (rM.E1_TS.p[nu] - rM.E1_TS.n[nu]))^2
+        rB_E1TS[3][nu] = abs(0.125 * (g_p - g_n) * (rM.E1_TS.p[nu] + rM.E1_TS.n[nu]))^2
 
         rB_E1C[3][nu] = 0.25 * abs(rM.E1_C.p[nu] - rM.E1_C.n[nu])^2
 
-        rB_E1_NLO_LWA[3][nu] = abs(e_p * rM.E1.p[nu] - e_n * rM.E1.n[nu] +  0.5 * E / hc * ((rM.E1_TC.p[nu] - rM.E1_TC.n[nu]) + 0.125 * (g_p - g_n) * (rM.E1_TS.p[nu] - rM.E1_TS.n[nu])))^2
+        rB_E1_NLO_LWA[3][nu] = abs(e_p * rM.E1.p[nu] - e_n * rM.E1.n[nu] +  0.5 * E / hc * ((rM.E1_TC.p[nu] - rM.E1_TC.n[nu]) + 0.125 * (g_p - g_n) * (rM.E1_TS.p[nu] + rM.E1_TS.n[nu])))^2
 
     end
 
