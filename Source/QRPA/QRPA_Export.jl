@@ -330,7 +330,7 @@ function QRPA_amplitudes_export(Params::Parameters,Orb_2qp::qpOrb2B,E_QRPA::Matr
     # Set export paths ...
     Output_Path = "IO/" * Output_File * "/QRPA/Amplitudes/QRPA_Amplitudes_Ordered.dat"
 
-    println("\nPreparing export norms of the QRPA amplitudes X & Y ...")
+    println("\nPreparing export of the norms of the QRPA amplitudes X & Y ...")
 
     # First a systematic export according to J & P numbers ...
     open(Output_Path, "w") do Write_File

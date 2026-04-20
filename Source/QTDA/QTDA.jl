@@ -5,7 +5,7 @@ function QTDA(Params::Parameters)
     # Calculation parameters ...
     println("Starting spherical QTDA calculation with residual NO2B NN+NNN interaction based on available reference quasiparticle mean-field calculation")
     println("\nCalculation data:")
-    println("A = " * string(Params.Calc.A) * " , Z = " * string(Params.Calc.Z) * " , hw = " * string(Params.Calc.Z) *
+    println("A = " * string(Params.Calc.A) * " , Z = " * string(Params.Calc.Z) * " , hw = " * string(Params.Calc.hw) *
             " MeV , N_max = " * string(Params.Calc.Nmax) * " , J-scheme LHO basis size = " * string(div((Params.Calc.Nmax+1)*(Params.Calc.Nmax+2),2)) *
             " , M-scheme LHO basis size = " * string(div((Params.Calc.Nmax+1)*(Params.Calc.Nmax+2)*(Params.Calc.Nmax+3),6)))
 

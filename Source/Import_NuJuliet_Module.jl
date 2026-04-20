@@ -1,6 +1,6 @@
 module NuJuliet
     # Import all needed packages ...
-    using BenchmarkTools, DelimitedFiles, LinearAlgebra, CGcoefficient, Hungarian, Mmap, Printf
+    using BenchmarkTools, DelimitedFiles, LinearAlgebra, CGcoefficient, Hungarian, Mmap, Printf, MKL
 
     # Matrix elements & general functions ...
     include("Import_Structures.jl")
