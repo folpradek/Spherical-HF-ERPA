@@ -758,19 +758,18 @@ function HF_RPA_transitions_export(Params::Parameters,Orb::Vector{Orb1B},N_nu::M
             # Case of TDA ...
             E, phB, isB, ivB = E_TDA[J+1,P][nu], rB_TDA.E1.ph[nu], rB_TDA.E1.is[nu], rB_TDA.E1.iv[nu]
 
-            # Case of m_-1 ...
+            # Case of m_-1 & m_0 ...
             if abs(E) > 1e-3
                 phm, ism, ivm = phB / E, isB / E, ivB / E
                 m_n1_phE1_TDA += phm
                 m_n1_isE1_TDA += ism
                 m_n1_ivE1_TDA += ivm
-            end
 
-            # Case of m_0 ...
-            phm, ism, ivm = phB, isB, ivB
-            m_0_phE1_TDA += phm
-            m_0_isE1_TDA += ism
-            m_0_ivE1_TDA += ivm
+                phm, ism, ivm = phB, isB, ivB
+                m_0_phE1_TDA += phm
+                m_0_isE1_TDA += ism
+                m_0_ivE1_TDA += ivm
+            end
 
             # Case of m_1 ...
             phm, ism, ivm = E * phB, E * isB, E * ivB

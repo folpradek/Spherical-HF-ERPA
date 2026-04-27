@@ -30,12 +30,8 @@ function QRPA_solver(Params::Parameters)
     # Solve QRPA eigenvalue problem ...
     @time E_QRPA, X_QRPA, Y_QRPA, Stability = QRPA_diagonalize(Params,Orb,Orb_2qp,A,B,qpN,qpTrOp)
 
-        # Calculate the QRPA density operator Rho ...
-        #@time Rho = QRPA_OBDM(Params,Orb,Orb_2qp,U,V,Y_QRPA)
-
-
-        # PLACEHOLDER ...
-        Rho, Kappa = HFB_density_operator(Params,U,V,Orb)
+    # Calculate the QRPA density operator Rho ...
+    @time Rho = QRPA_OBDM(Params,Orb,Orb_2qp,U,V,Y_QRPA)
 
     # Evaluate the reference charge radius chR ...
     chR2 = OBDM_chR2(Params,Orb,C,Rho)
@@ -53,7 +49,7 @@ function QRPA_solver(Params::Parameters)
     @time E_corr = QRPA_energy(Params,Orb_2qp,E_QRPA,Y_QRPA)
 
     # Export of QRPA solutions ...
-    @time QRPA_export(Params,Orb,Orb_2qp,Stability,E_corr,Rho,E_QRPA,X_QRPA,Y_QRPA,rB_QRPA)
+    @time QRPA_export(Params,Orb,Orb_2qp,Stability,E_corr,Rho,C,E_QRPA,X_QRPA,Y_QRPA,rB_QRPA)
 
     println("\nQRPA solver executed properly ...\n")
 

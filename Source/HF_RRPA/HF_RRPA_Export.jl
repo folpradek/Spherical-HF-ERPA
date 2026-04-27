@@ -606,19 +606,18 @@ function HF_RRPA_export_transitions(Params::Parameters,Orb::Vector{Orb1B},N_nu::
         @inbounds for nu = 1:N_nu[J+1,P]
             E, phB, isB, ivB = real(E_RPA[J+1,P][nu]), rB_RPA.E0.ph[nu], rB_RPA.E0.is[nu], rB_RPA.E0.iv[nu]
 
-            # Case of m_-1 ...
+            # Case of m_-1 & m_0 ...
             if abs(E) > 1e-3
                 phm, ism, ivm = phB / E, isB / E, ivB / E
                 m_n1_phE0 += phm
                 m_n1_isE0 += ism
                 m_n1_ivE0 += ivm
-            end
 
-            # Case of m_0 ...
-            phm, ism, ivm = phB, isB, ivB
-            m_0_phE0 += phm
-            m_0_isE0 += ism
-            m_0_ivE0 += ivm
+                phm, ism, ivm = phB, isB, ivB
+                m_0_phE0 += phm
+                m_0_isE0 += ism
+                m_0_ivE0 += ivm
+            end
 
             # Case of m_1 ...
             phm, ism, ivm = E * phB, E * isB, E * ivB

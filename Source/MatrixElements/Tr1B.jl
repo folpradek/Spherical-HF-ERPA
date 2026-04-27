@@ -110,363 +110,6 @@ function Tr1b_EX_initialize(Params::Parameters,Orb::Vector{Orb1B})
     return TrE0, TrE1, TrE2, TrE3
 end
 
-
-function Tr1b_E1_vortical_initialize1(Params::Parameters,Orb::Vector{Orb1B},chR2::Float64)
-    # Read parameters
-    hw = Params.Calc.hw
-    N_max = Params.Calc.Nmax
-    a_max = div((N_max + 1)*(N_max+2),2)
-
-    # Physical constant ...
-    hc_pmc2 = 197.326980 / 938.272013
-    hc_nmc2 = 197.326980 / 939.565346
-
-    println("\tConstructing 1-body E1 vortical transition operators in the LHO basis ...")
-
-    # Initialize the transitions operator matrix elements ...
-    pE1_VC, nE1_VC = zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max)
-    pE1_VS, nE1_VS = zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max)
-    pE1_TC, nE1_TC = zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max)
-    pE1_TS, nE1_TS = zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max)
-    pE1_sTC, nE1_sTC = zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max)
-    pE1_sTS, nE1_sTS = zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max)
-    pE1_C, nE1_C = zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max)
-    pE1_sC, nE1_sC = zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max)
-
-    # Define local functions for evaluation of the reduced matrix elements ...
-
-    @inline function rME_nabla_Omega(l_a::Int64,l_b::Int64)
-        if l_a == (l_b + 1)
-            rME = - l_b * sqrt(Float64(l_b + 1))
-            return rME
-        elseif l_a == (l_b - 1)
-            rME = - (l_b + 1) * sqrt(Float64(l_b))
-            return rME
-        else
-            return 0.0
-        end
-    end
-
-    @inline function rME_n(l_a::Int64,l_b::Int64)
-        if abs(l_b - 1) <= l_a && l_a <= (l_b + 1)
-            rME = sqrt(Float64(2*l_b + 1)) * fCG(2*l_b,2,2*l_a,0,0,0)
-            return rME
-        else
-            return 0.0
-        end
-    end
-
-    @inline function rME_YL(l_a::Int64,j_a::Int64,l_b::Int64,j_b::Int64,L::Int64)
-        if rem(l_a + l_b + L,2) != 0
-            return 0.0
-        end
-        rME = phase(L + div(j_a - 1,2)) * sqrt(Float64((j_a + 1) * (j_b + 1)) / (4.0 * pi)) * fCG(j_a,j_b,2*L,1,-1,0)
-        return rME
-    end
-
-    @inline function rME_n_cross_YL(l_a::Int64,l_b::Int64,L::Int64,J::Int64)
-        rME = 0.0
-        if abs(J - l_b) > l_a || l_a > (J + l_b)
-            return rME
-        end
-        Amp = phase(l_a + l_b + J) * sqrt(Float64((2*l_b + 1) * (2*L + 1) * (2*J + 1)) / (4.0 * pi)) 
-        @inbounds for l in max(abs(l_a - 1),abs(L - l_b)):min(l_a + 1, L + l_b)
-            if rem(l_a + l + 1,2) == 0 && rem(l_b + l + L,2) == 0
-                ME = sqrt(Float64(2*l + 1)) * fCG(2*l,2,2*l_a,0,0,0) * fCG(2*l_b,2*L,2*l,0,0,0) * f6j(2*L,2,2*J,2*l_a,2*l_b,2*l)
-                rME += ME
-            end
-        end
-        rME = Amp * rME
-        return rME
-    end
-
-    @inline function rME_nabla_Omega_cross_YL(l_a::Int64,l_b::Int64,L::Int64,J::Int64)
-        rME = 0.0
-        Amp = phase(l_a + l_b + J) * sqrt(Float64((2*l_b + 1) * (2*L + 1) * (2*J + 1)) / (4.0 * pi))
-        @inbounds for l in max(abs(l_a - 1),abs(L - l_b)):min(l_a + 1, L + l_b)
-            if rem(l_a + l + 1,2) == 0 && rem(l_b + l + L,2) == 0
-                ME = fCG(2*l_b,2*L,2*l,0,0,0) * f6j(2*L,2,2*J,2*l_a,2*l_b,2*l) * rME_nabla_Omega(l_a,l)
-                rME += ME
-            end
-        end
-        rME = Amp * rME
-        return rME
-    end
-
-    @inline function rME_YL_cross_nabla_Omega(l_a::Int64,l_b::Int64,L::Int64,J::Int64)
-        rME = 0.0
-        if abs(J - l_b) > l_a || l_a > (J + l_b)
-            return rME
-        end
-        Amp = phase(l_a + l_b + J) * sqrt(Float64((2*J + 1) * (2*L + 1)) / (4.0 * pi))
-        @inbounds for l in max(abs(L - l_a), abs(1 - l_b)):min(L + l_a, 1 + l_b)
-            if rem(l_a + l + L, 2) == 0 && rem(l + l_b + 1, 2) == 0 #&& abs(L - l) <= l_a && abs(1 - l_b) <= l && l_a <= (L + l) && l <= (1 + l_b)
-                ME = sqrt(Float64(2*l + 1)) * f6j(2*L,2,2*J,2*l_b,2*l_a,2*l) * fCG(2*l,2*L,2*l_a,0,0,0) * rME_nabla_Omega(l,l_b)
-                rME += ME
-            end
-        end
-        rME = Amp * rME
-        return rME
-    end
-    
-    @inline function rME_rN(n_a::Int64,l_a::Int64,n_b::Int64,l_b::Int64,N::Int64,hw::Float64)
-        b_osc = sqrt(0.5 * (939.565346 + 938.272013) * hw) / 197.326980
-        rME = radial_moment_LHO(N,n_a,l_a,n_b,l_b,b_osc)
-        return rME
-    end
-
-    @inline function rME_rN_dr(n_a::Int64,l_a::Int64,n_b::Int64,l_b::Int64,N::Int64,hw::Float64)
-        b_osc = sqrt(0.5 * (939.565346 + 938.272013) * hw) / 197.326980
-        rME = Float64(l_b) * radial_moment_LHO(N-1,n_a,l_a,n_b,l_b,b_osc) - b_osc^2 * radial_moment_LHO(N+1,n_a,l_a,n_b,l_b,b_osc)
-        if 1 <= n_b
-            rME -= 2.0 * b_osc * sqrt(Float64(n_b)) * radial_moment_LHO(N,n_a,l_a,n_b-1,l_b+1,b_osc)
-        end
-        return rME
-    end
-
-    @inline function rME_YL(l_a::Int64,l_b::Int64,L::Int64)
-        rME = sqrt(Float64((2*l_b + 1) * (2*L + 1)) / (4.0 * pi)) * fCG(2*l_b,2*L,2*l_a,0,0,0)
-        return rME
-    end
-
-    @inline function rME_nabla_dot_rN_YJL(a::Int64,b::Int64,N::Int64,L::Int64,J::Int64,hw::Float64,Orb::Vector{Orb1B})
-        n_a, l_a, j_a = Orb[a].n, Orb[a].l, Orb[a].j
-        n_b, l_b, j_b = Orb[b].n, Orb[b].l, Orb[b].j
-        if L == (N != 0)
-            rME = phase(J + l_a + div(j_b + 3,2)) * sqrt(Float64((j_a + 1) * (j_b + 1) * J * (2*l_b + 1)) / (4.0 * pi)) *
-                  f6j(2*l_b,j_b,1,j_a,2*l_a,2*J) * Float64(N - J + 1) * rME_rN(n_a,l_a,n_b,l_b,N-1,hw) * fCG(2*l_b,2*J,2*l_a,0,0,0)
-
-            return rME
-        elseif L == (J + 1) && (N != 0)
-            #rME = phase(J + l_a + div(j_b + 1,2)) * sqrt(Float64((j_a + 1) * (j_b + 1) * (J + 1) * (2*l_b + 1)) / (4.0 * pi)) *
-            #      f6j(2*l_b,j_b,1,j_a,2*l_a,2*J) * Float64(N + J + 2) * rME_rN(n_a,l_a,n_b,l_b,N-1,hw) * fCG(2*l_b,2*J,2*l_a,0,0,0)
-            rME = sqrt(Float64((J + 1)) / Float64(2*J + 1)) * Float64(N + J + 2) * rME_rN(n_a,l_a,n_b,l_b,N-1,hw) * rME_YL(l_a,j_a,l_b,j_b,J)
-            return rME
-        elseif J == 1 && L == 0 && N == 0
-            rME = phase(l_a + div(j_b + 3,2)) * sqrt(Float64((j_a + 1) * (j_b + 1))) * f6j(j_a,2*l_a,1,2*l_b,j_b,2) *
-                 (rME_rN_dr(n_a,l_a,n_b,l_b,0,hw) * rME_n_cross_YL(l_a,l_b,0,1) + rME_rN(n_a,l_a,n_b,l_b,-1,hw) * rME_nabla_Omega_cross_YL(l_a,l_b,0,1))
-            return rME
-        else
-            return 0.0
-        end
-    end
-
-    @inline function rME_nabla_cross_S_dot_rN_YJL(a::Int64,b::Int64,N::Int64,L::Int64,J::Int64,hw::Float64,Orb::Vector{Orb1B})
-        n_a, l_a, j_a = Orb[a].n, Orb[a].l, Orb[a].j
-        n_b, l_b, j_b = Orb[b].n, Orb[b].l, Orb[b].j
-
-        if L == J - 1 && N != 0 && j_a == j_b
-            Amp = sqrt(3.0 / (8.0 * pi) * Float64((2*l_b +1) * (2*L +1) * (J + 1))) * Float64(N - J + 1) *
-                  phase(l_a + J + div(j_a + 1,2)) * f6j(2*l_a,1,j_a,1,2*l_b,2) * rME_rN(n_a,l_a,n_b,l_b,N-1,hw)
-            rME = 0.0
-            @inbounds for l in max(abs(l_a - L),abs(1 - l_b)):min(l_a + L, 1 + l_b)
-                if rem(l_a + l + L,2) == 0 && rem(l_b + l + 1,2) == 0
-                    ME = sqrt(Float64(2*l + 1)) * fCG(2*l,2*L,2*l_a,0,0,0) * fCG(2*l_b,2,2*l,0,0,0) * f6j(2*L,2,2*J,2*l_b,2*l_a,2*l)
-                    rME += ME
-                end
-            end
-            rME *= Amp
-            return rME
-        elseif L == J + 1 && N != 0 && j_a == j_b
-            Amp = sqrt(3.0 / (8.0 * pi) * Float64((2*l_b +1) * (2*L +1) * J)) * Float64(N + J + 2) *
-                  phase(l_a + J + div(j_a + 1,2)) * f6j(2*l_a,1,j_a,1,2*l_b,2) * rME_rN(n_a,l_a,n_b,l_b,N-1,hw)
-            rME = 0.0
-            @inbounds for l in max(abs(l_a - L),abs(1 - l_b)):min(l_a + L, 1 + l_b)
-                if rem(l_a + l + L,2) == 0 && rem(l_b + l + 1,2) == 0
-                    ME = sqrt(Float64(2*l + 1)) * fCG(2*l,2*L,2*l_a,0,0,0) * fCG(2*l_b,2,2*l,0,0,0) * f6j(2*L,2,2*J,2*l_b,2*l_a,2*l)
-                    rME += ME
-                end
-            end
-            rME *= Amp
-            return rME
-        elseif J == 1 && L == 0 && N == 0
-            rME = 3.0 * sqrt(3.0 / 2.0 * Float64((j_a + 1) * (j_b + 1))) * f9j(2*l_a,1,j_a,2*l_b,1,j_b,2,2,2) *
-                 (rME_rN_dr(n_a,l_a,n_b,l_b,N,hw) * rME_n_cross_YL(l_a,l_b,0,1) + rME_rN(n_a,l_a,n_b,l_b,-1,hw) * rME_nabla_Omega_cross_YL(l_a,l_b,0,1))
-            return rME
-        else
-            return 0.0
-        end
-
-        #=
-        if L == J - 1 && (N != 0 && L != 0)
-            rME = sqrt(3.0 * Float64((j_a + 1) * (j_b + 1) * (2*J + 1) * (J + 1) * (2*l_b + 1)) / (8.0 * pi)) *
-                  f9j(2*l_a,1,j_a,2*l_b,1,j_b,2*J,2,2*J) * Float64(N - J + 1) * rME_rN(n_a,l_a,n_b,l_b,N-1,hw) * fCG(2*l_b,2*J,2*l_a,0,0,0) #* phase(l_b + J)# + div(j_a,2))
-            return rME
-        elseif L == J + 1 && (N != 0 && L != 0)
-            rME = sqrt(3.0 * Float64((j_a + 1) * (j_b + 1) * (2*J + 1) * J * (2*l_b + 1)) / (8.0 * pi)) * 
-                  f9j(2*l_a,1,j_a,2*l_b,1,j_b,2*J,2,2*J) * Float64(N + J + 2) * rME_rN(n_a,l_a,n_b,l_b,N-1,hw) * fCG(2*l_b,2*J,2*l_a,0,0,0) #* phase(l_b + J) #+ div(j_a,2))
-            return rME
-        elseif J == 1 && L == 0 && N == 0
-            rME = 3.0 * sqrt(3.0 / 2.0 * Float64((j_a + 1) * (j_b + 1))) * f9j(2*l_a,1,j_a,2*l_b,1,j_b,2,2,2) *
-                 (rME_dr(n_a,l_a,n_b,l_b,hw) * rME_n_cross_YL(l_a,l_b,0,1) + rME_rN(n_a,l_a,n_b,l_b,-1,hw) * rME_nabla_Omega_cross_YL(l_a,l_b,0,1))
-            return rME
-        else
-            return 0.0
-        end
-        =#
-    end
-
-    @inline function rME_rN_YL(a::Int64,b::Int64,N::Int64,L::Int64,hw::Float64,Orb::Vector{Orb1B})
-        l_a, l_b = Orb[a].l, Orb[b].l
-        if rem(l_a + l_b + L,2) == 0
-            n_a, j_a = Orb[a].n, Orb[a].j
-            n_b, j_b = Orb[b].n, Orb[b].j
-            rY = phase(L + div(j_a - 1,2)) * sqrt(Float64((j_a + 1) * (j_b + 1)) / (4.0 * pi)) * fCG(j_a,j_b,2*L,1,-1,0)
-
-            b_osc = sqrt(0.5 * (939.565346 + 938.272013) * hw) / 197.326980
-            rN = radial_moment_LHO(N,n_a,l_a,n_b,l_b,b_osc)
-
-            rME = rN * rY
-            return rME
-        else
-            return 0.0
-        end
-    end
-
-    # Allocate the 1-body E1 vortical transition reduced matrix elements ...
-    @inbounds Threads.@threads for a in 1:a_max
-        l_a, j_a = Orb[a].l, Orb[a].j
-        @inbounds for b in 1:a_max
-            l_b, j_b = Orb[b].l, Orb[b].j
-
-            pVCSum, nVCSum = 0.0, 0.0
-            pVSSum, nVSSum = 0.0, 0.0
-            pTCSum, nTCSum = 0.0, 0.0
-            pTSSum, nTSSum = 0.0, 0.0
-            psTCSum, nsTCSum = 0.0, 0.0
-            psTSSum, nsTSSum = 0.0, 0.0
-            pCSum, nCSum = 0.0, 0.0
-            psCSum, nsCSum = 0.0, 0.0
-
-            # E1 selection rule ...
-            if (rem(l_a + l_b + 1,2)) == 0 && abs(j_b - 2) <= j_a && j_a <= (j_b + 2)
-
-                rG_dot_r2_Y10_ab = rME_nabla_dot_rN_YJL(a,b,2,0,1,hw,Orb)
-
-                rG_dot_Y10_ab = rME_nabla_dot_rN_YJL(a,b,0,0,1,hw,Orb)
-                
-                rG_dot_r2_Y12_ab = rME_nabla_dot_rN_YJL(a,b,2,2,1,hw,Orb)
-
-                rG_cross_S_dot_Y10_ab = rME_nabla_cross_S_dot_rN_YJL(a,b,0,0,1,hw,Orb)
-
-                rG_cross_S_dot_r2_Y10_ab = rME_nabla_cross_S_dot_rN_YJL(a,b,2,0,1,hw,Orb)
-
-                rG_cross_S_dot_r2_Y12_ab = rME_nabla_cross_S_dot_rN_YJL(a,b,2,2,1,hw,Orb)
-
-                rr1_Y1_ab = rME_rN_YL(a,b,1,1,hw,Orb)
-                rr3_Y1_ab = rME_rN_YL(a,b,3,1,hw,Orb)
-
-                # Proton components ...
-                pVCME = hc_pmc2 / 5.0 * sqrt(3.0 / 2.0) * rG_dot_r2_Y12_ab
-
-                pVSME = hc_pmc2 / 5.0 * sqrt(3.0 / 2.0) * rG_cross_S_dot_r2_Y12_ab
-
-                pTCME = hc_pmc2 * (sqrt(3.0 / 2.0) / 10.0 * rG_dot_r2_Y12_ab + 0.5 / sqrt(3.0) * rG_dot_r2_Y10_ab)
-
-                pTSME = hc_pmc2 * (sqrt(3.0 / 2.0) / 10.0 * rG_cross_S_dot_r2_Y12_ab + 0.5 / sqrt(3.0) * rG_cross_S_dot_r2_Y10_ab)
-
-                psTCME = -hc_pmc2 * 0.5 / sqrt(3.0) * chR2 * rG_dot_Y10_ab
-
-                psTSME = -hc_pmc2 * 0.5 / sqrt(3.0) * chR2 * rG_cross_S_dot_Y10_ab
-                
-                pCME = 1.0 / 10.0 * rr3_Y1_ab
-
-                psCME = -1.0 / 10.0 * chR2 *  rr1_Y1_ab
-
-                pVCSum += pVCME
-                pVSSum += pVSME
-                pTCSum += pTCME
-                pTSSum += pTSME
-                psTCSum += psTCME
-                psTSSum += psTSME
-                pCSum += pCME
-                psCSum += psCME
-
-                # Neutron components ...
-                nVCME = hc_nmc2 / 5.0 * sqrt(3.0 / 2.0) * rG_dot_r2_Y12_ab
-
-                nVSME = hc_nmc2 / 5.0 * sqrt(3.0 / 2.0) * rG_cross_S_dot_r2_Y12_ab
-
-                nTCME = hc_nmc2 * (sqrt(3.0 / 2.0) / 10.0 * rG_dot_r2_Y12_ab + 0.5 / sqrt(3.0) * rG_dot_r2_Y10_ab)
-
-                nTSME = hc_nmc2 * (sqrt(3.0 / 2.0) / 10.0 * rG_cross_S_dot_r2_Y12_ab + 0.5 / sqrt(3.0) * rG_cross_S_dot_r2_Y10_ab)
-
-                nsTCME = -hc_nmc2 * 0.5 / sqrt(3.0) * chR2 * rG_dot_Y10_ab
-
-                nsTSME = -hc_nmc2 * 0.5 / sqrt(3.0) * chR2 * rG_cross_S_dot_Y10_ab
-
-                nCME = 1.0 / 10.0 * rr3_Y1_ab
-
-                nsCME = -1.0 / 10.0 * chR2 *  rr1_Y1_ab
-
-                nVCSum += nVCME
-                nVSSum += nVSME
-                nTCSum += nTCME
-                nTSSum += nTSME
-                nsTCSum += nsTCME
-                nsTSSum += nsTSME
-                nCSum += nCME
-                nsCSum += nsCME
-
-            end
-
-            pE1_VC[a,b] = pVCSum
-            pE1_VS[a,b] = pVSSum
-            pE1_TC[a,b] = pTCSum
-            pE1_TS[a,b] = pTSSum
-            pE1_sTC[a,b] = psTCSum
-            pE1_sTS[a,b] = psTSSum
-            pE1_C[a,b] = pCSum
-            pE1_sC[a,b] = psCSum
-
-            nE1_VC[a,b] = nVCSum
-            nE1_VS[a,b] = nVSSum
-            nE1_TC[a,b] = nTCSum
-            nE1_TS[a,b] = nTSSum
-            nE1_sTC[a,b] = nsTCSum
-            nE1_sTS[a,b] = nsTSSum
-            nE1_C[a,b] = nCSum
-            nE1_sC[a,b] = nsCSum
-
-        end
-    end
-    
-    # Allocate the 1-body E1 vortical transition operator ...
-    TrE1_VC = O1B(pE1_VC,nE1_VC)
-    TrE1_VS = O1B(pE1_VS,nE1_VS)
-    TrE1_TC = O1B(pE1_TC,nE1_TC)
-    TrE1_TS = O1B(pE1_TS,nE1_TS)
-    TrE1_sTC = O1B(pE1_sTC,nE1_sTC)
-    TrE1_sTS = O1B(pE1_sTS,nE1_sTS)
-    TrE1_C = O1B(pE1_C,nE1_C)
-    TrE1_sC = O1B(pE1_sC,nE1_sC)
-
-    # Test print
-    #=
-        display(TrE1_VC.p)
-        display(TrE1_VS.n)
-
-        display(TrE1_TC.p)
-        #display(TrE1_sTC.p)
-
-        display(TrE1_TS.n)
-        #display(TrE1_sTS.n)
-
-        #display(TrE1_C.n)
-        #display(TrE1_sC.n)
-
-        throw("Stop here ...")
-    =#
-
-    #pE1_sTC, nE1_sTC = zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max)
-    #pE1_sTS, nE1_sTS = zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max)
-
-    println("\tE1 vortical 1-body transition operators succesfully constructed in the LHO basis ...")
-
-    return TrE1_VC, TrE1_VS, TrE1_TC, TrE1_TS, TrE1_sTC, TrE1_sTS, TrE1_C, TrE1_sC
-end
-
-
 function Tr1b_E1_vortical_initialize(Params::Parameters,Orb::Vector{Orb1B},chR2::Float64)
     # Read parameters
     hw = Params.Calc.hw
@@ -492,15 +135,13 @@ function Tr1b_E1_vortical_initialize(Params::Parameters,Orb::Vector{Orb1B},chR2:
     # Define local functions for evaluation of the reduced matrix elements ...
 
     @inline function rME_nabla_Omega(l_a::Int64,l_b::Int64)
+        rME = 0.0
         if l_a == (l_b + 1)
-            rME = - l_b * sqrt(Float64(l_b + 1))
-            return rME
+            rME += - l_b * sqrt(Float64(l_b + 1))
         elseif l_a == (l_b - 1)
-            rME = - (l_b + 1) * sqrt(Float64(l_b))
-            return rME
-        else
-            return 0.0
+            rME += - (l_b + 1) * sqrt(Float64(l_b))
         end
+        return rME
     end
 
     @inline function rME_n(l_a::Int64,l_b::Int64)
@@ -520,15 +161,15 @@ function Tr1b_E1_vortical_initialize(Params::Parameters,Orb::Vector{Orb1B},chR2:
         return rME
     end
 
-    @inline function rME_n_cross_YL(l_a::Int64,l_b::Int64,L::Int64,J::Int64)
+    @inline function rME_YL_cross_n(l_a::Int64,l_b::Int64,L::Int64,J::Int64)
         rME = 0.0
         if abs(J - l_b) > l_a || l_a > (J + l_b)
             return rME
         end
-        Amp = phase(l_a + l_b + J) * sqrt(Float64((2*l_b + 1) * (2*L + 1) * (2*J + 1)) / (4.0 * pi)) 
-        @inbounds for l in max(abs(l_a - 1),abs(L - l_b)):min(l_a + 1, L + l_b)
-            if rem(l_a + l + 1,2) == 0 && rem(l_b + l + L,2) == 0
-                ME = sqrt(Float64(2*l + 1)) * fCG(2*l,2,2*l_a,0,0,0) * fCG(2*l_b,2*L,2*l,0,0,0) * f6j(2*L,2,2*J,2*l_a,2*l_b,2*l)
+        Amp = phase(l_a + l_b + J) * sqrt(Float64((2*J + 1))) 
+        @inbounds for l in max(abs(L - l_a),abs(1 - l_b)):min(L + l_a, 1 + l_b)
+            if rem(l_a + l + L,2) == 0 && rem(l_b + l + 1,2) == 0
+                ME = f6j(2*L,2,2*J,2*l_b,2*l_a,2*l) * rME_YL(l_a,l,L) * rME_n(l,l_b)
                 rME += ME
             end
         end
@@ -536,12 +177,15 @@ function Tr1b_E1_vortical_initialize(Params::Parameters,Orb::Vector{Orb1B},chR2:
         return rME
     end
 
-    @inline function rME_nabla_Omega_cross_YL(l_a::Int64,l_b::Int64,L::Int64,J::Int64)
+    @inline function rME_n_cross_YL(l_a::Int64,l_b::Int64,L::Int64,J::Int64)
         rME = 0.0
-        Amp = phase(l_a + l_b + J) * sqrt(Float64((2*l_b + 1) * (2*L + 1) * (2*J + 1)) / (4.0 * pi))
-        @inbounds for l in max(abs(l_a - 1),abs(L - l_b)):min(l_a + 1, L + l_b)
+        if abs(J - l_b) > l_a || l_a > (J + l_b)
+            return rME
+        end
+        Amp = phase(l_a + l_b + J) * sqrt(Float64((2*J + 1))) 
+        @inbounds for l in max(abs(1 - l_a),abs(L - l_b)):min(1 + l_a, L + l_b)
             if rem(l_a + l + 1,2) == 0 && rem(l_b + l + L,2) == 0
-                ME = fCG(2*l_b,2*L,2*l,0,0,0) * f6j(2*L,2,2*J,2*l_a,2*l_b,2*l) * rME_nabla_Omega(l_a,l)
+                ME = f6j(2,2*L,2*J,2*l_b,2*l_a,2*l) * rME_YL(l,l_b,L) * rME_n(l_a,l)
                 rME += ME
             end
         end
@@ -556,8 +200,24 @@ function Tr1b_E1_vortical_initialize(Params::Parameters,Orb::Vector{Orb1B},chR2:
         end
         Amp = phase(l_a + l_b + J) * sqrt(Float64((2*J + 1) * (2*L + 1)) / (4.0 * pi))
         @inbounds for l in max(abs(L - l_a), abs(1 - l_b)):min(L + l_a, 1 + l_b)
-            if rem(l_a + l + L, 2) == 0 && rem(l + l_b + 1, 2) == 0 #&& abs(L - l) <= l_a && abs(1 - l_b) <= l && l_a <= (L + l) && l <= (1 + l_b)
+            if rem(l_a + l + L, 2) == 0 && rem(l + l_b + 1, 2) == 0
                 ME = sqrt(Float64(2*l + 1)) * f6j(2*L,2,2*J,2*l_b,2*l_a,2*l) * fCG(2*l,2*L,2*l_a,0,0,0) * rME_nabla_Omega(l,l_b)
+                rME += ME
+            end
+        end
+        rME = Amp * rME
+        return rME
+    end
+
+    @inline function rME_nabla_Omega_cross_YL(l_a::Int64,l_b::Int64,L::Int64,J::Int64)
+        rME = 0.0
+        if abs(J - l_b) > l_a || l_a > (J + l_b)
+            return rME
+        end
+        Amp = phase(l_a + l_b + J) * sqrt(Float64((2*J + 1) * (2*L + 1)) / (4.0 * pi))
+        @inbounds for l in max(abs(1 - l_a), abs(L - l_b)):min(1 + l_a, L + l_b)
+            if rem(l_a + l + 1, 2) == 0 && rem(l + l_b + L, 2) == 0
+                ME = sqrt(Float64(2*l_b + 1)) * f6j(2,2*L,2*J,2*l_b,2*l_a,2*l) * fCG(2*l_b,2*L,2*l,0,0,0) * rME_nabla_Omega(l_a,l)
                 rME += ME
             end
         end
@@ -585,59 +245,46 @@ function Tr1b_E1_vortical_initialize(Params::Parameters,Orb::Vector{Orb1B},chR2:
         return rME
     end
 
+    @inline function rME_YJL(l_a::Int64,l_b::Int64,L::Int64,J::Int64)
+        rME = 0.0
+        Amp = sqrt(Float64(2*J + 1)) * phase(l_a + l_b + J)
+        @inbounds for l in max(abs(L - l_a),abs(1 - l_b)):min(L + l_a, 1 + l_b)
+            if rem(l_a + l + L,2) == 0 && rem(l_b + l + 1,2) == 0
+                ME = f6j(2*L,2,2*J,2*l_b,2*l_a,2*l) * rME_YL(l_a,l,L) * rME_n(l,l_b)
+                rME += ME
+            end
+        end
+        rME *= Amp
+        return rME
+    end
+
     @inline function rME_nabla_dot_rN_YJL(a::Int64,b::Int64,N::Int64,L::Int64,J::Int64,hw::Float64,Orb::Vector{Orb1B})
         n_a, l_a, j_a = Orb[a].n, Orb[a].l, Orb[a].j
         n_b, l_b, j_b = Orb[b].n, Orb[b].l, Orb[b].j
-        if N != 0
-            rME = phase(l_a + J + div(j_b + 1,2)) *  sqrt(Float64((j_a + 1) * (j_b + 1))) * f6j(2*l_b,j_b,1,j_a,2*l_a,2*J) *
-                  ((rME_rN_dr(n_a,l_a,n_b,l_b,N,hw) * rME_n_cross_YL(l_a,l_b,L,J) + phase(l_b - l_a) * rME_rN_dr(n_b,l_b,n_a,l_a,N,hw) * rME_n_cross_YL(l_b,l_a,L,J)) * phase(1 + L - J) +
-                   (rME_rN(n_a,l_a,n_b,l_b,N-1,hw) * rME_YL_cross_nabla_Omega(l_a,l_b,L,J) + phase(l_b - l_a) * rME_rN(n_b,l_b,n_a,l_a,N-1,hw) * rME_YL_cross_nabla_Omega(l_b,l_a,L,J)))
 
-            return rME
-        elseif J == 1 && L == 0 && N == 0
-            rME = phase(l_a + div(j_b + 3,2)) * sqrt(Float64((j_a + 1) * (j_b + 1))) * f6j(j_a,2*l_a,1,2*l_b,j_b,2) *
-                 (rME_rN_dr(n_a,l_a,n_b,l_b,0,hw) * rME_n_cross_YL(l_a,l_b,0,1) + rME_rN(n_a,l_a,n_b,l_b,-1,hw) * rME_nabla_Omega_cross_YL(l_a,l_b,0,1))
-            return rME
-        else
-            return 0.0
-        end
+        rME = phase(l_a + J + div(j_b + 1,2)) *  sqrt(Float64((j_a + 1) * (j_b + 1))) * f6j(2*l_b,j_b,1,j_a,2*l_a,2*J) *
+                ((rME_rN_dr(n_a,l_a,n_b,l_b,N,hw) + rME_rN_dr(n_b,l_b,n_a,l_a,N,hw)) * rME_YL(l_a,l_b,J) *
+                 (kronecker_delta(L,J-1) * sqrt(J / (2*J + 1)) - kronecker_delta(L,J+1) * sqrt((J + 1) / (2*J + 1))))
+
+        rME += phase(l_a + J + div(j_b + 1,2)) *  sqrt(Float64((j_a + 1) * (j_b + 1))) * f6j(2*l_b,j_b,1,j_a,2*l_a,2*J) *
+               rME_rN(n_a,l_a,n_b,l_b,N-1,hw) * (rME_YL_cross_nabla_Omega(l_a,l_b,L,J) - rME_nabla_Omega_cross_YL(l_a,l_b,L,J))
+
+        return rME
     end
 
     @inline function rME_nabla_cross_S_dot_rN_YJL(a::Int64,b::Int64,N::Int64,L::Int64,J::Int64,hw::Float64,Orb::Vector{Orb1B})
         n_a, l_a, j_a = Orb[a].n, Orb[a].l, Orb[a].j
         n_b, l_b, j_b = Orb[b].n, Orb[b].l, Orb[b].j
 
-        if L == J - 1 && N != 0 && j_a == j_b
-            Amp = sqrt(3.0 / (8.0 * pi) * Float64((2*l_b +1) * (2*L +1) * (J + 1))) * Float64(N - J + 1) *
-                  phase(l_a + J + div(j_a + 1,2)) * f6j(2*l_a,1,j_a,1,2*l_b,2) * rME_rN(n_a,l_a,n_b,l_b,N-1,hw)
-            rME = 0.0
-            @inbounds for l in max(abs(l_a - L),abs(1 - l_b)):min(l_a + L, 1 + l_b)
-                if rem(l_a + l + L,2) == 0 && rem(l_b + l + 1,2) == 0
-                    ME = sqrt(Float64(2*l + 1)) * fCG(2*l,2*L,2*l_a,0,0,0) * fCG(2*l_b,2,2*l,0,0,0) * f6j(2*L,2,2*J,2*l_b,2*l_a,2*l)
-                    rME += ME
-                end
-            end
-            rME *= Amp
-            return rME
-        elseif L == J + 1 && N != 0 && j_a == j_b
-            Amp = sqrt(3.0 / (8.0 * pi) * Float64((2*l_b +1) * (2*L +1) * J)) * Float64(N + J + 2) *
-                  phase(l_a + J + div(j_a + 1,2)) * f6j(2*l_a,1,j_a,1,2*l_b,2) * rME_rN(n_a,l_a,n_b,l_b,N-1,hw)
-            rME = 0.0
-            @inbounds for l in max(abs(l_a - L),abs(1 - l_b)):min(l_a + L, 1 + l_b)
-                if rem(l_a + l + L,2) == 0 && rem(l_b + l + 1,2) == 0
-                    ME = sqrt(Float64(2*l + 1)) * fCG(2*l,2*L,2*l_a,0,0,0) * fCG(2*l_b,2,2*l,0,0,0) * f6j(2*L,2,2*J,2*l_b,2*l_a,2*l)
-                    rME += ME
-                end
-            end
-            rME *= Amp
-            return rME
-        elseif J == 1 && L == 0 && N == 0
-            rME = 3.0 * sqrt(3.0 / 2.0 * Float64((j_a + 1) * (j_b + 1))) * f9j(2*l_a,1,j_a,2*l_b,1,j_b,2,2,2) *
-                 (rME_rN_dr(n_a,l_a,n_b,l_b,N,hw) * rME_n_cross_YL(l_a,l_b,0,1) + rME_rN(n_a,l_a,n_b,l_b,-1,hw) * rME_nabla_Omega_cross_YL(l_a,l_b,0,1))
-            return rME
-        else
-            return 0.0
+        rME = 0.0
+
+        if L != 0 && N != 0
+            rME = 0.5 * sqrt(6.0 * Float64((j_a + 1) * (2*J + 1) * (j_b + 1))) * f9j(2*l_a,1,j_a,2*l_b,1,j_b,2*L,2,2*J) *
+                    rME_rN(n_a,l_a,n_b,l_b,N-1,hw) * rME_YL(l_a,l_b,J) * (kronecker_delta(L,J-1) * sqrt(Float64(J + 1) / Float64(2*J + 1)) * Float64(N + J + 2) -
+                    kronecker_delta(L,J+1) * sqrt(Float64(J) / Float64(2*J + 1)) * Float64(N - J + 1))
         end
+
+        return rME
     end
 
     @inline function rME_rN_YL(a::Int64,b::Int64,N::Int64,L::Int64,hw::Float64,Orb::Vector{Orb1B})
@@ -789,7 +436,7 @@ function Tr1b_E1_vortical_initialize(Params::Parameters,Orb::Vector{Orb1B},chR2:
         #display(TrE1_C.n)
         #display(TrE1_sC.n)
 
-        #throw("Stop here ...")
+        throw("Stop here ...")
     =#
 
     #pE1_sTC, nE1_sTC = zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max)

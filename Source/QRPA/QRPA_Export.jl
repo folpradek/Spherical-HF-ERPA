@@ -1,4 +1,4 @@
-function QRPA_export(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::qpOrb2B,Stability::Bool,E_corr::Float64,Rho::O1B,E_QRPA::Matrix{Vector{ComplexF64}},X_QRPA::Matrix{Matrix{ComplexF64}},Y_QRPA::Matrix{Matrix{ComplexF64}},rB_QRPA::ReducedTransition)
+function QRPA_export(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::qpOrb2B,Stability::Bool,E_corr::Float64,Rho::O1B,C::O1B,E_QRPA::Matrix{Vector{ComplexF64}},X_QRPA::Matrix{Matrix{ComplexF64}},Y_QRPA::Matrix{Matrix{ComplexF64}},rB_QRPA::ReducedTransition)
     # Export of QRPA summary ...
     @time QRPA_summary(Params,Orb_2qp,Stability,E_corr)
 
@@ -13,6 +13,14 @@ function QRPA_export(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::qpOrb2B,Stab
 
     # Export of QRPA norms of X & Y in human-readable format ...
     @time QRPA_amplitudes_export(Params,Orb_2qp,E_QRPA,X_QRPA,Y_QRPA)
+
+    # Export QRPA particle number values ...
+    @time QRPA_particle_number_export(Params,Orb,Rho)
+
+    # Calculate & export radial HF-RPA densities & radii ...
+    Summary_File = "IO/" * Params.Calc.Path * "/QRPA/QRPA_Summary.dat"
+    Densities_File = "IO/" * Params.Calc.Path * "/QRPA/Densities/QRPA_Radial_Densities.dat"
+    @time OBDM_export(Params,Orb,Summary_File,Densities_File,Rho,C)
 
     # Export QRPA electric transitions ...
     @time QRPA_transitions_export(Params,Orb,Orb_2qp,Rho,E_QRPA,rB_QRPA)
@@ -420,6 +428,34 @@ function QRPA_amplitudes_export(Params::Parameters,Orb_2qp::qpOrb2B,E_QRPA::Matr
     return
 end
 
+function QRPA_particle_number_export(Params::Parameters,Orb::Vector{Orb1B},Rho::O1B)
+    # Read parameters ...
+    Output_File = Params.Calc.Path
+    
+    println("\nCalculating the QRPA corrections to particle numbers ...")
+
+    # Evaluate the QRPA corrected particle numbers ...
+    Z, N = HFB_particle_number(Params,Rho,Orb)
+
+    println("\tValues of QRPA corrected particle numbers are ...")
+    @printf("\t\tdZ = %12.6f\n", Z)
+    @printf("\t\tdN = %12.6f\n", N)
+
+    # Set the path for "QRPA_Summary.dat" output file ...
+    Output_Path = "IO/" * Output_File * "/QRPA/QRPA_Summary.dat"
+
+    # Write the particle number vlues into summary file for QRPA calculation ...
+    println("\n\tExporting the corrected QRPA particle numbers ...")
+    Summary =  open(Output_Path, "w")
+        println(Summary, "Spherical Quasiparticle Random-Phase Approximation review:")
+        @printf(Summary, "\nQRPA particle number values Z & N:\n")
+        @printf(Summary, "\nZ = %12.6f\n", Z)
+        @printf(Summary, "N = %12.6f\n", N)
+    close(Summary)
+
+    return
+end
+
 function QRPA_transitions_export(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::qpOrb2B,Rho::O1B,E_QRPA::Matrix{Vector{ComplexF64}},rB_QRPA::ReducedTransition)
     # Read parameters ...
     Z = Params.Calc.Z
@@ -470,19 +506,18 @@ function QRPA_transitions_export(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::
         @inbounds for nu = 1:Orb_2qp.N[P,J+1]
             E, phB, isB, ivB = real(E_QRPA[P,J+1][nu]), rB_QRPA.E0.ph[nu], rB_QRPA.E0.is[nu], rB_QRPA.E0.iv[nu]
 
-            # Case of m_-1 ...
+            # Case of m_-1 & m_0 ...
             if abs(E) > 1e-3
                 phm, ism, ivm = phB / E, isB / E, ivB / E
                 m_n1_phE0 += phm
                 m_n1_isE0 += ism
                 m_n1_ivE0 += ivm
-            end
 
-            # Case of m_0 ...
-            phm, ism, ivm = phB, isB, ivB
-            m_0_phE0 += phm
-            m_0_isE0 += ism
-            m_0_ivE0 += ivm
+                phm, ism, ivm = phB, isB, ivB
+                m_0_phE0 += phm
+                m_0_isE0 += ism
+                m_0_ivE0 += ivm
+            end
 
             # Case of m_1 ...
             phm, ism, ivm = E * phB, E * isB, E * ivB
@@ -508,19 +543,18 @@ function QRPA_transitions_export(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::
         @inbounds for nu = 1:Orb_2qp.N[P,J+1]
             E, phB, isB, ivB = real(E_QRPA[P,J+1][nu]), rB_QRPA.E1.ph[nu], rB_QRPA.E1.is[nu], rB_QRPA.E1.iv[nu]
 
-            # Case of m_-1 ...
+            # Case of m_-1 & m_0  ...
             if abs(E) > 1e-3
                 phm, ism, ivm = phB / E, isB / E, ivB / E
                 m_n1_phE1 += phm
                 m_n1_isE1 += ism
                 m_n1_ivE1 += ivm
-            end
 
-            # Case of m_0 ...
-            phm, ism, ivm = phB, isB, ivB
-            m_0_phE1 += phm
-            m_0_isE1 += ism
-            m_0_ivE1 += ivm
+                phm, ism, ivm = phB, isB, ivB
+                m_0_phE1 += phm
+                m_0_isE1 += ism
+                m_0_ivE1 += ivm
+            end
 
             # Case of m_1 ...
             phm, ism, ivm = E * phB, E * isB, E * ivB
