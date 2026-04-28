@@ -446,7 +446,7 @@ function QRPA_particle_number_export(Params::Parameters,Orb::Vector{Orb1B},Rho::
 
     # Write the particle number vlues into summary file for QRPA calculation ...
     println("\n\tExporting the corrected QRPA particle numbers ...")
-    Summary =  open(Output_Path, "w")
+    Summary =  open(Output_Path, "a")
         println(Summary, "Spherical Quasiparticle Random-Phase Approximation review:")
         @printf(Summary, "\nQRPA particle number values Z & N:\n")
         @printf(Summary, "\nZ = %12.6f\n", Z)

@@ -307,7 +307,7 @@ function HFB_solve(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,Orb_NNN::
         end
 
         # Check for degenerate solutions ...
-        if d2E < 1e-4 && dZ < 1e-3 && dN < 1e-3 && Iteration > 100
+        if d2E < 1e-3 * dE && dZ < 1e-3 && dN < 1e-3 && Iteration > 100
             println("\nHFB iteration stucked at a degenerate solution ... Degenerate solutions will be analyzed ...")
             Degeneracy = true
             H_1, Delta_1, Lambda_1 = O1B(H.p,H.n), O1B(Delta.p,Delta.n), pnFloat(Lambda.p,Lambda.n)

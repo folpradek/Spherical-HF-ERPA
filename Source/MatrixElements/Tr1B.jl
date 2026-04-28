@@ -263,11 +263,9 @@ function Tr1b_E1_vortical_initialize(Params::Parameters,Orb::Vector{Orb1B},chR2:
         n_b, l_b, j_b = Orb[b].n, Orb[b].l, Orb[b].j
 
         rME = phase(l_a + J + div(j_b + 1,2)) *  sqrt(Float64((j_a + 1) * (j_b + 1))) * f6j(2*l_b,j_b,1,j_a,2*l_a,2*J) *
-                ((rME_rN_dr(n_a,l_a,n_b,l_b,N,hw) + rME_rN_dr(n_b,l_b,n_a,l_a,N,hw)) * rME_YL(l_a,l_b,J) *
-                 (kronecker_delta(L,J-1) * sqrt(J / (2*J + 1)) - kronecker_delta(L,J+1) * sqrt((J + 1) / (2*J + 1))))
-
-        rME += phase(l_a + J + div(j_b + 1,2)) *  sqrt(Float64((j_a + 1) * (j_b + 1))) * f6j(2*l_b,j_b,1,j_a,2*l_a,2*J) *
-               rME_rN(n_a,l_a,n_b,l_b,N-1,hw) * (rME_YL_cross_nabla_Omega(l_a,l_b,L,J) - rME_nabla_Omega_cross_YL(l_a,l_b,L,J))
+                ((rME_rN_dr(n_a,l_a,n_b,l_b,N,hw) - rME_rN_dr(n_b,l_b,n_a,l_a,N,hw)) * rME_YL(l_a,l_b,J) *
+                 (kronecker_delta(L,J-1) * sqrt(J / (2*J + 1)) - kronecker_delta(L,J+1) * sqrt((J + 1) / (2*J + 1))) +
+                  rME_rN(n_a,l_a,n_b,l_b,N-1,hw) * (rME_YL_cross_nabla_Omega(l_a,l_b,L,J) + rME_YL_cross_nabla_Omega(l_b,l_a,L,J)))
 
         return rME
     end
@@ -279,9 +277,9 @@ function Tr1b_E1_vortical_initialize(Params::Parameters,Orb::Vector{Orb1B},chR2:
         rME = 0.0
 
         if L != 0 && N != 0
-            rME = 0.5 * sqrt(6.0 * Float64((j_a + 1) * (2*J + 1) * (j_b + 1))) * f9j(2*l_a,1,j_a,2*l_b,1,j_b,2*L,2,2*J) *
-                    rME_rN(n_a,l_a,n_b,l_b,N-1,hw) * rME_YL(l_a,l_b,J) * (kronecker_delta(L,J-1) * sqrt(Float64(J + 1) / Float64(2*J + 1)) * Float64(N + J + 2) -
-                    kronecker_delta(L,J+1) * sqrt(Float64(J) / Float64(2*J + 1)) * Float64(N - J + 1))
+            rME = 0.5 * sqrt(6.0 * Float64((j_a + 1) * (2*J + 1) * (j_b + 1))) * f9j(2*l_a,1,j_a,2*l_b,1,j_b,2*J,2,2*J) *
+                    rME_rN(n_a,l_a,n_b,l_b,N-1,hw) * rME_YL(l_a,l_b,J) * (kronecker_delta(L,J-1) * sqrt(Float64(J + 1) / Float64(2*J + 1)) * Float64(N - J + 1) -
+                    kronecker_delta(L,J+1) * sqrt(Float64(J) / Float64(2*J + 1)) * Float64(N + J + 2))
         end
 
         return rME
