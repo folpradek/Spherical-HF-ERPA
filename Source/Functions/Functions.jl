@@ -71,7 +71,7 @@ end
 
 function Psi_rad_LHO(r::Float64,n::Int64,l::Int64,nu::Float64)
     N = sqrt(sqrt(2 * nu^3 / π) * 2^(n + 2*l + 3) * factorial(n) * nu^l / doublefactorial(2*n + 2*l + 1))
-    Psi =  N * exp(-nu * r^2) * r^l * GeneralizedLaguerre(n, l + 0.5, 2 * nu * r^2)
+    Psi =  N * exp(-nu * r^2) * r^l * GeneralizedLaguerre(n, l + 0.5, 2 * nu * r^2) * phase(n)
     return Psi
 end
 
@@ -148,7 +148,7 @@ function radial_moment_LHO(k::Int64,n_a::Int64,l_a::Int64,n_b::Int64,l_b::Int64,
         end
     end
 
-    I = Sum * Amp
+    I = Sum * Amp * phase(n_a + n_b)
 
     return I
 end
