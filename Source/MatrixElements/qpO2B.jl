@@ -8,7 +8,7 @@ function qpO2b_initialize(Params::Parameters,Orb::Vector{Orb1B};Make_Orb_NN::Boo
     N_Orb_NN = zeros(Int64,2,2,J_max+1)
 
     # Initiliaze dictionary for NN orbitals ...
-    Orb_NN_Dic = Dict{Tuple{Int8,Int8,Int8,Int16,Int16},Int32}()
+    Orb_NN_Dic = Dict{UInt64,Int64}()
 
     # Count the number of NN orbitals ...
     @inbounds for a in 1:a_max
@@ -59,16 +59,18 @@ function qpO2b_initialize(Params::Parameters,Orb::Vector{Orb1B};Make_Orb_NN::Boo
                     P = rem(l_a + l_b, 2) + 1
                     @inbounds for J = Int64(abs(j_a - j_b)/2):Int64((j_a + j_b)/2)
                         if b <= a
-                            key_1 = (Int8(1),Int8(P),Int8(J),Int16(a),Int16(b))
+                            #key_1 = (Int8(1),Int8(P),Int8(J),Int16(a),Int16(b))
+                            Key_1 = O2b_key(a,b,J,P,1)
                             N_Orb_NN[2,P,J+1] += 1
-                            Orb_NN_Dic[key_1] = Int32(N_Orb_NN[2,P,J+1])
+                            Orb_NN_Dic[Key_1] = Int32(N_Orb_NN[2,P,J+1])
                             Ind_Orb_NN[2,P,J+1][N_Orb_NN[2,P,J+1]] = zeros(Int64, 2)
                             Ind_Orb_NN[2,P,J+1][N_Orb_NN[2,P,J+1]][1] = a
                             Ind_Orb_NN[2,P,J+1][N_Orb_NN[2,P,J+1]][2] = b
                         end
-                        key_0 = (Int8(0),Int8(P),Int8(J),Int16(a),Int16(b))
+                        #key_0 = (Int8(0),Int8(P),Int8(J),Int16(a),Int16(b))
+                        Key_0 = O2b_key(a,b,J,P,0)
                         N_Orb_NN[1,P,J+1] += 1
-                        Orb_NN_Dic[key_0] = Int32(N_Orb_NN[1,P,J+1])
+                        Orb_NN_Dic[Key_0] = Int32(N_Orb_NN[1,P,J+1])
                         Ind_Orb_NN[1,P,J+1][N_Orb_NN[1,P,J+1]] = zeros(Int64, 2)
                         Ind_Orb_NN[1,P,J+1][N_Orb_NN[1,P,J+1]][1] = a
                         Ind_Orb_NN[1,P,J+1][N_Orb_NN[1,P,J+1]][2] = b

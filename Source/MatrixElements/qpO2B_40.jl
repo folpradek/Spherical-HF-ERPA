@@ -36,7 +36,7 @@ function qpO2b_40_initialize(Params::Parameters,Orb::Vector{Orb1B})
     N_Orb_NN = zeros(Int64,2,J_max+1)
 
     # Initiliaze dictionary for NN orbitals ...
-    Orb_NN_Dic = Dict{Tuple{Int8,Int8,Int16,Int16},Int32}()
+    Orb_NN_Dic = Dict{UInt64,Int64}()
 
     # Count the number of NN orbitals ...
     @inbounds for a in 1:a_max
@@ -82,9 +82,10 @@ function qpO2b_40_initialize(Params::Parameters,Orb::Vector{Orb1B})
                 if ((2*(n_a + n_b) + l_a + l_b) <= N_2max)
                     P = rem(l_a + l_b, 2) + 1
                     @inbounds for J = Int64(abs(j_a - j_b)/2):Int64((j_a + j_b)/2)
-                        key = (Int8(P),Int8(J),Int16(a),Int16(b))
+                        #key = (Int8(P),Int8(J),Int16(a),Int16(b))
+                        Key = O2b_temp_key(a,b,J,P)
                         N_Orb_NN[P,J+1] += 1
-                        Orb_NN_Dic[key] = Int32(N_Orb_NN[P,J+1])
+                        Orb_NN_Dic[Key] = N_Orb_NN[P,J+1]
                         Ind_Orb_NN[P,J+1][N_Orb_NN[P,J+1]] = zeros(Int64, 2)
                         Ind_Orb_NN[P,J+1][N_Orb_NN[P,J+1]][1] = a
                         Ind_Orb_NN[P,J+1][N_Orb_NN[P,J+1]][2] = b
@@ -659,19 +660,23 @@ function qpO2B_40_allocate_nn(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2
 end
 
 @inline function qpO2b_40_T0_index(a::Int64,b::Int64,c::Int64,d::Int64,J::Int64,P::Int64,Orb_NN::Orb2B)
-    Bra_key = (Int8(1),Int8(P),Int8(J),Int16(a),Int16(b))
-    Ket_key = (Int8(1),Int8(P),Int8(J),Int16(c),Int16(d))
-    Bra = Int64(Orb_NN.Dic[Bra_key])
-    Ket = Int64(Orb_NN.Dic[Ket_key])
+    #Bra_key = (Int8(1),Int8(P),Int8(J),Int16(a),Int16(b))
+    #Ket_key = (Int8(1),Int8(P),Int8(J),Int16(c),Int16(d))
+    Bra_key = O2b_key(a,b,J,P,1)
+    Ket_key = O2b_key(c,d,J,P,1)
+    Bra = Orb_NN.Dic[Bra_key]
+    Ket = Orb_NN.Dic[Ket_key]
     return Bra, Ket
 end
 
 @inline function qpO2b_40_T1_index(a::Int64,b::Int64,c::Int64,d::Int64,J::Int64,P::Int64,Orb_NN::Orb2B)
     N = Orb_NN.N[2,P,J+1]
-    Bra_key = (Int8(1),Int8(P),Int8(J),Int16(a),Int16(b))
-    Ket_key = (Int8(1),Int8(P),Int8(J),Int16(c),Int16(d))
-    Bra = Int64(Orb_NN.Dic[Bra_key])
-    Ket = Int64(Orb_NN.Dic[Ket_key])
+    #Bra_key = (Int8(1),Int8(P),Int8(J),Int16(a),Int16(b))
+    #Ket_key = (Int8(1),Int8(P),Int8(J),Int16(c),Int16(d))
+    Bra_key = O2b_key(a,b,J,P,1)
+    Ket_key = O2b_key(c,d,J,P,1)
+    Bra = Orb_NN.Dic[Bra_key]
+    Ket = Orb_NN.Dic[Ket_key]
     Braket_max, Bracket_min = max(Bra,Ket), min(Bra,Ket)
     Ind = Braket_max + (Bracket_min - 1) * N - div(Bracket_min * (Bracket_min - 1),2)
     return Ind

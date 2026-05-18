@@ -178,6 +178,50 @@ function JP_initialize(J_max::Int64)
     return JP
 end
 
+function differentiate_Oh6(x::Vector{Float64},f::Vector{Float64})
+    # Central, forward & backward 6th-order differences with 7-point stencils ...
+    # See numerical coefficients at https://en.wikipedia.org/wiki/Finite_difference_coefficient#
+
+    # Determine the grid size ...
+    n = length(x)
+
+    # Check the minimal grid size for the 7-point difference ...
+    if n < 7
+        throw("The numerical 6th order O(h^6) numerical differentiation requires at least 7 grid points ...")
+    end
+
+    # Check the grid dimensions match ...
+    if length(f) != n
+        throw("Grid dimensions do not matchh ... numerical differentation is not possible ...")
+    end
+
+    # Determine numerical step h ... assuming a uniform grid ...
+    dx = x[2] - x[1]
+
+    # Initialize the numerical derivative grid ...
+    df = Vector{Float64}(undef,n)
+
+    # Perform the 6th-order central difference approximation at interior points ...
+    @inbounds for j in 4:(n-3)
+        df[j] = (f[j+3] - 9f[j+2] + 45f[j+1] - 45f[j-1] + 9f[j-2] - f[j-3]) / (60dx)
+    end
+
+    # Perform the 6th-order difference approximation at boundary points ...
+    @inbounds begin
+        # 6th-order forward difference ...
+        df[1] = (- 147f[1] + 360f[2] - 450f[3] + 400f[4] - 225f[5] + 72f[6] -10f[7]) / (60dx)
+        df[2] = (- 147f[2] + 360f[3] - 450f[4] + 400f[5] - 225f[6] + 72f[7] -10f[8]) / (60dx)
+        df[3] = (- 147f[3] + 360f[4] - 450f[5] + 400f[6] - 225f[7] + 72f[8] -10f[9]) / (60dx)
+
+        # 6th-order backward difference ...
+        df[n]   = (147f[n] - 360f[n-1] + 450f[n-2] - 400f[n-3] + 225f[n-4] - 72f[n-5] + 10f[n-6]) / (60dx)
+        df[n-1] = (147f[n-1] - 360f[n-2] + 450f[n-3] - 400f[n-4] + 225f[n-5] - 72f[n-6] + 10f[n-7]) / (60dx)
+        df[n-2] = (147f[n-2] - 360f[n-3] + 450f[n-4] - 400f[n-5] + 225f[n-6] - 72f[n-7] + 10f[n-8]) / (60dx)
+    end
+
+    return df
+end
+
 function integrate_quadrature(x::Vector{Float64},f::Vector{Float64};M::Int64=0)
     # Read size of field x ...
     N = length(x)
@@ -444,4 +488,179 @@ function radial_phase_test(Params::Parameters)
 
 
     return
+end
+
+@inline function legendre_polynomial(n::Int,x::Float64)
+    # Check the validity of input arguments ...
+    if n < 0
+        throw(ArgumentError("Degree n must be non-negative (got n=$n) ..."))
+    end
+    if abs(x) > 1.0 + 1e-15
+        throw(DomainError(x, "x must be in the range [-1, 1] for Legendre polynomials ..."))
+    end
+
+    # Initial values for iteration ... L_0(x) = 1 & L_1(x) = x ...
+    if n == 0
+        return 1.0
+    elseif n == 1
+        return x
+    else
+        Ln1 = 1.0
+        Ln2 = x
+        @inbounds for i in 2:n
+            Ln3 = (Float64(2*i - 1) * x * Ln2 - Float64(i - 1) * Ln1) / Float64(i)
+            Ln1 = Ln2
+            Ln2 = Ln3
+        end
+        return Ln2
+    end
+end
+
+@inline function associated_legendre_polynomial(n::Int,m::Int,x::Float64)
+    # Check the validity of input arguments ...
+    if n < 0
+        throw(ArgumentError("Degree n must be non-negative (got n=$n) ..."))
+    end
+    if m < 0 || m > n
+        throw(ArgumentError("Order m must satisfy 0 <= m <= n (got m=$m, n=$n) ..."))
+    end
+    if abs(x) > 1.0 + 1e-15
+        throw(DomainError(x, "x must be in the range [-1, 1] for Legendre polynomials ..."))
+    end
+
+    # Calculate L_m^m ...
+    Lmm = 1.0
+    if m > 0
+        #somx2 = sqrt((1.0 - x) * (1.0 + x))
+        somx2 = sqrt(max(0.0, 1.0 - x^2))
+        f = 1.0
+        @inbounds for i in 1:m
+            Lmm *= -f * somx2
+            f += 2.0
+        end
+    end
+
+    if n == m
+        return Lmm
+    end
+
+    # Calculate L_m+1^m ...
+    Lmmp1 = x * (2m + 1) * Lmm
+
+    if n == m + 1
+        return Lmmp1
+    end
+
+    # Calculate L_n^m ...
+    Ln = 0.0
+    @inbounds for i in (m + 2):n
+        two_i_minus_1 = 2i - 1
+        i_plus_m_minus_1 = i + m - 1
+        i_minus_m = i - m
+        
+        Ln = (two_i_minus_1 * x * Lmmp1 - i_plus_m_minus_1 * Lmm) / i_minus_m
+        Lmm = Lmmp1
+        Lmmp1 = Ln
+    end
+
+    return Ln
+end
+
+@inline function scalar_spherical_harmonic_function(l::Int,m::Int,theta::Float64,phi::Float64)
+    # Check the validity of input arguments ...
+    if abs(m) > l
+        throw(ArgumentError("Order |m| cannot be greater than degree n (got l=$l, m=$m) ..."))
+    end
+    if theta < 0 || theta > pi + 1e-15
+        throw(DomainError(theta, "theta must be in the range [0, pi] ..."))
+    end
+
+    # Proper treatment of projection m ...
+    m_abs = abs(m)
+    if m_abs > l
+        return 0.0im
+    end
+
+    # Ensure x in range of [-1,1] ...
+    x = clamp(cos(theta), -1.0, 1.0)
+    
+    # Call the Associated Legendre Polynomial value ... at x = cos(theta) ...
+    Llm = associated_legendre_polynomial(l,m_abs,x)
+    
+    # Calculate the normalization factor sqrt((2l+1)/4pi * (l-m)!/(l+m)!) ... see Varshalovich ...
+    # Factorial is computed iteratively to avoid overflow ...
+    r = 1.0
+    @inbounds for i in (l - m_abs + 1):(l + m_abs)
+        r /= i
+    end
+    N = sqrt((2*l + 1) * r / (4.0 * pi))
+    
+    # Calculate the azimuthal phase exp(i m phi) ...
+        # Case of m non-negative ...
+    if m >= 0
+        Phase = ComplexF64(cos(m * phi), sin(m * phi))
+        return Phase * N * Llm
+
+        # Case of m negative ...
+    else
+        Phase_pm = ComplexF64(cos(m_abs * phi), sin(m_abs * phi))
+        Ylpm = Phase_pm * N * Llm 
+        
+        # Apply Y_L-m = (-1)^m * (Y_n^m)* ...
+        Ylm = (m_abs % 2 == 0) ? conj(Ylpm) : -conj(Ylpm)
+        return Ylm
+    end
+end
+
+function vector_spherical_harmonic_function(J::Int,L::Int,M::Int,theta::Float64,phi::Float64)
+    # Check the validity of input arguments ...
+    if abs(M) > J
+        throw(ArgumentError("Total projection |M| cannot exceed total angular momentum J ..."))
+    end
+    if abs(L - J) > 1
+        throw(ArgumentError("Triangle inequality violated: |L - J| must be <= 1 (got L=$L, J=$J) ..."))
+    end
+    if J < 0 || L < 0
+        throw(ArgumentError("Angular momentum indices J & L must be non-negative ..."))
+    end
+    if theta < 0 || theta > pi + 1e-15
+        throw(DomainError(theta, "theta must be in the range [0, pi] ..."))
+    end
+
+    # Initialize components of Y_JLM ...
+    Yx, Yy, Yz = 0.0im, 0.0im, 0.0im
+
+    # Precompite the square root ...
+    isqrt2 = 1.0 / sqrt(2.0)
+    
+    # Sum over all possible projections mu of unit vector...
+    @inbounds for mu in -1:1
+        # Determine scalar spherical harmonic projection number m ...
+        m = M - mu
+        
+        # Selection rule |m| <= L ...
+        if abs(m) <= L
+            # Calculate the Clebsch-Gordan coefficient ...
+            CG = fCG(2*L,2,2*J,2*m,2*mu,2*M)
+            
+            if abs(CG) > 1e-12
+                # Calculate the scalar harmonic Y_Lm ...
+                Ylm = scalar_spherical_harmonic_function(L,m,theta,phi)
+                CG_Ylm = CG * Ylm
+                
+                # Determine the cartesian components of Y_JLM ...
+                if mu == 1
+                    Yx -= CG_Ylm * isqrt2
+                    Yy -= CG_Ylm * isqrt2 * 1im
+                elseif mu == 0
+                    Yz += CG_Ylm
+                elseif mu == -1
+                    Yx += CG_Ylm * isqrt2
+                    Yy -= CG_Ylm * isqrt2 * 1im
+                end
+            end
+        end
+    end
+    
+    return (Yx,Yy,Yz)
 end

@@ -195,14 +195,14 @@
     end
 
     struct Orb2B
-        Dic::Dict{Tuple{Int8,Int8,Int8,Int16,Int16},Int32}
+        Dic::Dict{UInt64,Int64}
         N::Array{Int64}
         Ind::Array{Vector{Vector{Int64}},3}
     end
 
     # Standard 3-body NNN operator orbitals structure ...
     struct Orb3B
-        Dic::Dict{Tuple{Int8,Int8,Int8,Int8,Int16,Int16,Int8,Int8,Int8},Int32}
+        Dic::Dict{UInt64,Int64}
         N::Array{Vector{Int64}}
     end
 
@@ -214,7 +214,7 @@
     end
 
     struct Orb2B_Temp
-        Dic::Dict{Tuple{Int8,Int8,Int16,Int16},Int32}
+        Dic::Dict{UInt64,Int64}
         N::Matrix{Int64}
         Ind::Matrix{Vector{Vector{Int64}}}
     end

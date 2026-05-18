@@ -1,15 +1,22 @@
-function V3b_no2b_ini(N_max::Int64,N_2max::Int64,N_3max::Int64,Orb::Vector{Orb1B})
+function V3b_no2b_initialize(N_max::Int64,N_2max::Int64,N_3max::Int64,Orb::Vector{Orb1B})
+    # Read parameters ...
     a_max = div((N_max + 1)*(N_max + 2),2)
     l_max = N_max
     J_max = N_2max + 1
 
+    # Initiliaze array for counting of NNN orbitals ...
     N_Orb_NNN = Array{Vector}(undef,2,l_max+1,J_max+1,2)
-    for P = 1:2
-        for l = 0:l_max
-            for J = 0:J_max
-                for T = 1:2
+
+    # Initiliaze dictionary for NN orbitals ...
+    Orb_NNN_Dic = Dict{UInt64,Int64}()
+
+    # Count the number of NNN orbitals ...
+    @inbounds for P in 1:2
+        @inbounds for l in 0:l_max
+            @inbounds for J in 0:J_max
+                @inbounds for T in 1:2
                     j_count = 0
-                    for j in Int64(abs(2*l-1)):2:Int64(2*l+1)
+                    @inbounds for j in Int64(abs(2*l-1)):2:Int64(2*l+1)
                         j_count += 1
                     end
                     N_Orb_NNN[P,l+1,J+1,T] = zeros(Int64,j_count)
@@ -18,19 +25,17 @@ function V3b_no2b_ini(N_max::Int64,N_2max::Int64,N_3max::Int64,Orb::Vector{Orb1B
         end
     end
 
-    Orb_NNN_Dic = Dict()
 
-    for a = 1:a_max
-        n_a = Orb[a].n
-        l_a = Orb[a].l
-        j_a = Orb[a].j
+    # Allocate the dictionary and indices for NNN orbitals ...
+   @inbounds for a in 1:a_max
+        n_a, l_a, j_a = Orb[a].n, Orb[a].l, Orb[a].j
         if (2*n_a + l_a) <= N_max
-            for b = 1:a
+            @inbounds for b in 1:a
                 n_b = Orb[b].n
                 l_b = Orb[b].l
                 j_b = Orb[b].j
                 if (2*(n_a + n_b) + l_a + l_b) <= N_2max
-                    for c = 1:a_max
+                    @inbounds for c = 1:a_max
                         n_c = Orb[c].n
                         l_c = Orb[c].l
                         j_c = Orb[c].j
@@ -38,16 +43,18 @@ function V3b_no2b_ini(N_max::Int64,N_2max::Int64,N_3max::Int64,Orb::Vector{Orb1B
                         if (2*(n_a + n_b + n_c) + l_a + l_b + l_c) <= N_3max &&
                            (2*(n_a + n_c) + l_a + l_c) <= N_2max &&
                            (2*(n_b + n_c) + l_b + l_c) <= N_2max
-                           for J = Int64(abs(j_a - j_b)/2):Int64((j_a + j_b)/2) 
-                                for T in 1:2
-                                    for T_ab in (T-1):1
-                                        key = (Int8(P),Int8(J),Int8(2*T-1),Int8(T_ab),Int16(a),Int16(b),Int8(l_c),Int8(j_c),Int8(n_c))
+                           @inbounds for J = Int64(abs(j_a - j_b)/2):Int64((j_a + j_b)/2) 
+                                @inbounds for T in 1:2
+                                    @inbounds for T_ab in (T-1):1
+                                        #key = (Int8(P),Int8(J),Int8(2*T-1),Int8(T_ab),Int16(a),Int16(b),Int8(l_c),Int8(j_c),Int8(n_c))
+                                        T_tot = 2*T-1
+                                        Key = V3b_no2b_key(a,b,n_c,l_c,j_c,J,P,T_ab,T_tot)
                                         if j_c == Int64(abs(2*l_c-1))
                                             N_Orb_NNN[P,l_c+1,J+1,T][1] += 1
-                                            Orb_NNN_Dic[key] = Int32(N_Orb_NNN[P,l_c+1,J+1,T][1])
+                                            Orb_NNN_Dic[Key] = N_Orb_NNN[P,l_c+1,J+1,T][1]
                                         elseif j_c == Int64(2*l_c+1)
                                             N_Orb_NNN[P,l_c+1,J+1,T][2] += 1
-                                            Orb_NNN_Dic[key] = Int32(N_Orb_NNN[P,l_c+1,J+1,T][2])
+                                            Orb_NNN_Dic[Key] = N_Orb_NNN[P,l_c+1,J+1,T][2]
                                         end
                                     end
                                 end
@@ -59,22 +66,23 @@ function V3b_no2b_ini(N_max::Int64,N_2max::Int64,N_3max::Int64,Orb::Vector{Orb1B
         end
     end
 
+    # Initialize arrays for 3-body interaction operator V_NNN ...
     V_NNN = Array{Vector{Vector{Float32}}}(undef,2,l_max+1,J_max+1,2)
 
-    for P = 1:2
-        for l = 0:l_max
-            for J = 0:J_max
-                for T = 1:2
+    @inbounds for P = 1:2
+        @inbounds for l = 0:l_max
+            @inbounds for J = 0:J_max
+                @inbounds for T = 1:2
 
                     j_count = 0
-                    for j in Int64(abs(2*l-1)):2:Int64(2*l+1)
+                    @inbounds for j in Int64(abs(2*l-1)):2:Int64(2*l+1)
                         j_count += 1
                     end
 
                     V_NNN[P,l+1,J+1,T] = Vector{Vector{Float32}}(undef,j_count)
 
                     j_count = 0
-                    for j in Int64(abs(2*l-1)):2:Int64(2*l+1)
+                    @inbounds for j in Int64(abs(2*l-1)):2:Int64(2*l+1)
                         j_count += 1
                         
                         N_count = N_Orb_NNN[P,l+1,J+1,T][j_count]
@@ -92,13 +100,27 @@ function V3b_no2b_ini(N_max::Int64,N_2max::Int64,N_3max::Int64,Orb::Vector{Orb1B
     return V_NNN, Orb_NNN
 end
 
+@inline function V3b_no2b_key(a::Int64,b::Int64,n_c::Int64,l_c::Int64,j_c::Int64,J::Int64,P::Int64,T_ab::Int64,T::Int64)
+    return UInt64(J) |
+          (UInt64(P) << 6) |
+          (UInt64(T_ab) << 8) |
+          (UInt64(T) << 10) |
+          (UInt64(a) << 12) |
+          (UInt64(b) << 20) |
+          (UInt64(n_c) << 28) |
+          (UInt64(l_c) << 34) |
+          (UInt64(j_c) << 40)
+end
+
 @inline function V3b_no2b_index(a::Int64,b::Int64,c::Int64,T_ab::Int64,d::Int64,e::Int64,f::Int64,T_de::Int64,J::Int64,T::Int64,P::Int64,Orb::Vector{Orb1B},Orb_NNN::Orb3B)
-    n_c = Int8(Orb[c].n)
-    l_c = Int8(Orb[c].l)
-    j_c = Int8(Orb[c].j)
-    n_f = Int8(Orb[f].n) 
-    Bra = Int64(Orb_NNN.Dic[(P,J,T,T_ab,a,b,l_c,j_c,n_c)])
-    Ket = Int64(Orb_NNN.Dic[(P,J,T,T_de,d,e,l_c,j_c,n_f)])
+    n_c = Orb[c].n
+    l_c = Orb[c].l
+    j_c = Orb[c].j
+    n_f = Orb[f].n
+    Bra_key = V3b_no2b_key(a,b,n_c,l_c,j_c,J,P,T_ab,T)
+    Ket_key = V3b_no2b_key(d,e,n_f,l_c,j_c,J,P,T_de,T)
+    Bra = Orb_NNN.Dic[Bra_key]
+    Ket = Orb_NNN.Dic[Ket_key]
     if Bra < Ket
         Bra, Ket = Ket, Bra
     end
@@ -174,7 +196,7 @@ function V3b_no2b_read(Params::Parameters,Orb::Vector{Orb1B})
 
     # Initialize NNN interaction arrays
     println("\nPreparing 3-body NNN interaction array ...")
-    V_NNN, Orb_NNN = V3b_no2b_ini(N_max_Calc,N_2max_Calc,N_3max_Calc,Orb)
+    V_NNN, Orb_NNN = V3b_no2b_initialize(N_max_Calc,N_2max_Calc,N_3max_Calc,Orb)
 
     # Precount NNN interaction matrix elements
     println("\nPrecounting # of 3-body NNN interaction matrix elements ...")

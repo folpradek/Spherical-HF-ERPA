@@ -381,6 +381,6 @@ function V2b_residual_no2b(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,O
 
         end
     end
- 
+
     return V_NN
 end

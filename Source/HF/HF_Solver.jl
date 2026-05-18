@@ -106,6 +106,7 @@ function HF_solve(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,Orb_NNN::O
     Rho = HF_density_operator(a_max,C,Orb)
 
     # Iteration of spherical HF equations ...
+    println("\nInitializing iteration of HF equations ...")
     @time while (Iteration < Iteration_max) && (dE > epsilon)
 
         # Perform iteration of HF equations ... fills the HF Hamiltonian ...
@@ -134,7 +135,7 @@ function HF_solve(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,Orb_NNN::O
         @printf("\tHF iteration number: %4d   dE = %12.9f MeV\n", Iteration, dE)
     end
 
-    println("\nIteration of HF eqs. with NO2B NN+NNN interaction has finished ...")
+    println("\nIteration of HF equations with NO2B NN+NNN interaction has finished ...")
 
     return O1B(diagm(SPE.p),diagm(SPE.n)), C, Rho, Iteration
 end
