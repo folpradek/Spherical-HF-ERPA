@@ -113,8 +113,8 @@ function QTDA_binary_export(Params::Parameters,Orb_2qp::qpOrb2B,E_QTDA::Matrix{V
             @inbounds for P in 1:2
                 N_qp = Orb_2qp.N[P,J+1]
                 @inbounds for nu in 1:N_qp
-                    @inbounds for ph in 1:N_qp
-                        X = X_QTDA[P,J+1][nu,ph]
+                    @inbounds for qp in 1:N_qp
+                        X = X_QTDA[P,J+1][qp,nu]
                         Buffer_count += 1
                         Buffer[Buffer_count] = X
                         if Buffer_count == Buffer_size

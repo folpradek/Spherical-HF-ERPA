@@ -41,6 +41,13 @@ function sample_script_run()
 
     # HF-RPA calculation call ...
     HF_RPA(Parameters(IntParams,CalcParams))
+    
+    # Function for export of transition currents ... works only for TDA phonons so far ... no spin current yet ...
+        # JP specifies spin & partiy, M specifies projection, I suggest using M = J, nu_list the list of phonon to plot,
+        # note phonons are ordered by energy, so nu = 1 is the lowest phonon of given JP, nu = 2 the second lowest ...,
+        # File_Name is the name of the output files in .dat format
+    HF_RPA_transition_currents(Parameters(IntParams,CalcParams); JP = "1-", M = 1, nu_list=[6,7,8,9,10], File_Name ="Phonon_Currents")
+
 
     # HF-RRPA calculation call ...
     HF_RRPA(Parameters(IntParams,CalcParams))
@@ -70,7 +77,7 @@ function sample_script_run()
                 N3max = 9,
                 #CMS = "CMS1+2B",
                 #Path = "HFB_A18_Z8_hw16.0_Nmax3_N2max6_N3max9",
-                #HFB = HFB_Parameters(Tol = 1e-8, Imax = 150, Pairing = "Full", dLmax = 0.5, BMF = true, LNT = false, HRF = false),
+                #HFB = HFB_Parameters(Tol = 1e-8, Imax = 150, Pairing = "Full", dLmax = 0.5, BMF = true, LNT = false, LNRes = false, HRF = false),
                 #QTDA = QTDA_Parameters(Ortho = true)
                 #QRPA = QRPA_Parameters(Ortho = true)
                 )

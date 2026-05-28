@@ -138,7 +138,7 @@ function QRPA_binary_export(Params::Parameters,Orb_2qp::qpOrb2B,E_QRPA::Matrix{V
                 N_qp = Orb_2qp.N[P,J+1]
                 @inbounds for nu in 1:N_qp
                     @inbounds for qp in 1:N_qp
-                        X = X_QRPA[P,J+1][nu,qp]
+                        X = X_QRPA[P,J+1][qp,nu]
                         Buffer_count += 1
                         Buffer[Buffer_count] = X
                         if Buffer_count == Buffer_size
@@ -164,7 +164,7 @@ function QRPA_binary_export(Params::Parameters,Orb_2qp::qpOrb2B,E_QRPA::Matrix{V
                 N_qp = Orb_2qp.N[P,J+1]
                 @inbounds for nu in 1:N_qp
                     @inbounds for qp in 1:N_qp
-                        Y = Y_QRPA[P,J+1][nu,qp]
+                        Y = Y_QRPA[P,J+1][qp,nu]
                         Buffer_count += 1
                         Buffer[Buffer_count] = Y
                         if Buffer_count == Buffer_size

@@ -566,20 +566,36 @@ end
     return Ln
 end
 
+@inline function normalize_spherical_angles(theta::Float64,phi::Float64)
+    theta_norm = mod(theta, 2.0 * pi)
+    phi_norm = mod(phi, 2.0 * pi)
+
+    if theta_norm > pi
+        theta_norm = 2.0 * pi - theta_norm
+        phi_norm = mod(phi_norm + pi, 2.0 * pi)
+    end
+
+    return theta_norm, phi_norm
+end
+
 @inline function scalar_spherical_harmonic_function(l::Int,m::Int,theta::Float64,phi::Float64)
     # Check the validity of input arguments ...
     if abs(m) > l
         throw(ArgumentError("Order |m| cannot be greater than degree n (got l=$l, m=$m) ..."))
     end
+    #=
     if theta < 0 || theta > pi + 1e-15
         throw(DomainError(theta, "theta must be in the range [0, pi] ..."))
     end
+    =#
 
     # Proper treatment of projection m ...
     m_abs = abs(m)
     if m_abs > l
         return 0.0im
     end
+
+    theta, phi = normalize_spherical_angles(theta, phi)
 
     # Ensure x in range of [-1,1] ...
     x = clamp(cos(theta), -1.0, 1.0)
@@ -623,9 +639,13 @@ function vector_spherical_harmonic_function(J::Int,L::Int,M::Int,theta::Float64,
     if J < 0 || L < 0
         throw(ArgumentError("Angular momentum indices J & L must be non-negative ..."))
     end
+    #=
     if theta < 0 || theta > pi + 1e-15
         throw(DomainError(theta, "theta must be in the range [0, pi] ..."))
     end
+    =#
+
+    theta, phi = normalize_spherical_angles(theta, phi)
 
     # Initialize components of Y_JLM ...
     Yx, Yy, Yz = 0.0im, 0.0im, 0.0im
@@ -663,4 +683,125 @@ function vector_spherical_harmonic_function(J::Int,L::Int,M::Int,theta::Float64,
     end
     
     return (Yx,Yy,Yz)
+end
+
+
+
+# Only the convective current so far ...
+@inline function J1b(r::Float64,theta::Float64,phi::Float64,
+                     l_a::Int64,j_a::Int64,m_a::Int64,R_a::Float64,dR_a::Float64,
+                     l_b::Int64,j_b::Int64,m_b::Int64,R_b::Float64,dR_b::Float64)
+
+    # Initialize the vlue of 1-body current J ...
+    J_x, J_y, J_z = 0.0, 0.0, 0.0
+
+    # Bra term ...
+    Amp_1 = 0.5 * fCG(2*l_a,1,j_a,m_a-1,1,m_a) * fCG(2*l_b,1,j_b,m_b-1,1,m_b)
+
+    if abs(Amp_1) > 1e-12
+
+        # First bracket ...
+        if l_a > 0
+            Y = scalar_spherical_harmonic_function(l_b,div(m_b-1,2),theta,phi)
+
+            # 1st term ...
+            (Y_x,Y_y,Y_z) = vector_spherical_harmonic_function(l_a,l_a-1,-div(m_a-1,2),theta,phi)
+
+            J = sqrt(Float64(l_a) / Float64(2*l_a + 1)) * (dR_a + Float64(l_a + 1) / r * R_a) * R_b * Y * Amp_1 * phase(div(m_a-1,2))
+
+            J_x += J * Y_x
+            J_y += J * Y_y
+            J_z += J * Y_z
+
+            # 2nd term ...
+            (Y_x,Y_y,Y_z) = vector_spherical_harmonic_function(l_a,l_a+1,-div(m_a-1,2),theta,phi)
+
+            J = -sqrt(Float64(l_a - 1) / Float64(2*l_a + 1)) * (dR_a - Float64(l_a) / r * R_a) * R_b * Y * Amp_1 * phase(div(m_a-1,2))
+
+            J_x += J * Y_x
+            J_y += J * Y_y
+            J_z += J * Y_z
+        end
+
+
+        # Second bracket ...
+        if l_b > 0
+            Y = phase(div(m_a-1,2)) * scalar_spherical_harmonic_function(l_a,-div(m_a-1,2),theta,phi)
+
+            # 1st term ...
+            (Y_x,Y_y,Y_z) = vector_spherical_harmonic_function(l_b,l_b-1,div(m_b-1,2),theta,phi)
+
+            J = -sqrt(Float64(l_b) / Float64(2*l_b + 1)) * (dR_b + Float64(l_b + 1) / r * R_b) * R_a * Y * Amp_1
+
+            J_x += J * Y_x
+            J_y += J * Y_y
+            J_z += J * Y_z
+
+            # 2nd term ...
+            (Y_x,Y_y,Y_z) = vector_spherical_harmonic_function(l_b,l_b+1,div(m_b-1,2),theta,phi)
+
+            J = sqrt(Float64(l_b - 1) / Float64(2*l_b + 1)) * (dR_b - Float64(l_b) / r * R_b) * R_a * Y * Amp_1
+
+            J_x += J * Y_x
+            J_y += J * Y_y
+            J_z += J * Y_z
+        end
+
+    end
+
+    # Ket term ...
+    Amp_2 = 0.5 * fCG(2*l_a,1,j_a,m_a+1,-1,m_a) * fCG(2*l_b,1,j_b,m_b+1,-1,m_b)
+
+    if abs(Amp_2) > 1e-12
+
+        # First bracket ...
+        if l_a > 0
+            Y = scalar_spherical_harmonic_function(l_b,div(m_b+1,2),theta,phi)
+
+            # 1st term ...
+            (Y_x,Y_y,Y_z) = vector_spherical_harmonic_function(l_a,l_a-1,-div(m_a+1,2),theta,phi)
+
+            J = sqrt(Float64(l_a) / Float64(2*l_a + 1)) * (dR_a + Float64(l_a + 1) / r * R_a) * R_b * Y * Amp_2 * phase(div(m_a+1,2))
+
+            J_x += J * Y_x
+            J_y += J * Y_y
+            J_z += J * Y_z
+
+            # 2nd term ...
+            (Y_x,Y_y,Y_z) = vector_spherical_harmonic_function(l_a,l_a+1,-div(m_a+1,2),theta,phi)
+
+            J = -sqrt(Float64(l_a - 1) / Float64(2*l_a + 1)) * (dR_a - Float64(l_a) / r * R_a) * R_b * Y * Amp_2 * phase(div(m_a+1,2))
+
+            J_x += J * Y_x
+            J_y += J * Y_y
+            J_z += J * Y_z
+        end
+
+
+        # Second bracket ...
+        if l_b > 0
+            Y = phase(div(m_a+1,2)) * scalar_spherical_harmonic_function(l_a,-div(m_a+1,2),theta,phi)
+
+            # 1st term ...
+            (Y_x,Y_y,Y_z) = vector_spherical_harmonic_function(l_b,l_b-1,div(m_b+1,2),theta,phi)
+
+            J = -sqrt(Float64(l_b) / Float64(2*l_b + 1)) * (dR_b + Float64(l_b + 1) / r * R_b) * R_a * Y * Amp_2
+
+            J_x += J * Y_x
+            J_y += J * Y_y
+            J_z += J * Y_z
+
+            # 2nd term ...
+            (Y_x,Y_y,Y_z) = vector_spherical_harmonic_function(l_b,l_b+1,div(m_b+1,2),theta,phi)
+
+            J = sqrt(Float64(l_b - 1) / Float64(2*l_b + 1)) * (dR_b - Float64(l_b) / r * R_b) * R_a * Y * Amp_2
+
+            J_x += J * Y_x
+            J_y += J * Y_y
+            J_z += J * Y_z
+        end
+
+    end
+
+    return (J_x,J_y,J_z)
 end

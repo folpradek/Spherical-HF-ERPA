@@ -195,16 +195,25 @@ function V2b_read(Params::Parameters,Orb::Vector{Orb1B})
 
     # Enhance contact V_aabb^J=0 matrix elements ...
     pG, nG = Params.Int.pG2N, Params.Int.nG2N
+    N_min, N_max = -1, 25
     if abs(pG) > 1e-8 || abs(nG) > 1e-8
         N_T1 = Orb_NN.N[2,1,1]
         @inbounds Threads.@threads for Bra in 1:N_T1
             a, b = Orb_NN.Ind[2,1,1][Bra][1], Orb_NN.Ind[2,1,1][Bra][2]
             if a == b
                 l_a, j_a = Orb[a].l, Orb[a].j
+                N_a = 2*Orb[a].n + l_a
+                if N_a < N_min || N_a > N_max
+                    break
+                end
                 @inbounds for Ket in 1:Bra
                     c, d = Orb_NN.Ind[2,1,1][Ket][1], Orb_NN.Ind[2,1,1][Ket][2]
                     if c == d
                         l_c, j_c = Orb[c].l, Orb[c].j
+                        N_c = 2*Orb[c].n + l_c
+                        if N_c < N_min || N_c > N_max
+                            break
+                        end
                         Ind = Bra + (Ket - 1) * N_T1 - div(Ket * (Ket - 1),2)
                         Amp = -0.5 * sqrt(Float64((j_a + 1) * (j_c + 1))) * Float64((-1)^(l_a + l_c))
                         V_NN.pp[1,1][Ind] += Amp * pG
@@ -214,6 +223,70 @@ function V2b_read(Params::Parameters,Orb::Vector{Orb1B})
             end
         end
     end
+
+    #=
+        # Export variable ... change in order to allow/forbid the following export ...
+        V2b_0p_analysis = true
+
+        if V2b_0p_analysis
+
+            if !(isdir("IO/" * Params.Calc.Path * "/V2b_pairing"))
+                mkdir("IO/" * Params.Calc.Path * "/V2b_pairing")
+            end
+
+            # Pairing JP = 0+ channel analysis export ...
+            V2b_0p_full_Path = "IO/" * Params.Calc.Path * "/V2b_pairing/V2b_0+_full.dat"
+            V2b_0p_mono_Path = "IO/" * Params.Calc.Path * "/V2b_pairing/V2b_0+_mono.dat"
+
+            open(V2b_0p_full_Path, "w") do Export_File
+                @printf(Export_File, "%6s\t%6s\t%12s\t%12s\n", "Bra", "Ket", "ppV", "nnV")
+                J, P = 0, 1
+
+                N_T1 = Orb_NN.N[2,P,J+1]
+                @inbounds for Bra in 1:N_T1
+                    @inbounds for Ket in 1:Bra
+                        Ind = Bra + (Ket - 1) * N_T1 - div(Ket * (Ket - 1),2)
+                        ppME = @views V_NN.pp[P,J+1][Ind]
+                        nnME = @views V_NN.nn[P,J+1][Ind]
+                        @printf(Export_File, "%6d\t%6d\t%12.8f\t%12.8f\n", Bra, Ket, ppME, nnME)
+                        if Bra != Ket
+                            @printf(Export_File, "%6d\t%6d\t%12.8f\t%12.8f\n", Ket, Bra, ppME, nnME)
+                        end
+                    end
+                end
+    
+            end
+
+            open(V2b_0p_mono_Path, "w") do Export_File
+                @printf(Export_File, "%6s\t%6s\t%12s\t%12s\n", "Bra", "Ket", "ppV", "nnV")
+                J, P = 0, 1
+
+                N_T1 = Orb_NN.N[2,P,J+1]
+                @inbounds for Bra in 1:N_T1
+                    a, b = Orb_NN.Ind[2,1,1][Bra][1], Orb_NN.Ind[2,1,1][Bra][2]
+                    if a == b
+                        @inbounds for Ket in 1:Bra
+                            c, d = Orb_NN.Ind[2,1,1][Ket][1], Orb_NN.Ind[2,1,1][Ket][2]
+                            if c == d
+                                Ind = Bra + (Ket - 1) * N_T1 - div(Ket * (Ket - 1),2)
+                                ppME = @views V_NN.pp[P,J+1][Ind]
+                                nnME = @views V_NN.nn[P,J+1][Ind]
+
+                                @printf(Export_File, "%6d\t%6d\t%12.8f\t%12.8f\n", Bra, Ket, ppME, nnME)
+                                if Bra != Ket
+                                    @printf(Export_File, "%6d\t%6d\t%12.8f\t%12.8f\n", Ket, Bra, ppME, nnME)
+                                end
+                            end
+                        end
+                    end
+                end
+
+            end
+
+            println("\nDimension of the JP = 0+ NN interaction channel: dim = " * string(Orb_NN.N[2,1,1]))
+
+        end
+    =#
 
     return V_NN, Orb_NN
 end

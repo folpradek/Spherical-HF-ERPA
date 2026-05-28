@@ -42,7 +42,7 @@ function HFB_solver(Params::Parameters)
         @time V_NN = V2b_residual_no2b(Params,Orb,Orb_NN,Orb_NNN,Rho,V_NN,V_NNN)
 
         # Include the N^2 contribution to the residual 2-body interaction in the LHO basis ... if LNT is enabled ...
-        if Params.Calc.HFB.LNT == true && Iteration > 15
+        if Params.Calc.HFB.LNT == true && Params.Calc.HFB.LNRes == true
             @time V_NN = HFB_Lipkin_Nogami_V2b_residual_no2b(Params,Orb,Orb_NN,V_NN)
         end
 

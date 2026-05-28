@@ -199,7 +199,7 @@ function HF_RPA_binary_export(Params::Parameters,N_nu::Matrix{Int64},E_TDA::Matr
                 N_ph = N_nu[J+1,P]
                 @inbounds for nu in 1:N_ph
                     @inbounds for ph in 1:N_ph
-                        X = X_TDA[J+1,P][nu,ph]
+                        X = X_TDA[J+1,P][ph,nu]
                         Buffer_count += 1
                         Buffer_TDA[Buffer_count] = X
                         if Buffer_count == Buffer_size
@@ -250,7 +250,7 @@ function HF_RPA_binary_export(Params::Parameters,N_nu::Matrix{Int64},E_TDA::Matr
                 N_ph = N_nu[J+1,P]
                 @inbounds for nu in 1:N_ph
                     @inbounds for ph in 1:N_ph
-                        X = X_RPA[J+1,P][nu,ph]
+                        X = X_RPA[J+1,P][ph,nu]
                         Buffer_count += 1
                         Buffer_RPA[Buffer_count] = X
                         if Buffer_count == Buffer_size
@@ -276,7 +276,7 @@ function HF_RPA_binary_export(Params::Parameters,N_nu::Matrix{Int64},E_TDA::Matr
                 N_ph = N_nu[J+1,P]
                 @inbounds for nu in 1:N_ph
                     @inbounds for ph in 1:N_ph
-                        Y = Y_RPA[J+1,P][nu,ph]
+                        Y = Y_RPA[J+1,P][ph,nu]
                         Buffer_count += 1
                         Buffer_RPA[Buffer_count] = Y
                         if Buffer_count == Buffer_size

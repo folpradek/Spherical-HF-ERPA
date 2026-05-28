@@ -42,6 +42,7 @@ module NuJuliet
     include("HF_RPA/HF_RPA_OBDM.jl")
     include("HF_RPA/HF_RPA_Transitions.jl")
     include("HF_RPA/HF_RPA_Export.jl")
+    include("HF_RPA/HF_RPA_External.jl")
 
     # HF-Renormalized-RPA ...
     include("HF_RRPA/HF_RRPA.jl")

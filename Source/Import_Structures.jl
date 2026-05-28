@@ -68,6 +68,7 @@
         Broy_Bmax::Float64 = 0.3
         Broy_Tmax::Float64 = 0.9
         LNT::Bool = false
+        LNRes::Bool = true
         BMF::Bool = true
         HRF::Bool = false
     end

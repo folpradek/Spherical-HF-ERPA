@@ -134,94 +134,11 @@ function Tr1b_E1_vortical_initialize(Params::Parameters,Orb::Vector{Orb1B},chR2:
 
     # Define local functions for evaluation of the reduced matrix elements ...
 
-    @inline function rME_nabla_Omega(l_a::Int64,l_b::Int64)
-        rME = 0.0
-        if l_a == (l_b + 1)
-            rME += - l_b * sqrt(Float64(l_b + 1))
-        elseif l_a == (l_b - 1)
-            rME += - (l_b + 1) * sqrt(Float64(l_b))
-        end
-        return rME
-    end
-
-    @inline function rME_n(l_a::Int64,l_b::Int64)
-        if abs(l_b - 1) <= l_a && l_a <= (l_b + 1)
-            rME = sqrt(Float64(2*l_b + 1)) * fCG(2*l_b,2,2*l_a,0,0,0)
-            return rME
-        else
-            return 0.0
-        end
-    end
-
     @inline function rME_YL(l_a::Int64,j_a::Int64,l_b::Int64,j_b::Int64,L::Int64)
         if rem(l_a + l_b + L,2) != 0
             return 0.0
         end
         rME = phase(L + div(j_a - 1,2)) * sqrt(Float64((j_a + 1) * (j_b + 1)) / (4.0 * pi)) * fCG(j_a,j_b,2*L,1,-1,0)
-        return rME
-    end
-
-    @inline function rME_YL_cross_n(l_a::Int64,l_b::Int64,L::Int64,J::Int64)
-        rME = 0.0
-        if abs(J - l_b) > l_a || l_a > (J + l_b)
-            return rME
-        end
-        Amp = phase(l_a + l_b + J) * sqrt(Float64((2*J + 1))) 
-        @inbounds for l in max(abs(L - l_a),abs(1 - l_b)):min(L + l_a, 1 + l_b)
-            if rem(l_a + l + L,2) == 0 && rem(l_b + l + 1,2) == 0
-                ME = f6j(2*L,2,2*J,2*l_b,2*l_a,2*l) * rME_YL(l_a,l,L) * rME_n(l,l_b)
-                rME += ME
-            end
-        end
-        rME = Amp * rME
-        return rME
-    end
-
-    @inline function rME_n_cross_YL(l_a::Int64,l_b::Int64,L::Int64,J::Int64)
-        rME = 0.0
-        if abs(J - l_b) > l_a || l_a > (J + l_b)
-            return rME
-        end
-        Amp = phase(l_a + l_b + J) * sqrt(Float64((2*J + 1))) 
-        @inbounds for l in max(abs(1 - l_a),abs(L - l_b)):min(1 + l_a, L + l_b)
-            if rem(l_a + l + 1,2) == 0 && rem(l_b + l + L,2) == 0
-                ME = f6j(2,2*L,2*J,2*l_b,2*l_a,2*l) * rME_YL(l,l_b,L) * rME_n(l_a,l)
-                rME += ME
-            end
-        end
-        rME = Amp * rME
-        return rME
-    end
-
-    @inline function rME_YL_cross_nabla_Omega(l_a::Int64,l_b::Int64,L::Int64,J::Int64)
-        rME = 0.0
-        if abs(J - l_b) > l_a || l_a > (J + l_b)
-            return rME
-        end
-        Amp = phase(l_a + l_b + J) * sqrt(Float64((2*J + 1) * (2*L + 1)) / (4.0 * pi))
-        @inbounds for l in max(abs(L - l_a), abs(1 - l_b)):min(L + l_a, 1 + l_b)
-            if rem(l_a + l + L, 2) == 0 && rem(l + l_b + 1, 2) == 0
-                ME = sqrt(Float64(2*l + 1)) * f6j(2*L,2,2*J,2*l_b,2*l_a,2*l) * fCG(2*l,2*L,2*l_a,0,0,0) * rME_nabla_Omega(l,l_b)
-                rME += ME
-            end
-        end
-        rME = Amp * rME
-        return rME
-    end
-
-    @inline function rME_nabla_Omega_cross_YL(l_a::Int64,l_b::Int64,L::Int64,J::Int64)
-        rME = 0.0
-        if abs(J - l_b) > l_a || l_a > (J + l_b)
-            return rME
-        end
-        Amp = phase(l_a + l_b + J) * sqrt(Float64((2*J + 1) * (2*L + 1)) / (4.0 * pi))
-        @inbounds for l in max(abs(1 - l_a), abs(L - l_b)):min(1 + l_a, L + l_b)
-            if rem(l_a + l + 1, 2) == 0 && rem(l + l_b + L, 2) == 0
-                ME = sqrt(Float64(2*l_b + 1)) * f6j(2,2*L,2*J,2*l_b,2*l_a,2*l) * fCG(2*l_b,2*L,2*l,0,0,0) * rME_nabla_Omega(l_a,l)
-                rME += ME
-            end
-        end
-        rME = Amp * rME
         return rME
     end
     
@@ -245,27 +162,58 @@ function Tr1b_E1_vortical_initialize(Params::Parameters,Orb::Vector{Orb1B},chR2:
         return rME
     end
 
-    @inline function rME_YJL(l_a::Int64,l_b::Int64,L::Int64,J::Int64)
-        rME = 0.0
-        Amp = sqrt(Float64(2*J + 1)) * phase(l_a + l_b + J)
-        @inbounds for l in max(abs(L - l_a),abs(1 - l_b)):min(L + l_a, 1 + l_b)
-            if rem(l_a + l + L,2) == 0 && rem(l_b + l + 1,2) == 0
-                ME = f6j(2*L,2,2*J,2*l_b,2*l_a,2*l) * rME_YL(l_a,l,L) * rME_n(l,l_b)
-                rME += ME
-            end
-        end
-        rME *= Amp
-        return rME
-    end
-
     @inline function rME_nabla_dot_rN_YJL(a::Int64,b::Int64,N::Int64,L::Int64,J::Int64,hw::Float64,Orb::Vector{Orb1B})
         n_a, l_a, j_a = Orb[a].n, Orb[a].l, Orb[a].j
         n_b, l_b, j_b = Orb[b].n, Orb[b].l, Orb[b].j
 
-        rME = phase(l_a + J + div(j_b + 1,2)) *  sqrt(Float64((j_a + 1) * (j_b + 1))) * f6j(2*l_b,j_b,1,j_a,2*l_a,2*J) *
-                ((rME_rN_dr(n_a,l_a,n_b,l_b,N,hw) - rME_rN_dr(n_b,l_b,n_a,l_a,N,hw)) * rME_YL(l_a,l_b,J) *
-                 (kronecker_delta(L,J-1) * sqrt(J / (2*J + 1)) - kronecker_delta(L,J+1) * sqrt((J + 1) / (2*J + 1))) +
-                  rME_rN(n_a,l_a,n_b,l_b,N-1,hw) * (rME_YL_cross_nabla_Omega(l_a,l_b,L,J) + rME_YL_cross_nabla_Omega(l_b,l_a,L,J)))
+        rME = 0.0
+
+        Amp_Bra = phase(l_b + div(j_b + 1,2)) * f6j(2*l_b,1,j_b,j_a,2*J,2*l_a) *
+                  sqrt(Float64((2*J + 1) * (2*L + 1) * (j_a + 1) * (j_b + 1) * (2*l_a + 1) * (2*l_b + 1)) / (4.0 * pi))
+
+        Amp_Ket = phase(l_a + div(j_b + 1,2)) * f6j(2*l_a,1,j_a,j_b,2*J,2*l_b) *
+                  sqrt(Float64((2*J + 1) * (2*L + 1) * (j_a + 1) * (j_b + 1) * (2*l_a + 1) * (2*l_b + 1)) / (4.0 * pi))
+
+        if abs(L - l_b) <= (l_a - 1) && (l_a - 1) <= (L + l_b)
+            ME = Amp_Bra * fCG(2*l_b,2*L,2*l_a-2,0,0,0) * f6j(2*L,2,2*J,2*l_a,2*l_b,2*l_a-2) * sqrt(Float64(l_a) / Float64(2*l_a + 1)) *
+                (rME_rN_dr(n_b,l_b,n_a,l_a,N,hw) + Float64(l_a + 1) * rME_rN(n_a,l_a,n_b,l_b,N-1,hw))
+            rME += ME
+        end
+
+        if abs(L - l_b) <= (l_a + 1) && (l_a + 1) <= (L + l_b) && l_a >= 1
+            ME = Amp_Bra * fCG(2*l_b,2*L,2*l_a+2,0,0,0) * f6j(2*L,2,2*J,2*l_a,2*l_b,2*l_a+2) * sqrt(Float64(l_a - 1) / Float64(2*l_a + 1)) *
+                (rME_rN_dr(n_b,l_b,n_a,l_a,N,hw) - Float64(l_a) * rME_rN(n_a,l_a,n_b,l_b,N-1,hw))
+            rME -= ME
+        end
+
+
+        if abs(L - l_a) <= (l_b - 1) && (l_b - 1) <= (L + l_a)
+            ME = Amp_Ket * fCG(2*l_a,2*L,2*l_b-2,0,0,0) * f6j(2*L,2,2*J,2*l_b,2*l_a,2*l_b-2) * sqrt(Float64(l_b) / Float64(2*l_b + 1)) *
+                (rME_rN_dr(n_a,l_a,n_b,l_b,N,hw) + Float64(l_b + 1) * rME_rN(n_a,l_a,n_b,l_b,N-1,hw))
+            rME += ME
+        end
+
+        if abs(L - l_a) <= (l_b + 1) && (l_b + 1) <= (L + l_a) && l_b >= 1
+            ME = Amp_Ket * fCG(2*l_a,2*L,2*l_b+2,0,0,0) * f6j(2*L,2,2*J,2*l_b,2*l_a,2*l_b+2) * sqrt(Float64(l_b - 1) / Float64(2*l_b + 1)) *
+                (rME_rN_dr(n_a,l_a,n_b,l_b,N,hw) - Float64(l_b) * rME_rN(n_a,l_a,n_b,l_b,N-1,hw))
+            rME -= ME
+        end
+
+
+        #=
+            rME = phase(l_b + div(j_b + 1,2)) * f6j(2*l_b,1,j_b,j_a,2*J,2*l_a) *
+                sqrt(Float64((2*J + 1) * (2*L + 1) * (j_a + 1) * (j_b + 1) * (2*l_a + 1) * (2*l_b + 1)) / (4.0 * pi)) *
+                ((fCG(2*l_b,2*L,2*l_a-2,0,0,0) * f6j(2*L,2,2*J,2*l_a,2*l_b,2*l_a-2) * sqrt(Float64(l_a) / Float64(2*l_a + 1)) *
+                    (rME_rN_dr(n_b,l_b,n_a,l_a,N,hw) + Float64(l_a + 1) * rME_rN(n_a,l_a,n_b,l_b,N-1,hw))) -
+                    fCG(2*l_b,2*L,2*l_a+2,0,0,0) * f6j(2*L,2,2*J,2*l_a,2*l_b,2*l_a+2) * sqrt(Float64(l_a - 1) / Float64(2*l_a + 1)) *
+                    (rME_rN_dr(n_b,l_b,n_a,l_a,N,hw) - Float64(l_a) * rME_rN(n_a,l_a,n_b,l_b,N-1,hw))) +
+                phase(l_a + div(j_a + 1,2)) * f6j(2*l_a,1,j_a,j_b,2*J,2*l_b) *
+                sqrt(Float64((2*J + 1) * (2*L + 1) * (j_a + 1) * (j_b + 1) * (2*l_a + 1) * (2*l_b + 1)) / (4.0 * pi)) *
+                ((fCG(2*l_a,2*L,2*l_b-2,0,0,0) * f6j(2*L,2,2*J,2*l_b,2*l_a,2*l_b-2) * sqrt(Float64(l_b) / Float64(2*l_b + 1)) *
+                    (rME_rN_dr(n_a,l_a,n_b,l_b,N,hw) + Float64(l_b + 1) * rME_rN(n_a,l_a,n_b,l_b,N-1,hw))) -
+                    fCG(2*l_a,2*L,2*l_b+2,0,0,0) * f6j(2*L,2,2*J,2*l_b,2*l_a,2*l_b+2) * sqrt(Float64(l_b - 1) / Float64(2*l_b + 1)) *
+                    (rME_rN_dr(n_a,l_a,n_b,l_b,N,hw) - Float64(l_b) * rME_rN(n_a,l_a,n_b,l_b,N-1,hw)))
+        =#
 
         return rME
     end
@@ -274,12 +222,27 @@ function Tr1b_E1_vortical_initialize(Params::Parameters,Orb::Vector{Orb1B},chR2:
         n_a, l_a, j_a = Orb[a].n, Orb[a].l, Orb[a].j
         n_b, l_b, j_b = Orb[b].n, Orb[b].l, Orb[b].j
 
+        if abs(l_a - l_b) > J || J > (l_a + l_b)
+            return 0.0
+        end
+
+        Amp = phase(l_a + l_b + J + div(j_b + 3,2)) * sqrt(Float64((j_a + 1) * (j_b + 1) * (2*l_a + 1) * (2*l_b + 1)) / (8.0 * pi * Float64(J * (J + 1)))) *
+              Float64((l_a - l_b) * (l_a + l_b + 1) - div((j_a - j_b) * (j_a + j_b + 1),4)) * fCG(2*l_a,2*l_b,2*J,0,0,0) * f6j(2*l_a,j_a,1,j_b,2*l_b,2*J)
+
+        if abs(Amp) < 1e-12
+            return 0.0
+        end
+
         rME = 0.0
 
-        if L != 0 && N != 0
-            rME = 0.5 * sqrt(6.0 * Float64((j_a + 1) * (2*J + 1) * (j_b + 1))) * f9j(2*l_a,1,j_a,2*l_b,1,j_b,2*J,2,2*J) *
-                    rME_rN(n_a,l_a,n_b,l_b,N-1,hw) * rME_YL(l_a,l_b,J) * (kronecker_delta(L,J-1) * sqrt(Float64(J + 1) / Float64(2*J + 1)) * Float64(N - J + 1) -
-                    kronecker_delta(L,J+1) * sqrt(Float64(J) / Float64(2*J + 1)) * Float64(N + J + 2))
+        if L == J + 1
+            ME = Amp * sqrt(Float64(J) / Float64(2*J + 1)) * (rME_rN_dr(n_a,l_a,n_b,l_b,N,hw) + rME_rN_dr(n_b,l_b,n_a,l_a,N,hw) - Float64(J) * rME_rN(n_a,l_a,n_b,l_b,N-1,hw))
+            rME += ME
+        end
+
+        if L == J - 1
+            ME = Amp * sqrt(Float64(J + 1) / Float64(2*J + 1)) * (rME_rN_dr(n_a,l_a,n_b,l_b,N,hw) + rME_rN_dr(n_b,l_b,n_a,l_a,N,hw) + Float64(J + 1) * rME_rN(n_a,l_a,n_b,l_b,N-1,hw))
+            rME += ME
         end
 
         return rME
@@ -423,13 +386,13 @@ function Tr1b_E1_vortical_initialize(Params::Parameters,Orb::Vector{Orb1B},chR2:
     # Test print
     #=
         display(TrE1_VC.p)
-        display(TrE1_VS.n)
+        display(TrE1_VS.p)
 
-        display(TrE1_TC.p)
-        display(TrE1_sTC.p)
+        #display(TrE1_TC.p)
+        #display(TrE1_sTC.p)
 
-        display(TrE1_TS.n)
-        display(TrE1_sTS.n)
+        #display(TrE1_TS.p)
+        #display(TrE1_sTS.p)
 
         #display(TrE1_C.n)
         #display(TrE1_sC.n)
