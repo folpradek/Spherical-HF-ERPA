@@ -36,7 +36,7 @@ function HF_solver(Params::Parameters)
     HF_SPS_summary(Params,h,Orb)
 
     # Export of single-particle HF Hamiltonian & HF single-particle states ... in matrix C ...
-    HF_export(Params,C,h,Orb)
+    HF_export(Params,C,O1B(C.p' * Rho.p * C.p, C.n' * Rho.n * C.n),h,Orb)
 
     # If set in input calculation parameters, perform the HF-EFA calculation for the specified nucleus ...
     if Params.Calc.HF.EFA.A != 0 && Params.Calc.HF.EFA.Z != 0
@@ -63,7 +63,7 @@ function HF_solver(Params::Parameters)
         if Params.Calc.HF.HRF == true
             println("Exporting the HF single-particle orbitals & residual 2-body NN interaction in the Human-Readable-Format (HRF) ...")
             orbitals_export(Params,Orb)
-            O2b_export_HRF(Params,Orb_NN,O_NN,"IO/" * Params.Calc.Path * "/Bin/V2B_HF.dat")
+            O2b_export_HRF(Params,Orb_NN,V_NN_Res,"IO/" * Params.Calc.Path * "/Bin/V2B_HF.dat")
         end
 
         # Deallocate the residual NN interaction ...

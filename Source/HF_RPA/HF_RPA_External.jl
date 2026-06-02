@@ -30,7 +30,7 @@ function HF_RPA_import_binary(Params::Parameters,N_nu::Matrix{Int64})
     end
 
     # Read TDA amplitudes X ...
-    Import_Path_TDA_X = "IO/$OutputFile/Bin/TDA_X.bin"
+    Import_Path_TDA_X = "IO/$(OutputFile)/Bin/TDA_X.bin"
     open(Import_Path_TDA_X, "r") do Import_File
         @inbounds for JP in JP_list
             J, P = JP[1], JP[2]
@@ -43,8 +43,8 @@ function HF_RPA_import_binary(Params::Parameters,N_nu::Matrix{Int64})
     end
 
     # Read TDA energies E ...
-    Import_Path_TDA_X = "IO/$OutputFile/Bin/TDA_E.bin"
-    open(Import_Path_TDA_X, "r") do Import_File
+    Import_Path_TDA_E = "IO/$(OutputFile)/Bin/TDA_E.bin"
+    open(Import_Path_TDA_E, "r") do Import_File
         @inbounds for JP in JP_list
             J, P = JP[1], JP[2]
             N_ph = N_nu[J+1,P]
@@ -56,7 +56,7 @@ function HF_RPA_import_binary(Params::Parameters,N_nu::Matrix{Int64})
     end
 
     # Read RPA amplitudes X ...
-    Import_Path_RPA_X = "IO/$OutputFile/Bin/RPA_X.bin"
+    Import_Path_RPA_X = "IO/$(OutputFile)/Bin/RPA_X.bin"
     open(Import_Path_RPA_X, "r") do Import_File
         @inbounds for JP in JP_list
             J, P = JP[1], JP[2]
@@ -69,7 +69,7 @@ function HF_RPA_import_binary(Params::Parameters,N_nu::Matrix{Int64})
     end
 
     # Read RPA amplitudes Y ...
-    Import_Path_RPA_Y = "IO/$OutputFile/Bin/RPA_Y.bin"
+    Import_Path_RPA_Y = "IO/$(OutputFile)/Bin/RPA_Y.bin"
     open(Import_Path_RPA_Y, "r") do Import_File
         @inbounds for JP in JP_list
             J, P = JP[1], JP[2]
@@ -82,8 +82,8 @@ function HF_RPA_import_binary(Params::Parameters,N_nu::Matrix{Int64})
     end
 
     # Read RPA energies E ...
-    Import_Path_RPA_X = "IO/$OutputFile/Bin/RPA_E.bin"
-    open(Import_Path_RPA_X, "r") do Import_File
+    Import_Path_RPA_E = "IO/$(OutputFile)/Bin/RPA_E.bin"
+    open(Import_Path_RPA_E, "r") do Import_File
         @inbounds for JP in JP_list
             J, P = JP[1], JP[2]
             N_ph = N_nu[J+1,P]
@@ -99,22 +99,26 @@ function HF_RPA_import_binary(Params::Parameters,N_nu::Matrix{Int64})
     return X_TDA, E_TDA, X_RPA, Y_RPA, E_RPA
 end
 
-function HF_RPA_transition_densities(Params::Parameters;JP::String,nu_list::Vector{Int64},File_Name::String = "Phonon_Densities",Weighted::Bool = false)
+function HF_RPA_transition_densities(Params::Parameters;JP::String,nu_list::Vector{Int64},File_Name::String = "Phonon_Densities")
+    # Initialize the angular momentum algebra ...
+    wigner_init_float(75, "Jmax", 9)
+
     # Read parameters ...
-    A = Params.Calc.A
+    A = Float64(Params.Calc.A)
+    Z = Float64(Params.Calc.Z)
     hw = Params.Calc.hw
     N_max = Params.Calc.Nmax
     a_max = div((N_max+1)*(N_max+2),2)
 
     # Define basic constants ...
-    hbarc = 197.326980
+    hc = 197.326980
     m_n = 939.565346
     m_p = 938.272013
-    nu_proton = 0.5 * m_p * hw / hbarc^2
-    nu_neutron = 0.5 * m_n * hw / hbarc^2
+    nu_proton = 0.5 * m_p * hw / hc^2
+    nu_neutron = 0.5 * m_n * hw / hc^2
 
     # Define the properties of radial grid ...
-    r_min, r_max = 0.0 + 1e-8, 2.5 * 1.2 * Float64(A)^(1/3)
+    r_min, r_max = 0.0 + 1e-8, 2.5 * 1.2 * A^(1/3)
     N_grid = 2^13 + 1 # 8192 + 1 grid points ...
 
     # Read the values of J & P ...
@@ -132,7 +136,7 @@ function HF_RPA_transition_densities(Params::Parameters;JP::String,nu_list::Vect
         P = 2
     end
 
-    # Make s.p. orbitals ...
+    # Make single-particle orbitals ...
     Orb = orbitals_make(Params)
 
     # Prepare Particle & Hole orbitals ...
@@ -144,7 +148,7 @@ function HF_RPA_transition_densities(Params::Parameters;JP::String,nu_list::Vect
     # Count & pre-index all phonon states in JP subspaces ...
     N_nu, Orb_Phonon = HF_RPA_phonon_count(Params,N_Phonon,Phonon)
 
-    # Import transformation matrix mapping LHO & reference basis ...
+    # Import transformation matrix mapping LHO & reference HF basis ...
     @time C = O1b_import(Params,Orb,"IO/" * Params.Calc.Path * "/Bin/C_HF.bin")
 
     # Import TDA & RPA solutions ...
@@ -154,6 +158,163 @@ function HF_RPA_transition_densities(Params::Parameters;JP::String,nu_list::Vect
     N_phonon = length(nu_list)
     N_ph = N_nu[J+1,P]
 
+    # Precalculate the reduced matrix elements of Electrogmanetic 1-body transition operators ...
+        # Iniztialize the 1-body Electromagnetic transition operators ...
+    TrOp = Tr1b_initialize(Params,Orb,1.0)
+         # Transform the 1-body transition operators to the reference basis ...
+    TrOp = Tr1b_transformation(Params,Orb,C,TrOp)
+
+    # Precalculate the matrix elements of 1-body transition operators ...
+        # Initialize the matrix elements for given phonon levels ...
+            # Case of TDA transition matrix elements ...
+    pM_TDA, nM_TDA = Vector{Float64}(undef,N_phonon), Vector{Float64}(undef,N_phonon)
+    isM_TDA, ivM_TDA = Vector{Float64}(undef,N_phonon), Vector{Float64}(undef,N_phonon)
+            # Case of RPA transition matrix elements ...
+    pM_RPA, nM_RPA = Vector{Float64}(undef,N_phonon), Vector{Float64}(undef,N_phonon)
+    isM_RPA, ivM_RPA = Vector{Float64}(undef,N_phonon), Vector{Float64}(undef,N_phonon)
+
+        # Calculate the matrix elements for given phonon levels ...
+    if (J,P) in [(0,1),(2,1),(3,2)]
+        @inbounds for (nu_ind, nu) in enumerate(nu_list)
+            pMTDASum, nMTDASum, isMTDASum, ivMTDASum = 0.0im, 0.0im, 0.0im, 0.0im
+            pMRPASum, nMRPASum, isMRPASum, ivMRPASum = 0.0im, 0.0im, 0.0im, 0.0im
+
+            @inbounds for ph in 1:N_ph
+                i_ph = Orb_Phonon[J+1,P][ph]
+                p, h, t_ph = Phonon[i_ph].p, Phonon[i_ph].h, Phonon[i_ph].tz
+                x_TDA, x_RPA, y_RPA = X_TDA[J+1,P][ph,nu], X_RPA[J+1,P][ph,nu], Y_RPA[J+1,P][ph,nu]
+
+                MTDAME = phase(J) * x_TDA / sqrt(Float64(2*J + 1))
+                MRPAME = (phase(J) * x_RPA + y_RPA) / sqrt(Float64(2*J + 1))
+
+                if t_ph == -1
+                    a_p, a_h = Particle.p[p].a, Hole.p[h].a
+
+                    if J == 0 && P == 1
+                        MTDAME = TrOp.E0.p[a_p,a_h] * MTDAME
+                        MRPAME = TrOp.E0.p[a_p,a_h] * MRPAME
+
+                    elseif J == 2 && P == 1
+                        MTDAME = TrOp.E2.p[a_p,a_h] * MTDAME
+                        MRPAME = TrOp.E2.p[a_p,a_h] * MRPAME
+
+                    elseif J == 3 && P == 2
+                        MTDAME = TrOp.E3.p[a_p,a_h] * MTDAME
+                        MRPAME = TrOp.E3.p[a_p,a_h] * MRPAME
+                    end
+
+                    pMTDASum += MTDAME
+                    isMTDASum += 0.5 * MTDAME
+                    ivMTDASum += 0.5 * MTDAME
+
+                    pMRPASum += MRPAME
+                    isMRPASum += 0.5 * MRPAME
+                    ivMRPASum += 0.5 * MRPAME
+
+                elseif t_ph == 1
+                    a_p, a_h = Particle.n[p].a, Hole.n[h].a
+
+                    if J == 0 && P == 1
+                        MTDAME = TrOp.E0.n[a_p,a_h] * MTDAME
+                        MRPAME = TrOp.E0.n[a_p,a_h] * MRPAME
+
+                    elseif J == 2 && P == 1
+                        MTDAME = TrOp.E2.n[a_p,a_h] * MTDAME
+                        MRPAME = TrOp.E2.n[a_p,a_h] * MRPAME
+
+                    elseif J == 3 && P == 2
+                        MTDAME = TrOp.E3.n[a_p,a_h] * MTDAME
+                        MRPAME = TrOp.E3.n[a_p,a_h] * MRPAME
+                    end
+
+                    nMTDASum += MTDAME
+                    isMTDASum += 0.5 * MTDAME
+                    ivMTDASum -= 0.5 * MTDAME
+
+                    nMRPASum += MRPAME
+                    isMRPASum += 0.5 * MRPAME
+                    ivMRPASum -= 0.5 * MRPAME
+                end
+
+            end
+
+            pM_TDA[nu_ind] = pMTDASum
+            nM_TDA[nu_ind] = nMTDASum
+            isM_TDA[nu_ind] = isMTDASum
+            ivM_TDA[nu_ind] = ivMTDASum
+
+            pM_RPA[nu_ind] = pMRPASum
+            nM_RPA[nu_ind] = nMRPASum
+            isM_RPA[nu_ind] = isMRPASum
+            ivM_RPA[nu_ind] = ivMRPASum
+        end
+
+    elseif (J,P) == (1,2)
+        @inbounds for (nu_ind, nu) in enumerate(nu_list)
+            pMTDASum, nMTDASum, isMTDASum, ivMTDASum = 0.0im, 0.0im, 0.0im, 0.0im
+            pMRPASum, nMRPASum, isMRPASum, ivMRPASum = 0.0im, 0.0im, 0.0im, 0.0im
+
+            @inbounds for ph in 1:N_ph
+                i_ph = Orb_Phonon[J+1,P][ph]
+                p, h, t_ph = Phonon[i_ph].p, Phonon[i_ph].h, Phonon[i_ph].tz
+                x_TDA, x_RPA, y_RPA = X_TDA[J+1,P][ph,nu], X_RPA[J+1,P][ph,nu], Y_RPA[J+1,P][ph,nu]
+
+                Amp_TDA = phase(J) * x_TDA / sqrt(Float64(2*J + 1))
+                Amp_RPA = (phase(J) * x_RPA + y_RPA) / sqrt(Float64(2*J + 1))
+
+                if t_ph == -1
+                    a_p, a_h = Particle.p[p].a, Hole.p[h].a
+
+                    pMTDAME = TrOp.E1.p[a_p,a_h] * Amp_TDA
+                    isMTDAME = 0.5 * TrOp.E1_C.p[a_p,a_h] * Amp_TDA
+                    ivMTDAME = TrOp.E1.p[a_p,a_h] * Amp_TDA * (A - Z) / A
+
+                    pMRPAME = TrOp.E1.p[a_p,a_h] * Amp_RPA
+                    isMRPAME = 0.5 * TrOp.E1_C.p[a_p,a_h] * Amp_RPA
+                    ivMRPAME = TrOp.E1.p[a_p,a_h] * Amp_RPA * (A - Z) / A
+
+                    pMTDASum += pMTDAME
+                    isMTDASum += isMTDAME
+                    ivMTDASum += ivMTDAME
+
+                    pMRPASum += pMRPAME
+                    isMRPASum += isMRPAME
+                    ivMRPASum += ivMRPAME
+
+                elseif t_ph == 1
+                    a_p, a_h = Particle.n[p].a, Hole.n[h].a
+
+                    nMTDAME = TrOp.E1.n[a_p,a_h] * Amp_TDA
+                    isMTDAME = 0.5 * TrOp.E1_C.n[a_p,a_h] * Amp_TDA
+                    ivMTDAME = - TrOp.E1.n[a_p,a_h] * Amp_TDA * Z / A
+
+                    nMRPAME = TrOp.E1.n[a_p,a_h] * Amp_RPA
+                    isMRPAME = 0.5 * TrOp.E1_C.n[a_p,a_h] * Amp_RPA
+                    ivMRPAME = - TrOp.E1.n[a_p,a_h] * Amp_RPA * Z / A
+
+                    nMTDASum += nMTDAME
+                    isMTDASum += isMTDAME
+                    ivMTDASum += ivMTDAME
+
+                    nMRPASum += nMRPAME
+                    isMRPASum += isMRPAME
+                    ivMRPASum += ivMRPAME
+                end
+            end
+
+            pM_TDA[nu_ind] = pMTDASum
+            nM_TDA[nu_ind] = nMTDASum
+            isM_TDA[nu_ind] = isMTDASum
+            ivM_TDA[nu_ind] = ivMTDASum
+
+            pM_RPA[nu_ind] = pMRPASum
+            nM_RPA[nu_ind] = nMRPASum
+            isM_RPA[nu_ind] = isMRPASum
+            ivM_RPA[nu_ind] = ivMRPASum
+        end
+
+    end
+
     # Initialize the radial grid ...
     r_grid = range(r_min, stop = r_max, length = N_grid)
     r_grid = collect(r_grid)
@@ -162,34 +323,30 @@ function HF_RPA_transition_densities(Params::Parameters;JP::String,nu_list::Vect
     pOrb_grid = Matrix{Float64}(undef,a_max,N_grid)
     nOrb_grid = Matrix{Float64}(undef,a_max,N_grid)
 
-    # Initialize the radial grid for 1-body transition operators ...
-    pM_grid = ones(Float64,a_max,N_grid)
-    nM_grid = ones(Float64,a_max,N_grid)
-
     # Calculate the radial representation of the reference basis orbitals ...
     @inbounds Threads.@threads for i in 1:N_grid
         r = r_grid[i]
         @inbounds for a in 1:a_max
             l_a, j_a = Orb[a].l, Orb[a].j
             pSum, nSum = 0.0, 0.0
+
             @inbounds for k in 1:a_max
                 n_k, l_k, j_k = Orb[k].n, Orb[k].l, Orb[k].j
+
                 if l_a != l_k || j_a != j_k
                     continue
                 end
+
                 pPsi = C.p[k,a] * Psi_rad_LHO(r,n_k,l_k,nu_proton)
-                nPsi = C.p[k,a] * Psi_rad_LHO(r,n_k,l_k,nu_neutron)
+                nPsi = C.n[k,a] * Psi_rad_LHO(r,n_k,l_k,nu_neutron)
+
                 pSum += pPsi
                 nSum += nPsi
             end
+
             pOrb_grid[a,i] = pSum
             nOrb_grid[a,i] = nSum
         end
-    end
-
-    # If set to true, calculate the radial representation of 1-body transition operator ...
-    if Weighted == true
-        println("to be implemented ...")
     end
 
     # Initialize radial grids for given phonon levels ...
@@ -206,38 +363,51 @@ function HF_RPA_transition_densities(Params::Parameters;JP::String,nu_list::Vect
         @inbounds for (nu_ind, nu) in enumerate(nu_list)
             pTDASum, nTDASum = 0.0, 0.0
             pRPASum, nRPASum = 0.0, 0.0
+
+            Gauge_TDA, Gauge_RPA = 1.0, 1.0
+
+            if ((J,P) in [(0,1),(1,2),(2,1),(3,2)]) == true
+                Gauge_TDA = pM_TDA[nu_ind] / abs(pM_TDA[nu_ind])
+                Gauge_RPA = real(pM_RPA[nu_ind]) / abs(pM_RPA[nu_ind])
+            end
+
             @inbounds for ph in 1:N_ph
                 i_ph = Orb_Phonon[J+1,P][ph]
                 p, h, t_ph = Phonon[i_ph].p, Phonon[i_ph].h, Phonon[i_ph].tz
-                x_RPA, y_RPA = real(X_RPA[J+1,P][ph,nu]), real(Y_RPA[J+1,P][ph,nu])
-                x_TDA = X_TDA[J+1,P][ph,nu]
+                x_TDA, x_RPA, y_RPA = X_TDA[J+1,P][ph,nu], X_RPA[J+1,P][ph,nu], Y_RPA[J+1,P][ph,nu]
+
                 if t_ph == -1
-                    pRho_TDA = Float64((-1)^J) * x_TDA * pOrb_grid[p,i] * pOrb_grid[h,i] * pM_grid[p,i] * pM_grid[h,i]
-                    pRho_RPA = (Float64((-1)^J) * x_RPA + y_RPA) * pOrb_grid[p,i] * pOrb_grid[h,i] * pM_grid[p,i] * pM_grid[h,i]
+                    a_p, a_h = Particle.p[p].a, Hole.p[h].a
+                    pRho_TDA = Gauge_TDA * phase(J) * x_TDA * pOrb_grid[a_p,i] * pOrb_grid[a_h,i]
+                    pRho_RPA = Gauge_RPA * real(phase(J) * x_RPA + y_RPA) * pOrb_grid[a_p,i] * pOrb_grid[a_h,i]
                     pTDASum += pRho_TDA
                     pRPASum += pRho_RPA
                 elseif t_ph == 1
-                    nRho_TDA = Float64((-1)^J) * x_TDA * nOrb_grid[p,i] * nOrb_grid[h,i] * nM_grid[p,i] * nM_grid[h,i]
-                    nRho_RPA = (Float64((-1)^J) * x_RPA + y_RPA) * nOrb_grid[p,i] * nOrb_grid[h,i] * nM_grid[p,i] * nM_grid[h,i]
+                    a_p, a_h = Particle.n[p].a, Hole.n[h].a
+                    nRho_TDA = Gauge_TDA * phase(J) * x_TDA * nOrb_grid[a_p,i] * nOrb_grid[a_h,i]
+                    nRho_RPA = Gauge_RPA * real(phase(J) * x_RPA + y_RPA) * nOrb_grid[a_p,i] * nOrb_grid[a_h,i]
                     nTDASum += nRho_TDA
                     nRPASum += nRho_RPA
                 end
             end
-            pRho_nu_TDA[nu_ind,i] = pTDASum * r^2 / Float64(2*J + 1)
-            nRho_nu_TDA[nu_ind,i] = nTDASum * r^2 / Float64(2*J + 1)
-            pRho_nu_RPA[nu_ind,i] = pRPASum * r^2 / Float64(2*J + 1)
-            nRho_nu_RPA[nu_ind,i] = nRPASum * r^2 / Float64(2*J + 1)
+
+            Amp = r^2 / Float64(2*J + 1) / (4.0 * pi)
+
+            pRho_nu_TDA[nu_ind,i] = Amp * pTDASum
+            nRho_nu_TDA[nu_ind,i] = Amp * nTDASum
+            pRho_nu_RPA[nu_ind,i] = Amp * pRPASum
+            nRho_nu_RPA[nu_ind,i] = Amp * nRPASum
         end
     end
 
-    # Perform the export of radial phonon densities ...
+    # Perform the export of indiviual radial phonon densities ...
     @inbounds for (nu_ind, nu) in enumerate(nu_list)
         e_TDA, e_RPA = E_TDA[J+1,P][nu], real(E_RPA[J+1,P][nu])
         sE_TDA, sE_RPA = string(round(e_TDA,digits=3)), string(round(e_RPA,digits=3))
 
-        # Export TDA transition densities ...
-        Output_File_TDA = "IO/" * Params.Calc.Path * "/RPA/Densities/TDA_" * File_Name * "_JP$JP _nu$nu _E$sE_TDA .dat"
-        open(Output_File_TDA, "w") do Write_File
+        # Case of TDA densities ...
+        Output_File = "IO/" * Params.Calc.Path * "/RPA/Densities/TDA_" * File_Name * "_JP$(JP)_nu$(nu)_E$(sE_TDA).dat"
+        open(Output_File, "w") do Write_File
             @printf(Write_File, "%-20s %-20s %-20s %-20s %-20s\n", "r", "rho_p", "rho_n", "rho_is", "rho_iv")
             @inbounds for i in 1:N_grid
                 r, pRho, nRho = r_grid[i], pRho_nu_TDA[nu_ind,i], nRho_nu_TDA[nu_ind,i]
@@ -247,9 +417,9 @@ function HF_RPA_transition_densities(Params::Parameters;JP::String,nu_list::Vect
             end
         end
 
-        # Export RPA transition densities ...
-        Output_File_RPA = "IO/" * Params.Calc.Path * "/RPA/Densities/RPA_" * File_Name * "_JP$JP _nu$nu _E$sE_RPA .dat"
-        open(Output_File_RPA, "w") do Write_File
+        # Case of RPA densities ...
+        Output_File = "IO/" * Params.Calc.Path * "/RPA/Densities/RPA_" * File_Name * "_JP$(JP)_nu$(nu)_E$(sE_RPA).dat"
+        open(Output_File, "w") do Write_File
             @printf(Write_File, "%-20s %-20s %-20s %-20s %-20s\n", "r", "rho_p", "rho_n", "rho_is", "rho_iv")
             @inbounds for i in 1:N_grid
                 r, pRho, nRho = r_grid[i], pRho_nu_RPA[nu_ind,i], nRho_nu_RPA[nu_ind,i]
@@ -261,29 +431,91 @@ function HF_RPA_transition_densities(Params::Parameters;JP::String,nu_list::Vect
 
     end
 
+    display("Export of individual phonon radial transition densities successfuly completed ...")
+
+    # Check if averaging of transition densities is possible for given values of J & P ...
+    if ((J,P) in [(0,1),(1,2),(2,1),(3,2)]) == false
+        return
+    end
+
+    # Renormalize M ... to reasonable scale averaged densities ...
+        # Case of TDA transition matrix elements ...
+    pM_TDA .= abs.(pM_TDA) ./ sqrt(sum(pM_TDA.^2))
+    nM_TDA .= abs.(nM_TDA) ./ sqrt(sum(nM_TDA.^2))
+    isM_TDA .= abs.(isM_TDA) ./ sqrt(sum(isM_TDA.^2))
+    ivM_TDA .= abs.(ivM_TDA) ./ sqrt(sum(ivM_TDA.^2))
+        # Case of RPA transition matrix elements ...
+    pM_RPA .= abs.(pM_RPA) ./ sqrt(sum(pM_RPA.^2))
+    nM_RPA .= abs.(nM_RPA) ./ sqrt(sum(nM_RPA.^2))
+    isM_RPA .= abs.(isM_RPA) ./ sqrt(sum(isM_RPA.^2))
+    ivM_RPA .= abs.(ivM_RPA) ./ sqrt(sum(ivM_RPA.^2))
+
+    # Perform the export of of averaged transition current maps ...
+        # Export TDA averaged transition radial densities ...
+    Output_File = "IO/" * Params.Calc.Path * "/RPA/Densities/TDA_" * File_Name * "_JP$(JP)_Averaged.dat"
+    open(Output_File, "w") do Write_File
+        @printf(Write_File, "%-20s %-20s %-20s %-20s %-20s\n", "r", "rho_p", "rho_n", "rho_is", "rho_iv")
+        @inbounds for i in 1:N_grid
+            r = r_grid[i]
+            pRho, nRho, isRho, ivRho = 0.0, 0.0, 0.0, 0.0
+            @inbounds for nu_ind in 1:N_phonon
+                prho, nrho = pRho_nu_TDA[nu_ind,i], nRho_nu_TDA[nu_ind,i]
+                pRho += pM_TDA[nu_ind] * prho
+                nRho += nM_TDA[nu_ind] * nrho
+                isRho += 0.5 * isM_TDA[nu_ind] * (prho + nrho)
+                ivRho += 0.5 * ivM_TDA[nu_ind] * (prho - nrho)
+            end
+            @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f %-20.8f\n", r, pRho, nRho, isRho, ivRho)
+        end
+    end
+        # Export RPA averaged transition radial densities ...
+    Output_File_RPA = "IO/" * Params.Calc.Path * "/RPA/Densities/RPA_" * File_Name * "_JP$(JP)_Averaged.dat"
+    open(Output_File_RPA, "w") do Write_File
+        @printf(Write_File, "%-20s %-20s %-20s %-20s %-20s\n", "r", "rho_p", "rho_n", "rho_is", "rho_iv")
+        @inbounds for i in 1:N_grid
+            r = r_grid[i]
+            pRho, nRho, isRho, ivRho = 0.0, 0.0, 0.0, 0.0
+            @inbounds for nu_ind in 1:N_phonon
+                prho, nrho = pRho_nu_RPA[nu_ind,i], nRho_nu_RPA[nu_ind,i]
+                pRho += real(pM_RPA[nu_ind]) * prho
+                nRho += real(nM_RPA[nu_ind]) * nrho
+                isRho += 0.5 * real(isM_RPA[nu_ind]) * (prho + nrho)
+                ivRho += 0.5 * real(ivM_RPA[nu_ind]) * (prho - nrho)
+            end
+            @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f %-20.8f\n", r, pRho, nRho, isRho, ivRho)
+        end
+    end
+
+
+    display("Export of averaged phonon radial transitions densities successfuly completed ...")
+
+
     return
 end
 
-function HF_RPA_transition_currents(Params::Parameters;JP::String,nu_list::Vector{Int64},File_Name::String = "Phonon_Currents",M::Int64=-1)
+function HF_RPA_transition_currents(Params::Parameters;JP::String,nu_list::Vector{Int64},File_Name::String = "Phonon_Currents",
+                                    M::Int64=-1,xN_grid::Int64 = 40, zN_grid::Int64 = 40)
     # Initialize the angular momentum algebra ...
     wigner_init_float(75, "Jmax", 9)
     
     # Read parameters ...
-    A = Params.Calc.A
-    Z = Params.Calc.Z
+    A = Float64(Params.Calc.A)
+    Z = Float64(Params.Calc.Z)
     hw = Params.Calc.hw
     N_max = Params.Calc.Nmax
     a_max = div((N_max+1)*(N_max+2),2)
 
     # Define basic constants ...
-    hbarc = 197.326980
+    hc = 197.326980
     m_n = 939.565346
     m_p = 938.272013
-    nu_proton = 0.5 * m_p * hw / hbarc^2
-    nu_neutron = 0.5 * m_n * hw / hbarc^2
+    g_n = -3.82608545
+    g_p = 5.585694713
+    nu_proton = 0.5 * m_p * hw / hc^2
+    nu_neutron = 0.5 * m_n * hw / hc^2
 
     # Define the properties of radial grid ...
-    r_min, r_max = 0.01, 2.5 * 1.2 * Float64(A)^(1/3)
+    r_min, r_max = 0.01, 2.5 * 1.2 * A^(1/3)
     rN_grid = 2^13 + 1 # 8192 + 1 grid points ...
     tN_grid = 256
 
@@ -304,10 +536,10 @@ function HF_RPA_transition_currents(Params::Parameters;JP::String,nu_list::Vecto
 
     # Set the value of projection M ...
     if M == -1
-        M = J
+        M = 0
     end
 
-    # Make s.p. orbitals ...
+    # Make single-particle orbitals ...
     Orb = orbitals_make(Params)
 
     # Prepare Particle & Hole orbitals ...
@@ -337,107 +569,150 @@ function HF_RPA_transition_currents(Params::Parameters;JP::String,nu_list::Vecto
 
     # Precalculate the matrix elements of 1-body transition operators ...
         # Initialize the matrix elements for given phonon levels ...
-    pM, nM = Vector{Float64}(undef,N_phonon), Vector{Float64}(undef,N_phonon)
-    isM, ivM = Vector{Float64}(undef,N_phonon), Vector{Float64}(undef,N_phonon)
+            # Case of TDA transition matrix elements ...
+    pM_TDA, nM_TDA = Vector{Float64}(undef,N_phonon), Vector{Float64}(undef,N_phonon)
+    isM_TDA, ivM_TDA = Vector{Float64}(undef,N_phonon), Vector{Float64}(undef,N_phonon)
+            # Case of RPA transition matrix elements ...
+    pM_RPA, nM_RPA = Vector{ComplexF64}(undef,N_phonon), Vector{ComplexF64}(undef,N_phonon)
+    isM_RPA, ivM_RPA = Vector{ComplexF64}(undef,N_phonon), Vector{ComplexF64}(undef,N_phonon)
+
         # Calculate the matrix elements for given phonon levels ...
     if (J,P) in [(0,1),(2,1),(3,2)]
         @inbounds for (nu_ind, nu) in enumerate(nu_list)
-            pSum, nSum, isSum, ivSum = 0.0, 0.0, 0.0, 0.0
+            pMTDASum, nMTDASum, isMTDASum, ivMTDASum = 0.0, 0.0, 0.0, 0.0
+            pMRPASum, nMRPASum, isMRPASum, ivMRPASum = 0.0, 0.0, 0.0, 0.0
 
             @inbounds for ph in 1:N_ph
                 i_ph = Orb_Phonon[J+1,P][ph]
                 p, h, t_ph = Phonon[i_ph].p, Phonon[i_ph].h, Phonon[i_ph].tz
-                x_TDA = X_TDA[J+1,P][ph,nu]
+                x_TDA, x_RPA, y_RPA = X_TDA[J+1,P][ph,nu], X_RPA[J+1,P][ph,nu], Y_RPA[J+1,P][ph,nu]
 
-                MME = phase(J) / sqrt(Float64(2*J + 1)) * x_TDA
+                MME_TDA = phase(J) * x_TDA / sqrt(Float64(2*J + 1))
+                MME_RPA = (phase(J) * x_RPA - y_RPA) / sqrt(Float64(2*J + 1))
 
                 if t_ph == -1
                     a_p, a_h = Particle.p[p].a, Hole.p[h].a
 
                     if J == 0 && P == 1
-                        MME = TrOp.E0.p[a_p,a_h] * MME
+                        MME_TDA = TrOp.E0.p[a_p,a_h] * MME_TDA
+                        MME_RPA = TrOp.E0.p[a_p,a_h] * MME_RPA
 
                     elseif J == 2 && P == 1
-                        MME = TrOp.E2.p[a_p,a_h] * MME
+                        MME_TDA = TrOp.E2.p[a_p,a_h] * MME_TDA
+                        MME_RPA = TrOp.E2.p[a_p,a_h] * MME_RPA
 
                     elseif J == 3 && P == 2
-                        MME = TrOp.E3.p[a_p,a_h] * MME
-
+                        MME_TDA = TrOp.E3.p[a_p,a_h] * MME_TDA
+                        MME_RPA = TrOp.E3.p[a_p,a_h] * MME_RPA
                     end
 
-                    pSum += MME
-                    isSum += 0.5 * MME
-                    ivSum += 0.5 * MME
+                    pMTDASum += MME_TDA
+                    isMTDASum += 0.5 * MME_TDA
+                    ivMTDASum += 0.5 * MME_TDA
+
+                    pMRPASum += MME_RPA
+                    isMRPASum += 0.5 * MME_RPA
+                    ivMRPASum += 0.5 * MME_RPA
 
                 elseif t_ph == 1
                     a_p, a_h = Particle.n[p].a, Hole.n[h].a
 
                     if J == 0 && P == 1
-                        MME = TrOp.E0.n[a_p,a_h] * MME
+                        MME_TDA = TrOp.E0.n[a_p,a_h] * MME_TDA
+                        MME_RPA = TrOp.E0.n[a_p,a_h] * MME_RPA
 
                     elseif J == 2 && P == 1
-                        MME = TrOp.E2.n[a_p,a_h] * MME
+                        MME_TDA = TrOp.E2.n[a_p,a_h] * MME_TDA
+                        MME_RPA = TrOp.E2.n[a_p,a_h] * MME_RPA
 
                     elseif J == 3 && P == 2
-                        MME = TrOp.E3.n[a_p,a_h] * MME
-
+                        MME_TDA = TrOp.E3.n[a_p,a_h] * MME_TDA
+                        MME_RPA = TrOp.E3.n[a_p,a_h] * MME_RPA
                     end
 
-                    nSum += MME
-                    isSum += 0.5 * MME
-                    ivSum -= 0.5 * MME
+                    nMTDASum += MME_TDA
+                    isMTDASum += 0.5 * MME_TDA
+                    ivMTDASum -= 0.5 * MME_TDA
 
+                    nMRPASum += MME_RPA
+                    isMRPASum += 0.5 * MME_RPA
+                    ivMRPASum -= 0.5 * MME_RPA
                 end
-
             end
 
-            pM[nu_ind] = pSum
-            nM[nu_ind] = nSum
-            isM[nu_ind] = isSum
-            ivM[nu_ind] = ivSum
+            pM_TDA[nu_ind] = pMTDASum
+            nM_TDA[nu_ind] = nMTDASum
+            isM_TDA[nu_ind] = isMTDASum
+            ivM_TDA[nu_ind] = ivMTDASum
+
+            pM_RPA[nu_ind] = pMRPASum
+            nM_RPA[nu_ind] = nMRPASum
+            isM_RPA[nu_ind] = isMRPASum
+            ivM_RPA[nu_ind] = ivMRPASum
         end
 
     elseif (J,P) == (1,2)
         @inbounds for (nu_ind, nu) in enumerate(nu_list)
-            pSum, nSum, isSum, ivSum = 0.0, 0.0, 0.0, 0.0
+            pMTDASum, nMTDASum, isMTDASum, ivMTDASum = 0.0, 0.0, 0.0, 0.0
+            pMRPASum, nMRPASum, isMRPASum, ivMRPASum = 0.0, 0.0, 0.0, 0.0
 
             @inbounds for ph in 1:N_ph
                 i_ph = Orb_Phonon[J+1,P][ph]
                 p, h, t_ph = Phonon[i_ph].p, Phonon[i_ph].h, Phonon[i_ph].tz
-                x_TDA = X_TDA[J+1,P][ph,nu]
+                x_TDA, x_RPA, y_RPA = X_TDA[J+1,P][ph,nu], X_RPA[J+1,P][ph,nu], Y_RPA[J+1,P][ph,nu]
 
-                Amp = phase(J) / sqrt(Float64(2*J + 1)) * x_TDA
+                Amp_TDA = phase(J) / sqrt(Float64(2*J + 1)) * x_TDA
+                Amp_RPA = (phase(J) * x_RPA - y_RPA) / sqrt(Float64(2*J + 1))
 
                 if t_ph == -1
                     a_p, a_h = Particle.p[p].a, Hole.p[h].a
 
-                    pMME = TrOp.E1.p[a_p,a_h] * Amp
-                    isMME = 0.5 * TrOp.E1_C.p[a_p,a_h] * Amp
-                    ivMME = TrOp.E1.p[a_p,a_h] * Amp * Float64(A - Z) / Float64(A)
+                    pMTDAME = TrOp.E1.p[a_p,a_h] * Amp_TDA
+                    isMTDAME = 0.5 * TrOp.E1_C.p[a_p,a_h] * Amp_TDA
+                    ivMTDAME = TrOp.E1.p[a_p,a_h] * Amp_TDA * (A - Z) / A
 
-                    pSum += pMME
-                    isSum += isMME
-                    ivSum += ivMME
+                    pMRPAME = TrOp.E1.p[a_p,a_h] * Amp_RPA
+                    isMRPAME = 0.5 * TrOp.E1_C.p[a_p,a_h] * Amp_RPA
+                    ivMRPAME = TrOp.E1.p[a_p,a_h] * Amp_RPA * (A - Z) / A
+
+                    pMTDASum += pMTDAME
+                    isMTDASum += isMTDAME
+                    ivMTDASum += ivMTDAME
+
+                    pMRPASum += pMRPAME
+                    isMRPASum += isMRPAME
+                    ivMRPASum += ivMRPAME
 
                 elseif t_ph == 1
                     a_p, a_h = Particle.n[p].a, Hole.n[h].a
 
-                    nMME = TrOp.E1.n[a_p,a_h] * Amp
-                    isMME = 0.5 * TrOp.E1_C.n[a_p,a_h] * Amp
-                    ivMME = - TrOp.E1.n[a_p,a_h] * Amp * Float64(Z) / Float64(A)
+                    nMTDAME = TrOp.E1.n[a_p,a_h] * Amp_TDA
+                    isMTDAME = 0.5 * TrOp.E1_C.n[a_p,a_h] * Amp_TDA
+                    ivMTDAME = - TrOp.E1.n[a_p,a_h] * Amp_TDA * Z / A
 
-                    nSum += nMME
-                    isSum += isMME
-                    ivSum += ivMME
+                    nMRPAME = TrOp.E1.n[a_p,a_h] * Amp_RPA
+                    isMRPAME = 0.5 * TrOp.E1_C.n[a_p,a_h] * Amp_RPA
+                    ivMRPAME = - TrOp.E1.n[a_p,a_h] * Amp_RPA * Z / A
 
+                    nMTDASum += nMTDAME
+                    isMTDASum += isMTDAME
+                    ivMTDASum += ivMTDAME
+
+                    nMRPASum += nMRPAME
+                    isMRPASum += isMRPAME
+                    ivMRPASum += ivMRPAME
                 end
-
             end
 
-            pM[nu_ind] = pSum
-            nM[nu_ind] = nSum
-            isM[nu_ind] = isSum
-            ivM[nu_ind] = ivSum
+            pM_TDA[nu_ind] = pMTDASum
+            nM_TDA[nu_ind] = nMTDASum
+            isM_TDA[nu_ind] = isMTDASum
+            ivM_TDA[nu_ind] = ivMTDASum
+
+            pM_RPA[nu_ind] = pMRPASum
+            nM_RPA[nu_ind] = nMRPASum
+            isM_RPA[nu_ind] = isMRPASum
+            ivM_RPA[nu_ind] = ivMRPASum
         end
 
     end
@@ -464,16 +739,21 @@ function HF_RPA_transition_currents(Params::Parameters;JP::String,nu_list::Vecto
         @inbounds for a in 1:a_max
             l_a, j_a = Orb[a].l, Orb[a].j
             pSum, nSum = 0.0, 0.0
+
             @inbounds for k in 1:a_max
                 n_k, l_k, j_k = Orb[k].n, Orb[k].l, Orb[k].j
+
                 if l_a != l_k || j_a != j_k
                     continue
                 end
+
                 pPsi = C.p[k,a] * Psi_rad_LHO(r,n_k,l_k,nu_proton)
                 nPsi = C.n[k,a] * Psi_rad_LHO(r,n_k,l_k,nu_neutron)
+
                 pSum += pPsi
                 nSum += nPsi
             end
+
             pR_grid[a,i] = pSum
             nR_grid[a,i] = nSum
         end
@@ -500,10 +780,24 @@ function HF_RPA_transition_currents(Params::Parameters;JP::String,nu_list::Vecto
     i_map = Matrix{Int64}(undef,2,N_map)
     x_map = Matrix{Float64}(undef,2,N_map)
         # Single state current maps ...
-    pj_map = Array{Float64}(undef,3,N_ph,N_map)
-    nj_map = Array{Float64}(undef,3,N_ph,N_map)
-    pJ_map = Array{Float64}(undef,3,N_phonon,N_map)
-    nJ_map = Array{Float64}(undef,3,N_phonon,N_map)
+    pJ_ph_conv_map = Array{Float64}(undef,3,N_ph,N_map)
+    nJ_ph_conv_map = Array{Float64}(undef,3,N_ph,N_map)
+    pJ_ph_spin_map = Array{Float64}(undef,3,N_ph,N_map)
+    nJ_ph_spin_map = Array{Float64}(undef,3,N_ph,N_map)
+    pJ_hp_conv_map = Array{Float64}(undef,3,N_ph,N_map)
+    nJ_hp_conv_map = Array{Float64}(undef,3,N_ph,N_map)
+    pJ_hp_spin_map = Array{Float64}(undef,3,N_ph,N_map)
+    nJ_hp_spin_map = Array{Float64}(undef,3,N_ph,N_map)
+
+    pJ_TDA_conv_map = Array{Float64}(undef,3,N_phonon,N_map)
+    nJ_TDA_conv_map = Array{Float64}(undef,3,N_phonon,N_map)
+    pJ_TDA_spin_map = Array{Float64}(undef,3,N_phonon,N_map)
+    nJ_TDA_spin_map = Array{Float64}(undef,3,N_phonon,N_map)
+
+    pJ_RPA_conv_map = Array{Float64}(undef,3,N_phonon,N_map)
+    nJ_RPA_conv_map = Array{Float64}(undef,3,N_phonon,N_map)
+    pJ_RPA_spin_map = Array{Float64}(undef,3,N_phonon,N_map)
+    nJ_RPA_spin_map = Array{Float64}(undef,3,N_phonon,N_map)
 
     # Prepare the current map grid ...
         # Precalculate radial & angular grid step size ...
@@ -541,6 +835,7 @@ function HF_RPA_transition_currents(Params::Parameters;JP::String,nu_list::Vecto
     @time @inbounds Threads.@threads for N in 1:N_map
         n, m = i_map[1,N], i_map[2,N]
         r, theta = r_grid[n], theta_grid[m]
+        g = 1.0
 
         @inbounds for ph in 1:N_ph
             i_ph = Orb_Phonon[J+1,P][ph]
@@ -554,42 +849,90 @@ function HF_RPA_transition_currents(Params::Parameters;JP::String,nu_list::Vecto
 
             l_p, j_p = Orb[a_p].l, Orb[a_p].j
             l_h, j_h = Orb[a_h].l, Orb[a_h].j
-            j_x, j_y, j_z = 0.0, 0.0, 0.0
+
+            Jx_ph_conv, Jy_ph_conv, Jz_ph_conv = 0.0, 0.0, 0.0
+            Jx_ph_spin, Jy_ph_spin, Jz_ph_spin = 0.0, 0.0, 0.0
+
+            Jx_hp_conv, Jy_hp_conv, Jz_hp_conv = 0.0, 0.0, 0.0
+            Jx_hp_spin, Jy_hp_spin, Jz_hp_spin = 0.0, 0.0, 0.0
 
             if t_ph == -1
                 R_p, R_h = pR_grid[a_p,n], pR_grid[a_h,n]
                 dR_p, dR_h = pdR_grid[a_p,n], pdR_grid[a_h,n]
+                g = 0.5 * g_p
             elseif t_ph == 1
                 R_p, R_h = nR_grid[a_p,n], nR_grid[a_h,n]
                 dR_p, dR_h = ndR_grid[a_p,n], ndR_grid[a_h,n]
+                g = 0.5 * g_n
             end
 
             @inbounds for m_p in -j_p:2:j_p
                 @inbounds for m_h in -j_h:2:j_h
 
-                    if (m_p - m_h) != 2*M
-                        continue
+                    # Case of particle-hole contributions ...
+                    if (m_p + m_h) == 2*M
+                        Amp_ph = fCG(j_p,j_h,2*J,m_p,m_h,2*M) * phase(div(j_h - m_h,2))
+
+                        (jx_ph_conv,jy_ph_conv,jz_ph_conv) = J1b_convective(r,theta,0.0,l_p,j_p,m_p,R_p,dR_p,l_h,j_h,-m_h,R_h,dR_h)
+                        (jx_ph_spin,jy_ph_spin,jz_ph_spin) = g .* J1b_spin(r,theta,0.0,l_p,j_p,m_p,R_p,dR_p,l_h,j_h,-m_h,R_h,dR_h)
+
+                        Jx_ph_conv += Amp_ph * real(jx_ph_conv)
+                        Jy_ph_conv += Amp_ph * real(jy_ph_conv)
+                        Jz_ph_conv += Amp_ph * real(jz_ph_conv)
+
+                        Jx_ph_spin += Amp_ph * real(jx_ph_spin)
+                        Jy_ph_spin += Amp_ph * real(jy_ph_spin)
+                        Jz_ph_spin += Amp_ph * real(jz_ph_spin)
                     end
 
-                    Amp = fCG(j_p,j_h,2*J,m_p,-m_h,2*M) * phase(j_h + m_h)
 
-                    (jx,jy,jz) = J1b(r,theta,0.0,l_p,j_p,m_p,R_p,dR_p,l_h,j_h,-m_h,R_h,dR_h)
+                    # Case of hole-particle contributions ...
+                    if (m_p + m_h) == -2*M
+                        Amp_hp = fCG(j_p,j_h,2*J,m_p,m_h,-2*M) * phase(J + M + div(j_h + m_h,2))
 
-                    j_x += Amp * real(jx)
-                    j_y += Amp * real(jy)
-                    j_z += Amp * real(jz)
+                        (jx_hp_conv,jy_hp_conv,jz_hp_conv) = J1b_convective(r,theta,0.0,l_h,j_h,-m_h,R_h,dR_h,l_p,j_p,m_p,R_p,dR_p)
+                        (jx_hp_spin,jy_hp_spin,jz_hp_spin) = g .* J1b_spin(r,theta,0.0,l_h,j_h,-m_h,R_h,dR_h,l_p,j_p,m_p,R_p,dR_p)
 
+                        Jx_hp_conv += Amp_hp * real(jx_hp_conv)
+                        Jy_hp_conv += Amp_hp * real(jy_hp_conv)
+                        Jz_hp_conv += Amp_hp * real(jz_hp_conv)
+
+                        Jx_hp_spin += Amp_hp * real(jx_hp_spin)
+                        Jy_hp_spin += Amp_hp * real(jy_hp_spin)
+                        Jz_hp_spin += Amp_hp * real(jz_hp_spin)
+                    end
                 end
             end
 
             if t_ph == -1
-                pj_map[1,ph,N] = j_x
-                pj_map[2,ph,N] = j_y
-                pj_map[3,ph,N] = j_z
+                pJ_ph_conv_map[1,ph,N] = Jx_ph_conv
+                pJ_ph_conv_map[2,ph,N] = Jy_ph_conv
+                pJ_ph_conv_map[3,ph,N] = Jz_ph_conv
+                pJ_ph_spin_map[1,ph,N] = Jx_ph_spin
+                pJ_ph_spin_map[2,ph,N] = Jy_ph_spin
+                pJ_ph_spin_map[3,ph,N] = Jz_ph_spin
+
+                pJ_hp_conv_map[1,ph,N] = Jx_hp_conv
+                pJ_hp_conv_map[2,ph,N] = Jy_hp_conv
+                pJ_hp_conv_map[3,ph,N] = Jz_hp_conv
+                pJ_hp_spin_map[1,ph,N] = Jx_hp_spin
+                pJ_hp_spin_map[2,ph,N] = Jy_hp_spin
+                pJ_hp_spin_map[3,ph,N] = Jz_hp_spin
+
             elseif t_ph == 1
-                nj_map[1,ph,N] = j_x
-                nj_map[2,ph,N] = j_y
-                nj_map[3,ph,N] = j_z
+                nJ_ph_conv_map[1,ph,N] = Jx_ph_conv
+                nJ_ph_conv_map[2,ph,N] = Jy_ph_conv
+                nJ_ph_conv_map[3,ph,N] = Jz_ph_conv
+                nJ_ph_spin_map[1,ph,N] = Jx_ph_spin
+                nJ_ph_spin_map[2,ph,N] = Jy_ph_spin
+                nJ_ph_spin_map[3,ph,N] = Jz_ph_spin
+
+                nJ_hp_conv_map[1,ph,N] = Jx_hp_conv
+                nJ_hp_conv_map[2,ph,N] = Jy_hp_conv
+                nJ_hp_conv_map[3,ph,N] = Jz_hp_conv
+                nJ_hp_spin_map[1,ph,N] = Jx_hp_spin
+                nJ_hp_spin_map[2,ph,N] = Jy_hp_spin
+                nJ_hp_spin_map[3,ph,N] = Jz_hp_spin
             end
 
         end
@@ -599,8 +942,23 @@ function HF_RPA_transition_currents(Params::Parameters;JP::String,nu_list::Vecto
     # Evaluate the grid of transition current matrix elements for given phonon levels ...
     @inbounds Threads.@threads for N in 1:N_map
         @inbounds for (nu_ind, nu) in enumerate(nu_list)
-            pJxSum, pJySum, pJzSum = 0.0, 0.0, 0.0
-            nJxSum, nJySum, nJzSum = 0.0, 0.0, 0.0
+            pJxConvTDASum, pJyConvTDASum, pJzConvTDASum = 0.0, 0.0, 0.0
+            nJxConvTDASum, nJyConvTDASum, nJzConvTDASum = 0.0, 0.0, 0.0
+            pJxSpinTDASum, pJySpinTDASum, pJzSpinTDASum = 0.0, 0.0, 0.0
+            nJxSpinTDASum, nJySpinTDASum, nJzSpinTDASum = 0.0, 0.0, 0.0
+
+            pJxConvRPASum, pJyConvRPASum, pJzConvRPASum = 0.0, 0.0, 0.0
+            nJxConvRPASum, nJyConvRPASum, nJzConvRPASum = 0.0, 0.0, 0.0
+            pJxSpinRPASum, pJySpinRPASum, pJzSpinRPASum = 0.0, 0.0, 0.0
+            nJxSpinRPASum, nJySpinRPASum, nJzSpinRPASum = 0.0, 0.0, 0.0
+
+            Gauge_TDA = 1.0
+            Gauge_RPA = 1.0
+
+            if ((J,P) in [(0,1),(1,2),(2,1),(3,2)]) == true
+                Gauge_TDA = pM_TDA[nu_ind] / abs(pM_TDA[nu_ind])
+                Gauge_RPA = pM_RPA[nu_ind] / abs(pM_RPA[nu_ind])
+            end
 
             @inbounds for ph in 1:N_ph
                 i_ph = Orb_Phonon[J+1,P][ph]
@@ -612,48 +970,107 @@ function HF_RPA_transition_currents(Params::Parameters;JP::String,nu_list::Vecto
                     a_p, a_h = Particle.n[p].a, Hole.n[h].a
                 end
 
-                x_TDA = X_TDA[J+1,P][ph,nu]
+                x_TDA = Gauge_TDA * X_TDA[J+1,P][ph,nu]
+                x_RPA = real(Gauge_RPA * X_RPA[J+1,P][ph,nu])
+                y_RPA = real(Gauge_RPA * Y_RPA[J+1,P][ph,nu])
 
                 if t_ph == -1
-                    pJxSum += x_TDA * pj_map[1,ph,N]
-                    pJySum += x_TDA * pj_map[2,ph,N]
-                    pJzSum += x_TDA * pj_map[3,ph,N]
+                    pJxConvTDASum += x_TDA * pJ_ph_conv_map[1,ph,N]
+                    pJyConvTDASum += x_TDA * pJ_ph_conv_map[2,ph,N]
+                    pJzConvTDASum += x_TDA * pJ_ph_conv_map[3,ph,N]
+
+                    pJxSpinTDASum += x_TDA * pJ_ph_spin_map[1,ph,N]
+                    pJySpinTDASum += x_TDA * pJ_ph_spin_map[2,ph,N]
+                    pJzSpinTDASum += x_TDA * pJ_ph_spin_map[3,ph,N]
+
+                    pJxConvRPASum += (x_RPA * pJ_ph_conv_map[1,ph,N] - y_RPA * pJ_hp_conv_map[1,ph,N])
+                    pJyConvRPASum += (x_RPA * pJ_ph_conv_map[2,ph,N] - y_RPA * pJ_hp_conv_map[2,ph,N])
+                    pJzConvRPASum += (x_RPA * pJ_ph_conv_map[3,ph,N] - y_RPA * pJ_hp_conv_map[3,ph,N])
+
+                    pJxSpinRPASum += (x_RPA * pJ_ph_spin_map[1,ph,N] - y_RPA * pJ_hp_spin_map[1,ph,N])
+                    pJySpinRPASum += (x_RPA * pJ_ph_spin_map[2,ph,N] - y_RPA * pJ_hp_spin_map[2,ph,N])
+                    pJzSpinRPASum += (x_RPA * pJ_ph_spin_map[3,ph,N] - y_RPA * pJ_hp_spin_map[3,ph,N])
 
                 elseif t_ph == 1
-                    nJxSum += x_TDA * nj_map[1,ph,N]
-                    nJySum += x_TDA * nj_map[2,ph,N]
-                    nJzSum += x_TDA * nj_map[3,ph,N]
+                    nJxConvTDASum += x_TDA * nJ_ph_conv_map[1,ph,N]
+                    nJyConvTDASum += x_TDA * nJ_ph_conv_map[2,ph,N]
+                    nJzConvTDASum += x_TDA * nJ_ph_conv_map[3,ph,N]
+
+                    nJxSpinTDASum += x_TDA * nJ_ph_spin_map[1,ph,N]
+                    nJySpinTDASum += x_TDA * nJ_ph_spin_map[2,ph,N]
+                    nJzSpinTDASum += x_TDA * nJ_ph_spin_map[3,ph,N]
+
+                    nJxConvRPASum += (x_RPA * nJ_ph_conv_map[1,ph,N] - y_RPA * nJ_hp_conv_map[1,ph,N])
+                    nJyConvRPASum += (x_RPA * nJ_ph_conv_map[2,ph,N] - y_RPA * nJ_hp_conv_map[2,ph,N])
+                    nJzConvRPASum += (x_RPA * nJ_ph_conv_map[3,ph,N] - y_RPA * nJ_hp_conv_map[3,ph,N])
+
+                    nJxSpinRPASum += (x_RPA * nJ_ph_spin_map[1,ph,N] - y_RPA * nJ_hp_spin_map[1,ph,N])
+                    nJySpinRPASum += (x_RPA * nJ_ph_spin_map[2,ph,N] - y_RPA * nJ_hp_spin_map[2,ph,N])
+                    nJzSpinRPASum += (x_RPA * nJ_ph_spin_map[3,ph,N] - y_RPA * nJ_hp_spin_map[3,ph,N])
                 end
 
             end
 
-            pJ_map[1,nu_ind,N] = pJxSum
-            pJ_map[2,nu_ind,N] = pJySum
-            pJ_map[3,nu_ind,N] = pJzSum
-            nJ_map[1,nu_ind,N] = nJxSum
-            nJ_map[2,nu_ind,N] = nJySum
-            nJ_map[3,nu_ind,N] = nJzSum
+            pJ_TDA_conv_map[1,nu_ind,N] = pJxConvTDASum
+            pJ_TDA_conv_map[2,nu_ind,N] = pJyConvTDASum
+            pJ_TDA_conv_map[3,nu_ind,N] = pJzConvTDASum
+            nJ_TDA_conv_map[1,nu_ind,N] = nJxConvTDASum
+            nJ_TDA_conv_map[2,nu_ind,N] = nJyConvTDASum
+            nJ_TDA_conv_map[3,nu_ind,N] = nJzConvTDASum
+
+            pJ_TDA_spin_map[1,nu_ind,N] = pJxSpinTDASum
+            pJ_TDA_spin_map[2,nu_ind,N] = pJySpinTDASum
+            pJ_TDA_spin_map[3,nu_ind,N] = pJzSpinTDASum
+            nJ_TDA_spin_map[1,nu_ind,N] = nJxSpinTDASum
+            nJ_TDA_spin_map[2,nu_ind,N] = nJySpinTDASum
+            nJ_TDA_spin_map[3,nu_ind,N] = nJzSpinTDASum
+
+            pJ_RPA_conv_map[1,nu_ind,N] = pJxConvRPASum
+            pJ_RPA_conv_map[2,nu_ind,N] = pJyConvRPASum
+            pJ_RPA_conv_map[3,nu_ind,N] = pJzConvRPASum
+            nJ_RPA_conv_map[1,nu_ind,N] = nJxConvRPASum
+            nJ_RPA_conv_map[2,nu_ind,N] = nJyConvRPASum
+            nJ_RPA_conv_map[3,nu_ind,N] = nJzConvRPASum
+
+            pJ_RPA_spin_map[1,nu_ind,N] = pJxSpinRPASum
+            pJ_RPA_spin_map[2,nu_ind,N] = pJySpinRPASum
+            pJ_RPA_spin_map[3,nu_ind,N] = pJzSpinRPASum
+            nJ_RPA_spin_map[1,nu_ind,N] = nJxSpinRPASum
+            nJ_RPA_spin_map[2,nu_ind,N] = nJySpinRPASum
+            nJ_RPA_spin_map[3,nu_ind,N] = nJzSpinRPASum
         end
     
     end
+
+    # Scale the currents to correct physical units in [c] ...
+    pJ_TDA_conv_map .= pJ_TDA_conv_map .* hc / m_p
+    nJ_TDA_conv_map .= nJ_TDA_conv_map .* hc / m_p
+    pJ_TDA_spin_map .= pJ_TDA_spin_map .* hc / m_p
+    nJ_TDA_spin_map .= nJ_TDA_spin_map .* hc / m_p
+
+    pJ_RPA_conv_map .= pJ_RPA_conv_map .* hc / m_p
+    nJ_RPA_conv_map .= nJ_RPA_conv_map .* hc / m_p
+    pJ_RPA_spin_map .= pJ_RPA_spin_map .* hc / m_p
+    nJ_RPA_spin_map .= nJ_RPA_spin_map .* hc / m_p
 
     # Perform the export of of individual phonon level transition current maps ...
     @inbounds for (nu_ind, nu) in enumerate(nu_list)
         e_TDA, e_RPA = E_TDA[J+1,P][nu], real(E_RPA[J+1,P][nu])
         sE_TDA, sE_RPA = string(round(e_TDA,digits=3)), string(round(e_RPA,digits=3))
 
-        # Export TDA transition densities ...
-        Output_File_TDA = "IO/" * Params.Calc.Path * "/RPA/Densities/TDA_" * File_Name * "_JP$(JP)_nu$(nu)_E$(sE_TDA).dat"
+        # Export TDA convective transition current densities ...
+        Output_File_TDA = "IO/" * Params.Calc.Path * "/RPA/Densities/TDA_Convective_" * File_Name * "_JP$(JP)_nu$(nu)_E$(sE_TDA).dat"
         open(Output_File_TDA, "w") do Write_File
             @printf(Write_File, "%-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s\n", "x", "z", "pJ_x", "pJ_z", "nJ_x", "nJ_z", "isJ_x", "isJ_z", "ivJ_x", "ivJ_z")
+            
             @inbounds for N in 1:N_map
                 r, theta = x_map[1,N], x_map[2,N]
                 x = r * sin(theta)
                 z = r * cos(theta)
-                pJ_x = pJ_map[1,nu_ind,N]
-                pJ_z = pJ_map[3,nu_ind,N]
-                nJ_x = nJ_map[1,nu_ind,N]
-                nJ_z = nJ_map[3,nu_ind,N]
+                pJ_x = pJ_TDA_conv_map[1,nu_ind,N]
+                pJ_z = pJ_TDA_conv_map[3,nu_ind,N]
+                nJ_x = nJ_TDA_conv_map[1,nu_ind,N]
+                nJ_z = nJ_TDA_conv_map[3,nu_ind,N]
                 isJ_x = 0.5 * (pJ_x + nJ_x)
                 isJ_z = 0.5 * (pJ_z + nJ_z)
                 ivJ_x = 0.5 * (pJ_x - nJ_x)
@@ -662,19 +1079,68 @@ function HF_RPA_transition_currents(Params::Parameters;JP::String,nu_list::Vecto
             end
         end
 
-        #=
-        # Export TDA transition densities ...
-        Output_File_RPA = "IO/" * Params.Calc.Path * "/RPA/Densities/RPA_" * File_Name * "_JP$JP _nu$nu _E$sE_RPA .dat"
-        open(Output_File_RPA, "w") do Write_File
-            @printf(Write_File, "%-20s %-20s %-20s %-20s %-20s\n", "r", "rho_p", "rho_n", "rho_is", "rho_iv")
-            @inbounds for i in 1:N_grid
-                r, pRho, nRho = r_grid[i], pRho_nu_RPA[nu_ind,i], nRho_nu_RPA[nu_ind,i]
-                isRho = 0.5 * (pRho + nRho)
-                ivRho = 0.5 * (pRho - nRho)
-                @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f %-20.8f\n", r, pRho, nRho, isRho, ivRho)
+         # Export TDA spin transition current densities ...
+        Output_File_TDA = "IO/" * Params.Calc.Path * "/RPA/Densities/TDA_Spin_" * File_Name * "_JP$(JP)_nu$(nu)_E$(sE_TDA).dat"
+        open(Output_File_TDA, "w") do Write_File
+            @printf(Write_File, "%-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s\n", "x", "z", "pJ_x", "pJ_z", "nJ_x", "nJ_z", "isJ_x", "isJ_z", "ivJ_x", "ivJ_z")
+            
+            @inbounds for N in 1:N_map
+                r, theta = x_map[1,N], x_map[2,N]
+                x = r * sin(theta)
+                z = r * cos(theta)
+                pJ_x = pJ_TDA_spin_map[1,nu_ind,N]
+                pJ_z = pJ_TDA_spin_map[3,nu_ind,N]
+                nJ_x = nJ_TDA_spin_map[1,nu_ind,N]
+                nJ_z = nJ_TDA_spin_map[3,nu_ind,N]
+                isJ_x = 0.5 * (pJ_x + nJ_x)
+                isJ_z = 0.5 * (pJ_z + nJ_z)
+                ivJ_x = 0.5 * (pJ_x - nJ_x)
+                ivJ_z = 0.5 * (pJ_z - nJ_z)
+                @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f\n", x, z, pJ_x, pJ_z, nJ_x, nJ_z, isJ_x, isJ_z, ivJ_x, ivJ_z)
             end
         end
-        =#
+
+        # Export RPA convective transition current densities ...
+        Output_File_RPA = "IO/" * Params.Calc.Path * "/RPA/Densities/RPA_Convective_" * File_Name * "_JP$(JP)_nu$(nu)_E$(sE_RPA).dat"
+        open(Output_File_RPA, "w") do Write_File
+            @printf(Write_File, "%-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s\n", "x", "z", "pJ_x", "pJ_z", "nJ_x", "nJ_z", "isJ_x", "isJ_z", "ivJ_x", "ivJ_z")
+            
+            @inbounds for N in 1:N_map
+                r, theta = x_map[1,N], x_map[2,N]
+                x = r * sin(theta)
+                z = r * cos(theta)
+                pJ_x = pJ_RPA_conv_map[1,nu_ind,N]
+                pJ_z = pJ_RPA_conv_map[3,nu_ind,N]
+                nJ_x = nJ_RPA_conv_map[1,nu_ind,N]
+                nJ_z = nJ_RPA_conv_map[3,nu_ind,N]
+                isJ_x = 0.5 * (pJ_x + nJ_x)
+                isJ_z = 0.5 * (pJ_z + nJ_z)
+                ivJ_x = 0.5 * (pJ_x - nJ_x)
+                ivJ_z = 0.5 * (pJ_z - nJ_z)
+                @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f\n", x, z, pJ_x, pJ_z, nJ_x, nJ_z, isJ_x, isJ_z, ivJ_x, ivJ_z)
+            end
+        end
+
+         # Export RPA spin transition current densities ...
+        Output_File_RPA = "IO/" * Params.Calc.Path * "/RPA/Densities/RPA_Spin_" * File_Name * "_JP$(JP)_nu$(nu)_E$(sE_RPA).dat"
+        open(Output_File_RPA, "w") do Write_File
+            @printf(Write_File, "%-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s\n", "x", "z", "pJ_x", "pJ_z", "nJ_x", "nJ_z", "isJ_x", "isJ_z", "ivJ_x", "ivJ_z")
+            
+            @inbounds for N in 1:N_map
+                r, theta = x_map[1,N], x_map[2,N]
+                x = r * sin(theta)
+                z = r * cos(theta)
+                pJ_x = pJ_RPA_spin_map[1,nu_ind,N]
+                pJ_z = pJ_RPA_spin_map[3,nu_ind,N]
+                nJ_x = nJ_RPA_spin_map[1,nu_ind,N]
+                nJ_z = nJ_RPA_spin_map[3,nu_ind,N]
+                isJ_x = 0.5 * (pJ_x + nJ_x)
+                isJ_z = 0.5 * (pJ_z + nJ_z)
+                ivJ_x = 0.5 * (pJ_x - nJ_x)
+                ivJ_z = 0.5 * (pJ_z - nJ_z)
+                @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f\n", x, z, pJ_x, pJ_z, nJ_x, nJ_z, isJ_x, isJ_z, ivJ_x, ivJ_z)
+            end
+        end
     end
 
     display("Export of individual phonon level transition current maps successfuly completed ...")
@@ -683,10 +1149,130 @@ function HF_RPA_transition_currents(Params::Parameters;JP::String,nu_list::Vecto
         return
     end
 
+    # Renormalize M ... to reasonable scale averaged densities ...
+        # Case of TDA transition matrix elements ...
+    pM_TDA .= abs.(pM_TDA) ./ sqrt(sum(pM_TDA.^2))
+    nM_TDA .= abs.(nM_TDA) ./ sqrt(sum(nM_TDA.^2))
+    isM_TDA .= abs.(isM_TDA) ./ sqrt(sum(isM_TDA.^2))
+    ivM_TDA .= abs.(ivM_TDA) ./ sqrt(sum(ivM_TDA.^2))
+        # Case of RPA transition matrix elements ...
+    pM_RPA .= abs.(pM_RPA) ./ sqrt(sum(pM_RPA.^2))
+    nM_RPA .= abs.(nM_RPA) ./ sqrt(sum(nM_RPA.^2))
+    isM_RPA .= abs.(isM_RPA) ./ sqrt(sum(isM_RPA.^2))
+    ivM_RPA .= abs.(ivM_RPA) ./ sqrt(sum(ivM_RPA.^2))
+
     # Perform the export of of averaged transition current maps ...
-        # Export TDA averged transition densities ...
-    Output_File_TDA_M = "IO/" * Params.Calc.Path * "/RPA/Densities/TDA_" * File_Name * "_JP$(JP)_Averaged.dat"
+        # Export of TDA averaged convective transition current densities ...
+    Output_File_TDA_M = "IO/" * Params.Calc.Path * "/RPA/Densities/TDA_Convective_" * File_Name * "_JP$(JP)_Averaged.dat"
     open(Output_File_TDA_M, "w") do Write_File
+        @printf(Write_File, "%-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s\n", "x", "z", "ppJ_x", "ppJ_z", "pnJ_x", "pnJ_z", "npJ_x", "npJ_z", "nnJ_x", "nnJ_z", "isJ_x", "isJ_z", "ivJ_x", "ivJ_z")
+        
+        @inbounds for N in 1:N_map
+            r, theta = x_map[1,N], x_map[2,N]
+            x = r * sin(theta)
+            z = r * cos(theta)
+            ppJ_x, pnJ_x, npJ_x, nnJ_x, isJ_x, ivJ_x = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+            ppJ_z, pnJ_z, npJ_z, nnJ_z, isJ_z, ivJ_z = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+
+            @inbounds for nu_ind in 1:N_phonon
+                pJ_x, pJ_z = pJ_TDA_conv_map[1,nu_ind,N], pJ_TDA_conv_map[3,nu_ind,N]
+                nJ_x, nJ_z = nJ_TDA_conv_map[1,nu_ind,N], nJ_TDA_conv_map[3,nu_ind,N]
+
+                pM, nM = real(pM_TDA[nu_ind]), real(nM_TDA[nu_ind])
+                isM, ivM = real(isM_TDA[nu_ind]), real(ivM_TDA[nu_ind])
+
+                ppJ_x += pM * pJ_x
+                ppJ_z += pM * pJ_z
+                pnJ_x += pM * nJ_x
+                pnJ_z += pM * nJ_z
+                npJ_x += nM * pJ_x
+                nnJ_x += nM * nJ_x
+                npJ_z += nM * pJ_z
+                nnJ_z += nM * nJ_z
+                isJ_x += 0.5 * isM * (pJ_x + nJ_x)
+                isJ_z += 0.5 * isM * (pJ_z + nJ_z)
+                ivJ_x += 0.5 * ivM * (pJ_x - nJ_x)
+                ivJ_z += 0.5 * ivM * (pJ_z - nJ_z)
+            end
+
+            @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f\n", x, z, ppJ_x, ppJ_z, pnJ_x, pnJ_z, npJ_x, npJ_z, nnJ_x, nnJ_z, isJ_x, isJ_z, ivJ_x, ivJ_z)
+        end
+    end
+        # Export of TDA averaged spin transition current densities ...
+    Output_File_TDA_M = "IO/" * Params.Calc.Path * "/RPA/Densities/TDA_Spin_" * File_Name * "_JP$(JP)_Averaged.dat"
+    open(Output_File_TDA_M, "w") do Write_File
+        @printf(Write_File, "%-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s\n", "x", "z", "ppJ_x", "ppJ_z", "pnJ_x", "pnJ_z", "npJ_x", "npJ_z", "nnJ_x", "nnJ_z", "isJ_x", "isJ_z", "ivJ_x", "ivJ_z")
+        
+        @inbounds for N in 1:N_map
+            r, theta = x_map[1,N], x_map[2,N]
+            x = r * sin(theta)
+            z = r * cos(theta)
+            ppJ_x, pnJ_x, npJ_x, nnJ_x, isJ_x, ivJ_x = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+            ppJ_z, pnJ_z, npJ_z, nnJ_z, isJ_z, ivJ_z = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+
+            @inbounds for nu_ind in 1:N_phonon
+                pJ_x, pJ_z = pJ_TDA_spin_map[1,nu_ind,N], pJ_TDA_spin_map[3,nu_ind,N]
+                nJ_x, nJ_z = nJ_TDA_spin_map[1,nu_ind,N], nJ_TDA_spin_map[3,nu_ind,N]
+
+                pM, nM = real(pM_TDA[nu_ind]), real(nM_TDA[nu_ind])
+                isM, ivM = real(isM_TDA[nu_ind]), real(ivM_TDA[nu_ind])
+
+                ppJ_x += pM * pJ_x
+                ppJ_z += pM * pJ_z
+                pnJ_x += pM * nJ_x
+                pnJ_z += pM * nJ_z
+                npJ_x += nM * pJ_x
+                nnJ_x += nM * nJ_x
+                npJ_z += nM * pJ_z
+                nnJ_z += nM * nJ_z
+                isJ_x += 0.5 * isM * (pJ_x + nJ_x)
+                isJ_z += 0.5 * isM * (pJ_z + nJ_z)
+                ivJ_x += 0.5 * ivM * (pJ_x - nJ_x)
+                ivJ_z += 0.5 * ivM * (pJ_z - nJ_z)
+            end
+
+            @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f\n", x, z, ppJ_x, ppJ_z, pnJ_x, pnJ_z, npJ_x, npJ_z, nnJ_x, nnJ_z, isJ_x, isJ_z, ivJ_x, ivJ_z)
+        end
+    end
+        # Export of RPA averaged convective transition current densities ...
+    Output_File_RPA_M = "IO/" * Params.Calc.Path * "/RPA/Densities/RPA_Convective_" * File_Name * "_JP$(JP)_Averaged.dat"
+    open(Output_File_RPA_M, "w") do Write_File
+        @printf(Write_File, "%-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s\n", "x", "z", "ppJ_x", "ppJ_z", "pnJ_x", "pnJ_z", "npJ_x", "npJ_z", "nnJ_x", "nnJ_z", "isJ_x", "isJ_z", "ivJ_x", "ivJ_z")
+        
+        @inbounds for N in 1:N_map
+            r, theta = x_map[1,N], x_map[2,N]
+            x = r * sin(theta)
+            z = r * cos(theta)
+            ppJ_x, pnJ_x, npJ_x, nnJ_x, isJ_x, ivJ_x = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+            ppJ_z, pnJ_z, npJ_z, nnJ_z, isJ_z, ivJ_z = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+
+            @inbounds for nu_ind in 1:N_phonon
+                pJ_x, pJ_z = pJ_RPA_conv_map[1,nu_ind,N], pJ_RPA_conv_map[3,nu_ind,N]
+                nJ_x, nJ_z = nJ_RPA_conv_map[1,nu_ind,N], nJ_RPA_conv_map[3,nu_ind,N]
+
+                pM, nM = real(pM_RPA[nu_ind]), real(nM_RPA[nu_ind])
+                isM, ivM = real(isM_RPA[nu_ind]), real(ivM_RPA[nu_ind])
+
+                ppJ_x += pM * pJ_x
+                ppJ_z += pM * pJ_z
+                pnJ_x += pM * nJ_x
+                pnJ_z += pM * nJ_z
+                npJ_x += nM * pJ_x
+                nnJ_x += nM * nJ_x
+                npJ_z += nM * pJ_z
+                nnJ_z += nM * nJ_z
+                isJ_x += 0.5 * isM * (pJ_x + nJ_x)
+                isJ_z += 0.5 * isM * (pJ_z + nJ_z)
+                ivJ_x += 0.5 * ivM * (pJ_x - nJ_x)
+                ivJ_z += 0.5 * ivM * (pJ_z - nJ_z)
+            end
+
+            @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f\n", x, z, ppJ_x, ppJ_z, pnJ_x, pnJ_z, npJ_x, npJ_z, nnJ_x, nnJ_z, isJ_x, isJ_z, ivJ_x, ivJ_z)
+        end
+    end
+        # Export of RPA averaged spin transition current densities ...
+    Output_File_RPA_M = "IO/" * Params.Calc.Path * "/RPA/Densities/RPA_Spin_" * File_Name * "_JP$(JP)_Averaged.dat"
+    open(Output_File_RPA_M, "w") do Write_File
         @printf(Write_File, "%-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s\n", "x", "z", "ppJ_x", "ppJ_z", "pnJ_x", "pnJ_z", "npJ_x", "npJ_z", "nnJ_x", "nnJ_z", "isJ_x", "isJ_z", "ivJ_x", "ivJ_z")
         @inbounds for N in 1:N_map
             r, theta = x_map[1,N], x_map[2,N]
@@ -694,21 +1280,28 @@ function HF_RPA_transition_currents(Params::Parameters;JP::String,nu_list::Vecto
             z = r * cos(theta)
             ppJ_x, pnJ_x, npJ_x, nnJ_x, isJ_x, ivJ_x = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
             ppJ_z, pnJ_z, npJ_z, nnJ_z, isJ_z, ivJ_z = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+
             @inbounds for nu_ind in 1:N_phonon
-                ppJ_x += pM[nu_ind] * pJ_map[1,nu_ind,N]
-                ppJ_z += pM[nu_ind] * pJ_map[3,nu_ind,N]
-                pnJ_x += pM[nu_ind] * nJ_map[1,nu_ind,N]
-                pnJ_z += pM[nu_ind] * nJ_map[3,nu_ind,N]
-                npJ_x += nM[nu_ind] * pJ_map[1,nu_ind,N]
-                nnJ_x += nM[nu_ind] * nJ_map[1,nu_ind,N]
-                npJ_z += nM[nu_ind] * pJ_map[3,nu_ind,N]
-                nnJ_z += nM[nu_ind] * nJ_map[3,nu_ind,N]
-                isJ_x += 0.5 * isM[nu_ind] * (pJ_map[1,nu_ind,N] + nJ_map[1,nu_ind,N])
-                isJ_z += 0.5 * isM[nu_ind] * (pJ_map[3,nu_ind,N] + nJ_map[3,nu_ind,N])
-                ivJ_x += 0.5 * ivM[nu_ind] * (pJ_map[1,nu_ind,N] - nJ_map[1,nu_ind,N])
-                ivJ_z += 0.5 * ivM[nu_ind] * (pJ_map[3,nu_ind,N] - nJ_map[3,nu_ind,N])
+                pJ_x, pJ_z = pJ_RPA_spin_map[1,nu_ind,N], pJ_RPA_spin_map[3,nu_ind,N]
+                nJ_x, nJ_z = nJ_RPA_spin_map[1,nu_ind,N], nJ_RPA_spin_map[3,nu_ind,N]
+
+                pM, nM = real(pM_RPA[nu_ind]), real(nM_RPA[nu_ind])
+                isM, ivM = real(isM_RPA[nu_ind]), real(ivM_RPA[nu_ind])
+
+                ppJ_x += pM * pJ_x
+                ppJ_z += pM * pJ_z
+                pnJ_x += pM * nJ_x
+                pnJ_z += pM * nJ_z
+                npJ_x += nM * pJ_x
+                nnJ_x += nM * nJ_x
+                npJ_z += nM * pJ_z
+                nnJ_z += nM * nJ_z
+                isJ_x += 0.5 * isM * (pJ_x + nJ_x)
+                isJ_z += 0.5 * isM * (pJ_z + nJ_z)
+                ivJ_x += 0.5 * ivM * (pJ_x - nJ_x)
+                ivJ_z += 0.5 * ivM * (pJ_z - nJ_z)
             end
-            # Perform the averaging ...
+
             @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f %-20.8f\n", x, z, ppJ_x, ppJ_z, pnJ_x, pnJ_z, npJ_x, npJ_z, nnJ_x, nnJ_z, isJ_x, isJ_z, ivJ_x, ivJ_z)
         end
     end

@@ -397,9 +397,9 @@ function HFB_Lipkin_Nogami_V2b_residual_no2b(Params::Parameters,Orb::Vector{Orb1
                 Ind = Bra + (Ket - 1) * N_T1 - div(Ket * (Ket - 1),2)
                 c, d = Orb_NN.Ind[2,P,J+1][Ket][1], Orb_NN.Ind[2,P,J+1][Ket][2]
                 j_c, j_d = Orb[c].j, Orb[d].j
-                Phase = Float64((-1)^(div(j_c + j_d,2) - J))
-
-                ME = -2.0 * cRes * (kronecker_delta(a,c) * kronecker_delta(b,d) - Phase * kronecker_delta(a,d) * kronecker_delta(b,c)) / (1 + kronecker_delta(a,b))
+                #Phase = phase(div(j_c + j_d,2) - J)
+                #ME = -2.0 * cRes * (kronecker_delta(a,c) * kronecker_delta(b,d) - Phase * kronecker_delta(a,d) * kronecker_delta(b,c)) / (1 + kronecker_delta(a,b))
+                ME = -2.0 * cRes * kronecker_delta(a,c) * kronecker_delta(b,d)
                 pME = Lambda_2.p * ME
                 nME = Lambda_2.n * ME
 

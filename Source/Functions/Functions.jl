@@ -687,16 +687,15 @@ end
 
 
 
-# Only the convective current so far ...
-@inline function J1b(r::Float64,theta::Float64,phi::Float64,
-                     l_a::Int64,j_a::Int64,m_a::Int64,R_a::Float64,dR_a::Float64,
-                     l_b::Int64,j_b::Int64,m_b::Int64,R_b::Float64,dR_b::Float64)
+@inline function J1b_convective(r::Float64,theta::Float64,phi::Float64,
+                                l_a::Int64,j_a::Int64,m_a::Int64,R_a::Float64,dR_a::Float64,
+                                l_b::Int64,j_b::Int64,m_b::Int64,R_b::Float64,dR_b::Float64)
 
     # Initialize the vlue of 1-body current J ...
     J_x, J_y, J_z = 0.0, 0.0, 0.0
 
     # Bra term ...
-    Amp_1 = 0.5 * fCG(2*l_a,1,j_a,m_a-1,1,m_a) * fCG(2*l_b,1,j_b,m_b-1,1,m_b)
+    Amp_1 = fCG(2*l_a,1,j_a,m_a-1,1,m_a) * fCG(2*l_b,1,j_b,m_b-1,1,m_b)
 
     if abs(Amp_1) > 1e-12
 
@@ -750,7 +749,7 @@ end
     end
 
     # Ket term ...
-    Amp_2 = 0.5 * fCG(2*l_a,1,j_a,m_a+1,-1,m_a) * fCG(2*l_b,1,j_b,m_b+1,-1,m_b)
+    Amp_2 = fCG(2*l_a,1,j_a,m_a+1,-1,m_a) * fCG(2*l_b,1,j_b,m_b+1,-1,m_b)
 
     if abs(Amp_2) > 1e-12
 
@@ -801,6 +800,84 @@ end
             J_z += J * Y_z
         end
 
+    end
+
+    return (J_x,J_y,J_z)
+end
+
+@inline function J1b_spin(r::Float64,theta::Float64,phi::Float64,
+                          l_a::Int64,j_a::Int64,m_a::Int64,R_a::Float64,dR_a::Float64,
+                          l_b::Int64,j_b::Int64,m_b::Int64,R_b::Float64,dR_b::Float64)
+
+    # Initialize the vlue of 1-body spin current J ...
+    J_x, J_y, J_z = 0.0, 0.0, 0.0
+
+    # Calculate the difference of input projection numbers ...
+    M = div(m_b - m_a,2)
+
+    # Calculate the outer common amplitudes factor ...
+    Amp = phase(l_a + div(j_b + m_a,2)) * sqrt(Float64((j_a + 1) * (j_b + 1) * (2*l_a + 1) * (2*l_b + 1)) * 3.0 / (8.0 * pi))
+
+    # Evaluate the sum over L, J  & individual contributions ...
+    @inbounds for L in abs(l_a - l_b):(l_a + l_b)
+        C_la_lb_L = fCG(2*l_a,2*l_b,2*L,0,0,0)
+        @inbounds for J in div(abs(j_a - j_b),2):div(j_a + j_b,2)
+
+            if abs(M) > J
+                continue
+            end
+
+            Amp_JL = Amp * C_la_lb_L * phase(J) * fCG(j_a,j_b,2*J,-m_a,m_b,2*M) * f9j(2*l_a,j_a,1,2*l_b,j_b,1,2*L,2*J,2)
+
+            if abs(Amp_JL) < 1e-12
+                continue
+            end
+
+            # Term 1 ... J = L - 1
+            if J == (L - 1) && J > 0
+                (Y_x,Y_y,Y_z) = vector_spherical_harmonic_function(J,J,M,theta,phi)
+
+                ME = Amp_JL * sqrt(Float64(J) / Float64(2*J + 1)) * (dR_a * R_b + R_a * dR_b + Float64(J + 2) / r * R_a * R_b)
+                
+                J_x += ME * Y_x
+                J_y += ME * Y_y
+                J_z += ME * Y_z
+            end
+
+            # Term 2 ... J = L
+            if J == L && J > 0
+                (Y_x,Y_y,Y_z) = vector_spherical_harmonic_function(J,J+1,M,theta,phi)
+
+                ME = Amp_JL * sqrt(Float64(J) / Float64(2*J + 1)) * (dR_a * R_b + R_a * dR_b - Float64(J) / r * R_a * R_b)
+
+                J_x += ME * Y_x
+                J_y += ME * Y_y
+                J_z += ME * Y_z
+            end
+
+            # Term 3 ... J = L
+            if J == L
+                (Y_x,Y_y,Y_z) = vector_spherical_harmonic_function(J,J-1,M,theta,phi)
+
+                ME = Amp_JL * sqrt(Float64(J + 1) / Float64(2*J + 1)) * (dR_a * R_b + R_a * dR_b + Float64(J + 1) / r * R_a * R_b)
+
+                J_x += ME * Y_x
+                J_y += ME * Y_y
+                J_z += ME * Y_z
+            end
+
+            # Term 4 ... J = L + 1
+            if J == (L + 1)
+                (Y_x,Y_y,Y_z) = vector_spherical_harmonic_function(J,J,M,theta,phi)
+
+                ME = Amp_JL * sqrt(Float64(J + 1) / Float64(2*J + 1)) * (dR_a * R_b + R_a * dR_b - Float64(J - 1) / r * R_a * R_b)
+
+                J_x += ME * Y_x
+                J_y += ME * Y_y
+                J_z += ME * Y_z
+            end
+
+        end
     end
 
     return (J_x,J_y,J_z)

@@ -1,6 +1,21 @@
 function HF_RRPA_export(Params::Parameters,Orb::Vector{Orb1B},N_nu::Matrix{Int64},E_corr::Float64,C::O1B,Rho::O1B,h::O1B,E_RPA::Matrix{Vector{ComplexF64}},X_RPA::Matrix{Matrix{ComplexF64}},Y_RPA::Matrix{Matrix{ComplexF64}},rB_RPA::ReducedTransition)
+    # Read parameters
+    Output_File = Params.Calc.Path
+
     # Export RRPA summary file ...
     HF_RRPA_export_summary(Params,N_nu,E_corr)
+
+    # Export RRPA natural orbitals ... matrix C ...
+    C_Export_Path = "IO/" * Output_File * "/Bin/C_RRPA.bin"
+    O1b_export(Params,Orb,C,C_Export_Path)
+
+    # Export RRPA OBDM Rho ...
+    Rho_Export_Path = "IO/" * Output_File * "/Bin/Rho_RRPA.bin"
+    O1b_export(Params,Orb,Rho,Rho_Export_Path)
+
+    # Export RRPA effective single-particle Hamiltonian h ...
+    h_Export_Path = "IO/" * Output_File * "/Bin/h_RRPA.bin"
+    O1b_export(Params,Orb,h,h_Export_Path)
 
     # Export of RRPA energies & amplitudes in binary format ...
     @time HF_RRPA_export_binary(Params,N_nu,E_RPA,X_RPA,Y_RPA)

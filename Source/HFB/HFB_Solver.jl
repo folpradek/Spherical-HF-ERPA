@@ -53,7 +53,10 @@ function HFB_solver(Params::Parameters)
         @time H_NN = qpO2b(Params,Orb,Orb_NN,V_NN,C,U,V)
 
         # Perform final export of HFB solution into binary files ...
-        @time HFB_export(Params,Orb,Orb_NN,C,U,V,H_N,H_NN)
+        @time HFB_export(Params,Orb,Orb_NN,C,U,V,
+                         O1B(C.p' * Rho.p * C.p,C.n' * Rho.n * C.n),
+                         O1B(C.p' * Kappa.p * C.p,C.n' * Kappa.n * C.n),
+                         H_N,H_NN)
 
         # Perform the HFB-BMBPT(2) calculation of correlation energy ...
         @time HFB_BMBPT_energy(Params,Orb,Orb_NN,H_N,H_NN)

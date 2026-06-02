@@ -8,7 +8,7 @@ function O1b_export(Params::Parameters,Orb::Vector{Orb1B},A::O1B,A_Export_Path::
         # Proton entries ...
         @inbounds for a in 1:a_max
             @inbounds for b in 1:a_max
-                if Orb[a].l == Orb[b].l &&Orb[a].j == Orb[b].j
+                if Orb[a].l == Orb[b].l && Orb[a].j == Orb[b].j
                     ME = @views A.p[a,b]
                     write(Export_File, Float64(ME))
                 end
@@ -18,7 +18,7 @@ function O1b_export(Params::Parameters,Orb::Vector{Orb1B},A::O1B,A_Export_Path::
         # Neutron entries ...
         @inbounds for a in 1:a_max
             @inbounds for b in 1:a_max
-                if Orb[a].l == Orb[b].l &&Orb[a].j == Orb[b].j
+                if Orb[a].l == Orb[b].l && Orb[a].j == Orb[b].j
                     ME = @views A.n[a,b]
                     write(Export_File, Float64(ME))
                 end

@@ -116,7 +116,7 @@ function HFB_summary_SQS(Params::Parameters,SQE::pnVector,Rho::O1B,Orb::Vector{O
     return
 end
 
-function HFB_export(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,C::O1B,U::O1B,V::O1B,H_N::qpO1B,H_NN::qpO2B)
+function HFB_export(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,C::O1B,U::O1B,V::O1B,Rho::O1B,Kappa::O1B,H_N::qpO1B,H_NN::qpO2B)
     # Read parameters
     Output_File = Params.Calc.Path
 
@@ -132,6 +132,14 @@ function HFB_export(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,C::O1B,U
         # Case of V ...
     V_Export_Path = "IO/" * Output_File * "/Bin/V.bin"
     O1b_export(Params,Orb,V,V_Export_Path)
+
+    # Export HFB canonical basis density operator Rho ...
+    Rho_Export_Path = "IO/" * Output_File * "/Bin/Rho.bin"
+    O1b_export(Params,Orb,Rho,Rho_Export_Path)
+
+    # Export HFB canonical basis pairing tensor Kappa ...
+    Kappa_Export_Path = "IO/" * Output_File * "/Bin/Kappa.bin"
+    O1b_export(Params,Orb,Kappa,Kappa_Export_Path)
 
     # Export HFB 1-body Hamiltonian H_N ...
     H1B_Export_Path = "IO/" * Output_File * "/Bin/qpH1B.bin"

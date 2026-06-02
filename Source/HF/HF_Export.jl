@@ -101,60 +101,21 @@ function HF_SPS_summary(Params::Parameters,h::O1B,Orb::Vector{Orb1B})
     return
 end
 
-function HF_export(Params::Parameters,C::O1B,h::O1B,Orb::Vector{Orb1B})
+function HF_export(Params::Parameters,C::O1B,Rho::O1B,h::O1B,Orb::Vector{Orb1B})
     # Read parameters
-    N_max = Params.Calc.Nmax
     Output_File = Params.Calc.Path
-    a_max = div((N_max + 1)*(N_max + 2),2)
 
     # Export HF orbitals matrix C ...
-    C_Export = "IO/" * Output_File * "/Bin/C_HF.bin"
-    open(C_Export, "w") do Export_File
-        # Proton orbitals ...
-        @inbounds for a in 1:a_max
-            @inbounds for b in 1:a_max
-                if Orb[a].l == Orb[b].l &&Orb[a].j == Orb[b].j
-                    ME = @views C.p[a,b]
-                    write(Export_File, Float64(ME))
-                end
-            end
-        end
+    C_Export_Path = "IO/" * Output_File * "/Bin/C_HF.bin"
+    O1b_export(Params,Orb,C,C_Export_Path)
 
-        # Neutron orbitals ...
-        @inbounds for a in 1:a_max
-            @inbounds for b in 1:a_max
-                if Orb[a].l == Orb[b].l &&Orb[a].j == Orb[b].j
-                    ME = @views C.n[a,b]
-                    write(Export_File, Float64(ME))
-                end
-            end
-        end
-    end
+    # Export HF density matrix Rho ...
+    Rho_Export_Path = "IO/" * Output_File * "/Bin/Rho_HF.bin"
+    O1b_export(Params,Orb,Rho,Rho_Export_Path)
 
-    # Export HF 1-body Hamiltonian h ... 
-    h_Export = "IO/" * Output_File * "/Bin/h_HF.bin"
-    open(h_Export, "w") do Export_File
-        # Proton Hamiltonian ...
-        @inbounds for a in 1:a_max
-            @inbounds for b in 1:a_max
-                if Orb[a].l == Orb[b].l &&Orb[a].j == Orb[b].j
-                    ME = @views h.p[a,b]
-                    write(Export_File, Float64(ME))
-                end
-            end
-        end
-
-        # Neutron Hamiltonian ...
-        @inbounds for a in 1:a_max
-            @inbounds for b in 1:a_max
-                if Orb[a].l == Orb[b].l &&Orb[a].j == Orb[b].j
-                    ME = @views h.n[a,b]
-                    write(Export_File, Float64(ME))
-                end
-            end
-        end
-
-    end
+    # Export HF single-particle Hamiltonian h ...
+    h_Export_Path = "IO/" * Output_File * "/Bin/h_HF.bin"
+    O1b_export(Params,Orb,h,h_Export_Path)
 
     return
 end

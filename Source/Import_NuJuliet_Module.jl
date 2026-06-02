@@ -56,6 +56,7 @@ module NuJuliet
     include("HF_RRPA/HF_RRPA_Transitions.jl")
     include("HF_RRPA/HF_RRPA_Energy.jl")
     include("HF_RRPA/HF_RRPA_Export.jl")
+    include("HF_RRPA/HF_RRPA_External.jl")
 
     # BCS ...
     include("BCS/BCS.jl")

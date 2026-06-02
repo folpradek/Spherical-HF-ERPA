@@ -36,21 +36,36 @@ function sample_script_run()
                 #RRPA = RRPA_Parameters(Ortho = true, Tol = 1e-7, Imax = 100, ScV3N = true, ScOBH = true, dOBDM = false)
                 )
 
+    Params = Parameters(IntParams,CalcParams)
+
     # HF calculation call ...
-    HF(Parameters(IntParams,CalcParams))
+    HF(Params)
 
     # HF-RPA calculation call ...
-    HF_RPA(Parameters(IntParams,CalcParams))
-    
-    # Function for export of transition currents ... works only for TDA phonons so far ... no spin current yet ...
-        # JP specifies spin & partiy, M specifies projection, I suggest using M = J, nu_list the list of phonon to plot,
+    HF_RPA(Params)
+
+    # Function for export of transition radial densities ... 
+        # JP specifies spin & parity, nu_list the list of phonon to plot,
         # note phonons are ordered by energy, so nu = 1 is the lowest phonon of given JP, nu = 2 the second lowest ...,
         # File_Name is the name of the output files in .dat format
-    HF_RPA_transition_currents(Parameters(IntParams,CalcParams); JP = "1-", M = 1, nu_list=[6,7,8,9,10], File_Name ="Phonon_Currents")
-
+    HF_RPA_transition_densities(Params; JP = "1-", nu_list=[5,6,7], File_Name ="Phonon_Densities")
+    
+    # Function for export of transition currents ...
+        # JP specifies spin & partiy, M specifies projection, I suggest using M = 0, nu_list the list of phonon to plot,
+        # note phonons are ordered by energy, so nu = 1 is the lowest phonon of given JP, nu = 2 the second lowest ...,
+        # File_Name is the name of the output files in .dat format, x & z grid is okay with 40x40 points ... Cartesian
+    HF_RPA_transition_currents(Params; JP = "1-", M = 0, nu_list=[5,6,7],
+                               File_Name ="Phonon_Currents", xN_grid = 40, zN_grid = 40)
 
     # HF-RRPA calculation call ...
-    HF_RRPA(Parameters(IntParams,CalcParams))
+    HF_RRPA(Params)
+
+    # Function for export of transition radial densities ... as for RPA ...
+    HF_RRPA_transition_densities(Params; JP = "1-", nu_list=[5,6,7], File_Name ="Phonon_Densities")
+    
+    # Function for export of transition currents ... as for RPA ...
+    HF_RRPA_transition_currents(Params; JP = "1-", M = 0, nu_list=[5,6,7],
+                                File_Name ="Phonon_Currents", xN_grid = 40, zN_grid = 40)
 
     CalcParams = Calculation_Parameters(
                 A = 18,
@@ -65,8 +80,10 @@ function sample_script_run()
                 #BCS = BCS_Parameters(ScBCS = true, Tol = 1e-7, Imax = 500, q = 0.05, pD0 = 0.5, nD0 = 0.5, BMF = false, HRF = false)
                 )
 
+    Params = Parameters(IntParams,CalcParams)
+
     # HF-BCS calculation call ...
-    BCS(Parameters(IntParams,CalcParams))
+    BCS(Params)
 
     CalcParams = Calculation_Parameters(
                 A = 18,
@@ -81,15 +98,17 @@ function sample_script_run()
                 #QTDA = QTDA_Parameters(Ortho = true)
                 #QRPA = QRPA_Parameters(Ortho = true)
                 )
+    
+    Params = Parameters(IntParams,CalcParams)
 
     # HFB calculation call ...
-    HFB(Parameters(IntParams,CalcParams))
+    HFB(Params)
 
     # QTDA calculation call ...
-    QTDA(Parameters(IntParams,CalcParams))
+    QTDA(Params)
     
     # QRPA calculation call ...
-    QRPA(Parameters(IntParams,CalcParams))
+    QRPA(Params)
 
 end
 
