@@ -100,6 +100,7 @@ module NuJuliet
     include("QRPA/QRPA_Allocate.jl")
     include("QRPA/QRPA_Spurious.jl")
     include("QRPA/QRPA_Diagonalize.jl")
+    include("QRPA/QRPA_A_Phonon.jl")
     include("QRPA/QRPA_Energy.jl")
     include("QRPA/QRPA_OBDM.jl")
     include("QRPA/QRPA_Transitions.jl")

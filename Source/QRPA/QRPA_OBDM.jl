@@ -1,4 +1,4 @@
-function QRPA_OBDM(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::qpOrb2B,U::O1B,V::O1B,Y_QRPA::Matrix{Matrix{ComplexF64}})
+function QRPA_OBDM(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::qpOrb2B,U::O1B,V::O1B,Y_QRPA::Matrix{Matrix{ComplexF64}},A_phonon::Matrix{Vector{Bool}})
     # Read calculation parameters ..
     N_max = Params.Calc.Nmax
     N_2max = 2*N_max
@@ -32,18 +32,23 @@ function QRPA_OBDM(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::qpOrb2B,U::O1B
             j_a, j_b = Orb[a].j, Orb[b].j
             j_a_hat, j_b_hat = Float64(j_a + 1), Float64(j_b + 1)
 
-            Amp_a = J_hat / j_a_hat
-            Amp_b = J_hat / j_b_hat
+            Amp_a = J_hat / j_a_hat / sqrt(Float64(1 + kronecker_delta(a,b)))
+            Amp_b = J_hat / j_b_hat / sqrt(Float64(1 + kronecker_delta(a,b)))
 
             aSum, bSum = 0.0, 0.0
 
             @inbounds for nu in 1:N_qp
+                if A_phonon[P,J+1][nu] == false
+                    continue
+                end
+
                 aME = Amp_a * abs2(Y_QRPA[P,J+1][qp,nu])
                 bME = Amp_b * abs2(Y_QRPA[P,J+1][qp,nu])
 
                 if b <= a
                     aSum += aME
                 end
+
                 if a <= b
                     bSum += bME
                 end

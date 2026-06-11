@@ -7,7 +7,7 @@ function HF_RPA(Params::Parameters)
     # Calculation parameters
     println("Starting RPA (TDA) calculations with residual NO2B NN+NNN interaction")
     println("\nCalculation data:")
-    println("A = " * string(Params.Calc.A) * " , Z = " * string(Params.Calc.Z) * " , HbarOmega = " * string(Params.Calc.Z) *
+    println("A = " * string(Params.Calc.A) * " , Z = " * string(Params.Calc.Z) * " , hw = " * string(Params.Calc.hw) *
             " MeV , N_max = " * string(Params.Calc.Nmax) * " , J-scheme LHO basis size = " * string(div((Params.Calc.Nmax+1)*(Params.Calc.Nmax+2),2)) *
             " , M-scheme LHO basis size = " * string(div((Params.Calc.Nmax+1)*(Params.Calc.Nmax+2)*(Params.Calc.Nmax+3),6)))
 

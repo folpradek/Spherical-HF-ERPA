@@ -281,12 +281,12 @@ function HF_RRPA_transition_densities(Params::Parameters;JP::String,nu_list::Vec
     pRho_nu = Matrix{Float64}(undef,N_phonon,N_grid)
     nRho_nu = Matrix{Float64}(undef,N_phonon,N_grid)
 
-
     # For given phonon levels evaluate their radial representation ...
     @inbounds Threads.@threads for i in 1:N_grid
         r = r_grid[i]
         @inbounds for (nu_ind, nu) in enumerate(nu_list)
             pSum, nSum = 0.0, 0.0
+
             Gauge = 1.0
 
             if ((J,P) in [(0,1),(1,2),(2,1),(3,2)]) == true
@@ -367,6 +367,523 @@ function HF_RRPA_transition_densities(Params::Parameters;JP::String,nu_list::Vec
 
     display("Export of averaged phonon radial transitions densities successfuly completed ...")
 
+
+    return
+end
+
+function HF_RRPA_transition_operator_densities(Params::Parameters;JP::String,nu_list::Vector{Int64},File_Name::String = "Phonon_Transition_Operator_Densities")
+    # Initialize the angular momentum algebra ...
+    wigner_init_float(75, "Jmax", 9)
+
+    # Read parameters ...
+    A = Float64(Params.Calc.A)
+    Z = Float64(Params.Calc.Z)
+    hw = Params.Calc.hw
+    N_max = Params.Calc.Nmax
+    a_max = div((N_max+1)*(N_max+2),2)
+
+    # Define basic constants ...
+    hc = 197.326980
+    m_n = 939.565346
+    m_p = 938.272013
+    nu_proton = 0.5 * m_p * hw / hc^2
+    nu_neutron = 0.5 * m_n * hw / hc^2
+
+    # Define the properties of radial grid ...
+    r_min, r_max = 0.0 + 1e-8, 2.5 * 1.2 * A^(1/3)
+    N_grid = 2^13 + 1 # 8192 + 1 grid points ...
+
+    # Read the values of J & P ...
+    P_char = string(JP[end])
+    J = parse(Int64,JP[1:end-1])
+
+    # Check input formating ...
+    if (P_char != "+") && (P_char != "-")
+        error("Invalid JP = \"$JP\"; use J+ or J-.")
+    end
+
+    # Set internal value of parity P ...
+    P = 1
+    if P_char == "-"
+        P = 2
+    end
+
+    # Check if the given JP is supported for transition density calculations ...
+    if ((J,P) in [(0,1),(1,2),(2,1),(3,2)]) == false
+        error("The given values of J & P are not supported for radial transition operator density calculations ...")
+    end
+
+    # Make single-particle orbitals ...
+    Orb = orbitals_make(Params)
+
+    # Prepare Particle & Hole orbitals ...
+    N_Particle, Particle, N_Hole, Hole = orbitals_ph_make(Params,Orb)
+
+    # Prepare 1p-1h phonon states ...
+    N_Phonon, Phonon = orbitals_one_phonon_make(N_Particle,Particle,N_Hole,Hole)
+
+    # Count & pre-index all phonon states in JP subspaces ...
+    N_nu, Orb_Phonon = HF_RPA_phonon_count(Params,N_Phonon,Phonon)
+
+    # Import transformation matrix mapping LHO & reference RRPA basis ...
+    @time C = O1b_import(Params,Orb,"IO/" * Params.Calc.Path * "/Bin/C_RRPA.bin")
+
+    # Import RRPA OBDM ...
+    @time Rho = O1b_import(Params,Orb,"IO/" * Params.Calc.Path * "/Bin/Rho_RRPA.bin")
+
+    # Import RRPA solutions ...
+    @time X_RRPA, Y_RRPA, E_RRPA = HF_RRPA_import_binary(Params,N_nu)
+
+    # Determine the number of phonon levels & the total number of phonons ...
+    N_phonon = length(nu_list)
+    N_ph = N_nu[J+1,P]
+
+    # Precalculate the reduced matrix elements of Electrogmanetic 1-body transition operators ...
+        # Iniztialize the 1-body Electromagnetic transition operators ...
+    TrOp = Tr1b_initialize(Params,Orb,1.0)
+         # Transform the 1-body transition operators to the reference basis ...
+    TrOp = Tr1b_transformation(Params,Orb,C,TrOp)
+
+    # Precalculate the matrix elements of 1-body transition operators ...
+        # Initialize the matrix elements for given phonon levels ...
+    pM, nM = Vector{ComplexF64}(undef,N_phonon), Vector{ComplexF64}(undef,N_phonon)
+    isM, ivM = Vector{ComplexF64}(undef,N_phonon), Vector{ComplexF64}(undef,N_phonon)
+        # Calculate the matrix elements for given phonon levels ...
+    if (J,P) in [(0,1),(2,1),(3,2)]
+        @inbounds for (nu_ind, nu) in enumerate(nu_list)
+            pMSum, nMSum, isMSum, ivMSum = 0.0im, 0.0im, 0.0im, 0.0im
+
+            @inbounds for ph in 1:N_ph
+                i_ph = Orb_Phonon[J+1,P][ph]
+                p, h, t_ph = Phonon[i_ph].p, Phonon[i_ph].h, Phonon[i_ph].tz
+                x_RRPA, y_RRPA = X_RRPA[J+1,P][ph,nu], Y_RRPA[J+1,P][ph,nu]
+
+                MME = (phase(J) * x_RRPA  + y_RRPA) / sqrt(Float64(2*J + 1))
+
+                if t_ph == -1
+                    a_p, a_h = Particle.p[p].a, Hole.p[h].a
+
+                    MME = sqrt(Rho.p[a_h,a_h] - Rho.p[a_p,a_p]) * MME
+
+                    if J == 0 && P == 1
+                        MME = TrOp.E0.p[a_p,a_h] * MME
+
+                    elseif J == 2 && P == 1
+                        MME = TrOp.E2.p[a_p,a_h] * MME
+
+                    elseif J == 3 && P == 2
+                        MME = TrOp.E3.p[a_p,a_h] * MME
+                    end
+
+                    pMSum += MME
+                    isMSum += 0.5 * MME
+                    ivMSum += 0.5 * MME
+
+                elseif t_ph == 1
+                    a_p, a_h = Particle.n[p].a, Hole.n[h].a
+
+                    MME = sqrt(Rho.n[a_h,a_h] - Rho.n[a_p,a_p]) * MME
+
+                    if J == 0 && P == 1
+                        MME = TrOp.E0.n[a_p,a_h] * MME
+
+                    elseif J == 2 && P == 1
+                        MME = TrOp.E2.n[a_p,a_h] * MME
+
+                    elseif J == 3 && P == 2
+                        MME = TrOp.E3.n[a_p,a_h] * MME
+                    end
+
+                    nMSum += MME
+                    isMSum += 0.5 * MME
+                    ivMSum -= 0.5 * MME
+                end
+            end
+
+            pM[nu_ind] = pMSum
+            nM[nu_ind] = nMSum
+            isM[nu_ind] = isMSum
+            ivM[nu_ind] = ivMSum
+        end
+
+    elseif (J,P) == (1,2)
+        @inbounds for (nu_ind, nu) in enumerate(nu_list)
+            pMSum, nMSum, isMSum, ivMSum = 0.0im, 0.0im, 0.0im, 0.0im
+
+            @inbounds for ph in 1:N_ph
+                i_ph = Orb_Phonon[J+1,P][ph]
+                p, h, t_ph = Phonon[i_ph].p, Phonon[i_ph].h, Phonon[i_ph].tz
+                x_RRPA, y_RRPA = X_RRPA[J+1,P][ph,nu], Y_RRPA[J+1,P][ph,nu]
+
+                Amp = (phase(J) * x_RRPA  + y_RRPA) / sqrt(Float64(2*J + 1))
+
+                if t_ph == -1
+                    a_p, a_h = Particle.p[p].a, Hole.p[h].a
+
+                    Amp = sqrt(Rho.p[a_h,a_h] - Rho.p[a_p,a_p]) * Amp
+
+                    pMME = TrOp.E1.p[a_p,a_h] * Amp
+                    isMME = 0.5 * TrOp.E1_C.p[a_p,a_h] * Amp
+                    ivMME = TrOp.E1.p[a_p,a_h] * Amp * (A - Z) / (A)
+
+                    pMSum += pMME
+                    isMSum += isMME
+                    ivMSum += ivMME
+
+                elseif t_ph == 1
+                    a_p, a_h = Particle.n[p].a, Hole.n[h].a
+
+                    Amp = sqrt(Rho.n[a_h,a_h] - Rho.n[a_p,a_p]) * Amp
+
+                    nMME = TrOp.E1.n[a_p,a_h] * Amp
+                    isMME = 0.5 * TrOp.E1_C.n[a_p,a_h] * Amp
+                    ivMME = - TrOp.E1.n[a_p,a_h] * Amp * (Z) / (A)
+
+                    nMSum += nMME
+                    isMSum += isMME
+                    ivMSum += ivMME
+                end
+            end
+
+            pM[nu_ind] = pMSum
+            nM[nu_ind] = nMSum
+            isM[nu_ind] = isMSum
+            ivM[nu_ind] = ivMSum
+        end
+    end
+
+    # Initialize the radial grid ...
+    r_grid = range(r_min, stop = r_max, length = N_grid)
+    r_grid = collect(r_grid)
+
+    # Initialize the radial grid for single-particle orbitals ...
+    pOrb_grid = Matrix{Float64}(undef,a_max,N_grid)
+    nOrb_grid = Matrix{Float64}(undef,a_max,N_grid)
+
+    # Calculate the radial representation of the reference basis orbitals ...
+    @inbounds Threads.@threads for i in 1:N_grid
+        r = r_grid[i]
+        @inbounds for a in 1:a_max
+            l_a, j_a = Orb[a].l, Orb[a].j
+            pSum, nSum = 0.0, 0.0
+
+            @inbounds for k in 1:a_max
+                n_k, l_k, j_k = Orb[k].n, Orb[k].l, Orb[k].j
+
+                if l_a != l_k || j_a != j_k
+                    continue
+                end
+
+                pPsi = C.p[k,a] * Psi_rad_LHO(r,n_k,l_k,nu_proton)
+                nPsi = C.n[k,a] * Psi_rad_LHO(r,n_k,l_k,nu_neutron)
+
+                pSum += pPsi
+                nSum += nPsi
+            end
+
+            pOrb_grid[a,i] = pSum
+            nOrb_grid[a,i] = nSum
+        end
+    end
+
+    # Initialize the radial representation of 1-body transition operator matrix elements ...
+    pM_grid = zeros(Float64,a_max,a_max,N_grid)
+    nM_grid = zeros(Float64,a_max,a_max,N_grid)
+
+    # Calculate the radial representation of 1-body transition operator matrix elements ...
+    println("Calculating the radial representation of 1-body transition operator matrix elements ...")
+
+    @inbounds Threads.@threads for a in 1:a_max
+        l_a, j_a = Orb[a].l, Orb[a].j
+        @views pR_a = pOrb_grid[a,:]
+        @views nR_a = nOrb_grid[a,:]
+
+        @inbounds for b in 1:a
+            l_b, j_b = Orb[b].l, Orb[b].j
+            @views pR_b = pOrb_grid[b,:]
+            @views nR_b = nOrb_grid[b,:]
+
+            if rem(l_a + l_b + P + 1,2) != 0  || abs(j_b - 2*J) > j_a || j_a > (j_b + 2*J)
+                continue
+            end
+
+            pN, nN = 1.0, 1.0
+
+            if J == 0 && P == 1
+                pN = 1.0 /  integrate_quadrature(r_grid, r_grid.^4 .* pR_a .* pR_b, M = 11)
+                nN = 1.0 /  integrate_quadrature(r_grid, r_grid.^4 .* nR_a .* nR_b, M = 11)
+
+            elseif J == 1 && P == 2
+                pN = 1.0 /  integrate_quadrature(r_grid, r_grid.^3 .* pR_a .* pR_b, M = 11)
+                nN = 1.0 /  integrate_quadrature(r_grid, r_grid.^3 .* nR_a .* nR_b, M = 11)
+
+            elseif J == 2 && P == 1
+                pN = 1.0 /  integrate_quadrature(r_grid, r_grid.^4 .* pR_a .* pR_b, M = 11)
+                nN = 1.0 /  integrate_quadrature(r_grid, r_grid.^4 .* nR_a .* nR_b, M = 11)
+
+            elseif J == 3 && P == 2
+                pN = 1.0 /  integrate_quadrature(r_grid, r_grid.^5 .* pR_a .* pR_b, M = 11)
+                nN = 1.0 /  integrate_quadrature(r_grid, r_grid.^5 .* nR_a .* nR_b, M = 11)
+            end
+
+            @inbounds for i in 1:N_grid
+                r = r_grid[i]
+
+                if J == 0 && P == 1
+                    pM_grid[a,b,i] = TrOp.E0.p[a,b] * r^2 * pR_a[i] * pR_b[i] * pN
+                    nM_grid[a,b,i] = TrOp.E0.n[a,b] * r^2 * nR_a[i] * nR_b[i] * nN
+
+                elseif J == 1 && P == 2
+                    pM_grid[a,b,i] = TrOp.E1.p[a,b] * r * pR_a[i] * pR_b[i] * pN
+                    nM_grid[a,b,i] = TrOp.E1.n[a,b] * r * nR_a[i] * nR_b[i] * nN
+
+                elseif J == 2 && P == 1
+                    pM_grid[a,b,i] = TrOp.E2.p[a,b] * r^2 * pR_a[i] * pR_b[i] * pN
+                    nM_grid[a,b,i] = TrOp.E2.n[a,b] * r^2 * nR_a[i] * nR_b[i] * nN
+
+                elseif J == 3 && P == 2
+                    pM_grid[a,b,i] = TrOp.E3.p[a,b] * r^3 * pR_a[i] * pR_b[i] * pN
+                    nM_grid[a,b,i] = TrOp.E3.n[a,b] * r^3 * nR_a[i] * nR_b[i] * nN
+
+                end
+
+                if a != b
+                    Phase = phase(div(j_b - j_a,2))
+                    pM_grid[b,a,i] = Phase * pM_grid[a,b,i]
+                    nM_grid[b,a,i] = Phase * nM_grid[a,b,i]
+                end
+
+            end
+
+        end
+    end
+
+    println("\tCalculation of the radial representation of 1-body transition operator matrix elements done ...")
+
+    # Initialize radial grids for given phonon levels ...
+    pRho_nu = Matrix{Float64}(undef,N_phonon,N_grid)
+    nRho_nu = Matrix{Float64}(undef,N_phonon,N_grid)
+
+    # For given phonon levels evaluate their radial representation ...
+    @inbounds Threads.@threads for i in 1:N_grid
+        r = r_grid[i]
+        @inbounds for (nu_ind, nu) in enumerate(nu_list)
+            pSum, nSum = 0.0, 0.0
+
+            Gauge = 1.0
+
+            if ((J,P) in [(0,1),(1,2),(2,1),(3,2)]) == true
+                Gauge = real(pM[nu_ind]) / abs(pM[nu_ind])
+            end
+
+            @inbounds for ph in 1:N_ph
+                i_ph = Orb_Phonon[J+1,P][ph]
+                p, h, t_ph = Phonon[i_ph].p, Phonon[i_ph].h, Phonon[i_ph].tz
+                x_RRPA, y_RRPA = X_RRPA[J+1,P][ph,nu], Y_RRPA[J+1,P][ph,nu]
+
+                if t_ph == -1
+                    a_p, a_h = Particle.p[p].a, Hole.p[h].a
+                    pm = pM_grid[a_p,a_h,i]
+                    pRho = Gauge * real(phase(J) * x_RRPA + y_RRPA) * pm
+                    pSum += pRho
+                elseif t_ph == 1
+                    a_p, a_h = Particle.n[p].a, Hole.n[h].a
+                    nm = nM_grid[a_p,a_h,i]
+                    nRho = Gauge * real(phase(J) * x_RRPA + y_RRPA) * nm
+                    nSum += nRho
+                end
+            end
+
+            Amp = r^2 / Float64(2*J + 1)
+
+            pRho_nu[nu_ind,i] = Amp * pSum
+            nRho_nu[nu_ind,i] = Amp * nSum
+        end
+    end
+
+    # Perform the export of indiviual RRPA radial phonon densities ...
+    @inbounds for (nu_ind, nu) in enumerate(nu_list)
+        e = real(E_RRPA[J+1,P][nu])
+        sE = string(round(e,digits=3))
+
+        # Case of TDA densities ...
+        Output_File = "IO/" * Params.Calc.Path * "/RRPA/Densities/RRPA_" * File_Name * "_JP$(JP)_nu$(nu)_E$(sE).dat"
+        open(Output_File, "w") do Write_File
+            @printf(Write_File, "%-20s %-20s %-20s %-20s %-20s\n", "r", "pM", "nM", "isM", "ivM")
+            @inbounds for i in 1:N_grid
+                r, pRho, nRho = r_grid[i], pRho_nu[nu_ind,i], nRho_nu[nu_ind,i]
+                isRho = 0.5 * (pRho + nRho)
+                ivRho = 0.5 * (pRho - nRho)
+                @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f %-20.8f\n", r, pRho, nRho, isRho, ivRho)
+            end
+        end
+
+    end
+
+    display("Export of individual phonon radial transition densities successfuly completed ...")
+
+    # Renormalize M ... to reasonable scale averaged densities ...
+    pM .= abs.(pM) ./ sqrt(sum(pM.^2))
+    nM .= abs.(nM) ./ sqrt(sum(nM.^2))
+    isM .= abs.(isM) ./ sqrt(sum(isM.^2))
+    ivM .= abs.(ivM) ./ sqrt(sum(ivM.^2))
+
+    # Perform the export of of averaged RRPA transition matrix radial densities ...
+    Output_File = "IO/" * Params.Calc.Path * "/RRPA/Densities/RRPA_" * File_Name * "_JP$(JP)_Averaged.dat"
+    open(Output_File, "w") do Write_File
+        @printf(Write_File, "%-20s %-20s %-20s %-20s %-20s\n", "r", "rho_p", "rho_n", "rho_is", "rho_iv")
+        @inbounds for i in 1:N_grid
+            r = r_grid[i]
+            pRho, nRho, isRho, ivRho = 0.0, 0.0, 0.0, 0.0
+            @inbounds for nu_ind in 1:N_phonon
+                prho, nrho = pRho_nu[nu_ind,i], nRho_nu[nu_ind,i]
+                pRho += real(pM[nu_ind]) * prho
+                nRho += real(nM[nu_ind]) * nrho
+                isRho += 0.5 * real(isM[nu_ind]) * (prho + nrho)
+                ivRho += 0.5 * real(ivM[nu_ind]) * (prho - nrho)
+            end
+            @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f %-20.8f\n", r, pRho, nRho, isRho, ivRho)
+        end
+    end
+
+
+    display("Export of averaged phonon radial transitions densities successfuly completed ...")
+
+    return
+end
+
+function HF_RRPA_transition_analysis(Params::Parameters;JP::String,nu_list::Vector{Int64},File_Name::String = "Phonon_Transtion_Analysis", Cut::Float64 = 0.1)
+    # Initialize the angular momentum algebra ...
+    wigner_init_float(75, "Jmax", 9)
+
+    # Make directory for export of information on structure of phonon levels ...
+    if isdir("IO/" * Params.Calc.Path * "/RRPA/Levels") == false
+        mkdir("IO/" * Params.Calc.Path * "/RRPA/Levels")
+    end
+
+    # Read the values of J & P ...
+    P_char = string(JP[end])
+    J = parse(Int64,JP[1:end-1])
+
+    # Check input formating ...
+    if (P_char != "+") && (P_char != "-")
+        error("Invalid JP = \"$JP\"; use J+ or J-.")
+    end
+
+    # Set internal value of parity P ...
+    P = 1
+    if P_char == "-"
+        P = 2
+    end
+
+    # Make single-particle orbitals ...
+    Orb = orbitals_make(Params)
+
+    # Prepare Particle & Hole orbitals ...
+    N_Particle, Particle, N_Hole, Hole = orbitals_ph_make(Params,Orb)
+
+    # Prepare 1p-1h phonon states ...
+    N_Phonon, Phonon = orbitals_one_phonon_make(N_Particle,Particle,N_Hole,Hole)
+
+    # Count & pre-index all phonon states in JP subspaces ...
+    N_nu, Orb_Phonon = HF_RPA_phonon_count(Params,N_Phonon,Phonon)
+
+    # Import transformation matrix mapping LHO & reference RRPA basis ...
+    @time C = O1b_import(Params,Orb,"IO/" * Params.Calc.Path * "/Bin/C_RRPA.bin")
+
+    # Import RRPA OBDM ...
+    @time Rho = O1b_import(Params,Orb,"IO/" * Params.Calc.Path * "/Bin/Rho_RRPA.bin")
+
+    # Import RRPA solutions ...
+    @time X_RRPA, Y_RRPA, E_RRPA = HF_RRPA_import_binary(Params,N_nu)
+
+    # Determine the number of phonon levels & the total number of phonons ...
+    N_phonon = length(nu_list)
+    N_ph = N_nu[J+1,P]
+
+    # Precalculate the reduced matrix elements of Electrogmanetic 1-body transition operators ...
+        # Iniztialize the 1-body Electromagnetic transition operators ...
+    TrOp = Tr1b_initialize(Params,Orb,1.0)
+         # Transform the 1-body transition operators to the reference basis ...
+    TrOp = Tr1b_transformation(Params,Orb,C,TrOp)
+
+    nu_count = zeros(Int64,N_phonon)
+
+    # Iterate through the phonon solutions & determine the most dominant ph & hp components of given phonon levels ...
+    @inbounds for (nu_ind, nu) in enumerate(nu_list)
+        @inbounds for ph in 1:N_ph
+            x_RRPA, y_RRPA = X_RRPA[J+1,P][ph,nu], Y_RRPA[J+1,P][ph,nu]
+            Amp = (phase(J) * x_RRPA + y_RRPA)
+
+            if abs2(Amp) > Cut
+                nu_count[nu_ind] += 1
+            end
+        end
+    end
+
+    nu_compo = Vector{Vector{Tuple{Int64,Int64,Int64,Float64,Float64,Float64}}}(undef,N_phonon)
+
+    @inbounds for (nu_ind, nu) in enumerate(nu_list)
+        nu_compo[nu_ind] = Vector{Tuple{Int64,Int64,Int64,Float64,Float64,Float64}}(undef,nu_count[nu_ind])
+        
+        count = 0
+
+        @inbounds for ph in 1:N_ph
+            i_ph = Orb_Phonon[J+1,P][ph]
+            p, h, t_ph = Phonon[i_ph].p, Phonon[i_ph].h, Phonon[i_ph].tz
+            x_RRPA, y_RRPA = X_RRPA[J+1,P][ph,nu], Y_RRPA[J+1,P][ph,nu]
+
+            Amp = (phase(J) * x_RRPA + y_RRPA)
+
+            if abs2(Amp) > Cut
+                count += 1
+
+                if t_ph == -1
+                    a_p, a_h = Particle.p[p].a, Hole.p[h].a
+                elseif t_ph == 1
+                    a_p, a_h = Particle.n[p].a, Hole.n[h].a 
+                end
+
+                M = 0.0
+
+                if J == 0 && P == 1
+                    M = real(Amp) * TrOp.E0.p[a_p,a_h]
+
+                elseif J == 1 && P == 2
+                    M = real(Amp) * TrOp.E1.p[a_p,a_h]
+
+                elseif J == 2 && P == 1
+                    M = real(Amp) * TrOp.E2.p[a_p,a_h]
+
+                elseif J == 3 && P == 2
+                    M = real(Amp) * TrOp.E3.p[a_p,a_h]
+                end
+
+                nu_compo[nu_ind][count] = (a_p,a_h,t_ph,real(x_RRPA),real(y_RRPA),M)
+            end
+
+        end
+
+    end
+
+    # Perform the export of information on individual RRPA phonon levels ...
+    @inbounds for (nu_ind, nu) in enumerate(nu_list)
+        e = real(E_RRPA[J+1,P][nu])
+        sE = string(round(e,digits=3))
+
+        Phonon_RRPA = nu_compo[nu_ind]
+        Output_File = "IO/" * Params.Calc.Path * "/RRPA/Levels/RRPA_" * File_Name * "_JP$(JP)_nu$(nu)_E$(sE).dat"
+        open(Output_File, "w") do Write_File
+            @printf(Write_File, "%-8s %-8s %-8s %-20s %-20s %-20s\n", "a_p", "a_h", "T_ph", "Re X_ph", "Re Y_ph", "Re M_ph")
+            @inbounds for L in Phonon_RRPA
+                (a_p,a_h,t_ph,x_RRPA,y_RRPA,M_ph) = L
+                @printf(Write_File, "%-8d %-8d %-8d %-20.8f %-20.8f %-20.8f\n", a_p, a_h, t_ph, x_RRPA, y_RRPA, M_ph)
+            end
+        end
+
+    end
+
+    display("Export of information on individual phonon levels successfuly completed ...")
 
     return
 end

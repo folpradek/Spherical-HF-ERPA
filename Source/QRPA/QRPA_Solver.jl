@@ -30,8 +30,11 @@ function QRPA_solver(Params::Parameters)
     # Solve QRPA eigenvalue problem ...
     @time E_QRPA, X_QRPA, Y_QRPA, Stability = QRPA_diagonalize(Params,Orb,Orb_2qp,A,B,qpN,qpTrOp)
 
+    # Determine the A-body 1-phonon QRPA levels ...
+    @time A_phonon = QRPA_A_phonon_particle_number(Params,Orb,Orb_2qp,U,V,X_QRPA,Y_QRPA)
+
     # Calculate the QRPA density operator Rho ...
-    @time Rho = QRPA_OBDM(Params,Orb,Orb_2qp,U,V,Y_QRPA)
+    @time Rho = QRPA_OBDM(Params,Orb,Orb_2qp,U,V,Y_QRPA,A_phonon)
 
     # Evaluate the reference charge radius chR ...
     chR2 = OBDM_chR2(Params,Orb,C,Rho)
@@ -46,10 +49,10 @@ function QRPA_solver(Params::Parameters)
     @time rB_QRPA = QRPA_rB(Params,Orb_2qp,rM_QRPA,E_QRPA)
 
     # Calculate the QRPA correlation energy ...
-    @time E_corr = QRPA_energy(Params,Orb_2qp,E_QRPA,Y_QRPA)
+    @time E_corr = QRPA_energy(Params,Orb_2qp,E_QRPA,Y_QRPA,A_phonon)
 
     # Export of QRPA solutions ...
-    @time QRPA_export(Params,Orb,Orb_2qp,Stability,E_corr,Rho,C,E_QRPA,X_QRPA,Y_QRPA,rB_QRPA)
+    @time QRPA_export(Params,Orb,Orb_2qp,Stability,E_corr,Rho,C,E_QRPA,X_QRPA,Y_QRPA,A_phonon,rB_QRPA)
 
     println("\nQRPA solver executed properly ...\n")
 

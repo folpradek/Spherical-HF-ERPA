@@ -199,22 +199,6 @@ function Tr1b_E1_vortical_initialize(Params::Parameters,Orb::Vector{Orb1B},chR2:
             rME -= ME
         end
 
-
-        #=
-            rME = phase(l_b + div(j_b + 1,2)) * f6j(2*l_b,1,j_b,j_a,2*J,2*l_a) *
-                sqrt(Float64((2*J + 1) * (2*L + 1) * (j_a + 1) * (j_b + 1) * (2*l_a + 1) * (2*l_b + 1)) / (4.0 * pi)) *
-                ((fCG(2*l_b,2*L,2*l_a-2,0,0,0) * f6j(2*L,2,2*J,2*l_a,2*l_b,2*l_a-2) * sqrt(Float64(l_a) / Float64(2*l_a + 1)) *
-                    (rME_rN_dr(n_b,l_b,n_a,l_a,N,hw) + Float64(l_a + 1) * rME_rN(n_a,l_a,n_b,l_b,N-1,hw))) -
-                    fCG(2*l_b,2*L,2*l_a+2,0,0,0) * f6j(2*L,2,2*J,2*l_a,2*l_b,2*l_a+2) * sqrt(Float64(l_a - 1) / Float64(2*l_a + 1)) *
-                    (rME_rN_dr(n_b,l_b,n_a,l_a,N,hw) - Float64(l_a) * rME_rN(n_a,l_a,n_b,l_b,N-1,hw))) +
-                phase(l_a + div(j_a + 1,2)) * f6j(2*l_a,1,j_a,j_b,2*J,2*l_b) *
-                sqrt(Float64((2*J + 1) * (2*L + 1) * (j_a + 1) * (j_b + 1) * (2*l_a + 1) * (2*l_b + 1)) / (4.0 * pi)) *
-                ((fCG(2*l_a,2*L,2*l_b-2,0,0,0) * f6j(2*L,2,2*J,2*l_b,2*l_a,2*l_b-2) * sqrt(Float64(l_b) / Float64(2*l_b + 1)) *
-                    (rME_rN_dr(n_a,l_a,n_b,l_b,N,hw) + Float64(l_b + 1) * rME_rN(n_a,l_a,n_b,l_b,N-1,hw))) -
-                    fCG(2*l_a,2*L,2*l_b+2,0,0,0) * f6j(2*L,2,2*J,2*l_b,2*l_a,2*l_b+2) * sqrt(Float64(l_b - 1) / Float64(2*l_b + 1)) *
-                    (rME_rN_dr(n_a,l_a,n_b,l_b,N,hw) - Float64(l_b) * rME_rN(n_a,l_a,n_b,l_b,N-1,hw)))
-        =#
-
         return rME
     end
 
@@ -349,7 +333,6 @@ function Tr1b_E1_vortical_initialize(Params::Parameters,Orb::Vector{Orb1B},chR2:
                 nsTSSum += nsTSME
                 nCSum += nCME
                 nsCSum += nsCME
-
             end
 
             pE1_VC[a,b] = pVCSum

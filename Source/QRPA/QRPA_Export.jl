@@ -1,4 +1,4 @@
-function QRPA_export(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::qpOrb2B,Stability::Bool,E_corr::Float64,Rho::O1B,C::O1B,E_QRPA::Matrix{Vector{ComplexF64}},X_QRPA::Matrix{Matrix{ComplexF64}},Y_QRPA::Matrix{Matrix{ComplexF64}},rB_QRPA::ReducedTransition)
+function QRPA_export(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::qpOrb2B,Stability::Bool,E_corr::Float64,Rho::O1B,C::O1B,E_QRPA::Matrix{Vector{ComplexF64}},X_QRPA::Matrix{Matrix{ComplexF64}},Y_QRPA::Matrix{Matrix{ComplexF64}},A_phonon::Matrix{Vector{Bool}},rB_QRPA::ReducedTransition)
     # Export of QRPA summary ...
     @time QRPA_summary(Params,Orb_2qp,Stability,E_corr)
 
@@ -6,7 +6,7 @@ function QRPA_export(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::qpOrb2B,Stab
     @time QRPA_binary_export(Params,Orb_2qp,E_QRPA,X_QRPA,Y_QRPA)
 
     # Export of QRPA spectra ...
-    @time QRPA_spectrum_export(Params,Orb_2qp,E_QRPA)
+    @time QRPA_spectrum_export(Params,Orb_2qp,E_QRPA,A_phonon)
 
     # Export of QRPA plot-ready spectra ...
     @time QRPA_spectrum_plot_export(Params,Orb_2qp,E_QRPA)
@@ -210,7 +210,7 @@ function QRPA_binary_export(Params::Parameters,Orb_2qp::qpOrb2B,E_QRPA::Matrix{V
     return
 end
 
-function QRPA_spectrum_export(Params::Parameters,Orb_2qp::qpOrb2B,E_QRPA::Matrix{Vector{ComplexF64}})
+function QRPA_spectrum_export(Params::Parameters,Orb_2qp::qpOrb2B,E_QRPA::Matrix{Vector{ComplexF64}},A_phonon::Matrix{Vector{Bool}})
     # Read parameters ...
     N_max = Params.Calc.Nmax
     J_max = 2*N_max + 1
@@ -223,15 +223,21 @@ function QRPA_spectrum_export(Params::Parameters,Orb_2qp::qpOrb2B,E_QRPA::Matrix
 
     # QRPA spectrum export ...
     open(Output_Path, "w") do Write_File
-        @printf(Write_File, "%-5s %-5s %-20s %-20s\n", "J", "P", "Re E", "Im E")
+        @printf(Write_File, "%-5s %-5s %-20s %-20s %-12s\n", "J", "P", "Re E", "Im E", "A-body")
         @inbounds for J in 0:J_max
             @inbounds for P in 1:2
                 N_qp = Orb_2qp.N[P,J+1]
                 @inbounds for nu in 1:N_qp
+                    A_body = "true"
+
+                    if A_phonon[P,J+1][nu] == false
+                        A_body = "false"
+                    end
+
                     if P == 1
-                        @printf(Write_File, "%-5d %-5s %-20.6f %-20.6f\n", J, "+", real(E_QRPA[P,J+1][nu]), imag(E_QRPA[P,J+1][nu]))
+                        @printf(Write_File, "%-5d %-5s %-20.6f %-20.6f %-12s\n", J, "+", real(E_QRPA[P,J+1][nu]), imag(E_QRPA[P,J+1][nu]), A_body)
                     else
-                        @printf(Write_File, "%-5d %-5s %-20.6f %-20.6f\n", J, "-", real(E_QRPA[P,J+1][nu]), imag(E_QRPA[P,J+1][nu]))
+                        @printf(Write_File, "%-5d %-5s %-20.6f %-20.6f %-12s\n", J, "-", real(E_QRPA[P,J+1][nu]), imag(E_QRPA[P,J+1][nu]), A_body)
                     end
                 end
                 println(Write_File,"\n")
@@ -447,7 +453,6 @@ function QRPA_particle_number_export(Params::Parameters,Orb::Vector{Orb1B},Rho::
     # Write the particle number vlues into summary file for QRPA calculation ...
     println("\n\tExporting the corrected QRPA particle numbers ...")
     Summary =  open(Output_Path, "a")
-        println(Summary, "Spherical Quasiparticle Random-Phase Approximation review:")
         @printf(Summary, "\nQRPA particle number values Z & N:\n")
         @printf(Summary, "\nZ = %12.6f\n", Z)
         @printf(Summary, "N = %12.6f\n", N)

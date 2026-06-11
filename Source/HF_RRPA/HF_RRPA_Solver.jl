@@ -169,16 +169,16 @@ function HF_RRPA_solve(Params::Parameters,N_nu::Matrix{Int64},Orb_Phonon::Matrix
 
         dE = abs(E_new - E_old)
         
-        if abs(Sum - eta) < epsilon && (Iteration > 35) && (E_new < E_old)
+        if abs(Sum - eta) < epsilon && (Iteration > 50) && (E_new < E_old)
             println("\nHF-RRPA iteration finished - cycled degenerate solution found ...")
             println("\tHThe solution with lower total energy was picked ...")
             break
-        elseif (abs(Sum) < 1e1 * epsilon) && (Iteration > 50) && (E_new < E_old)
-            println("\nRRPA iteration has finished ... Solution converged with lesser precisions 1e1 * Tol ...")
+        elseif (abs(Sum) < 1e2 * epsilon) && (Iteration > 75) && (E_new < E_old)
+            println("\nRRPA iteration has finished ... Solution converged with lesser precisions 100.0 * Tol ...")
             println("\tHThe solution with lower total energy was picked ...")
             break
-        elseif (abs(Sum) < 1e2 * epsilon) && (Iteration > 75) && (E_new < E_old)
-            println("\nRRPA iteration has finished ... Solution converged with lesser precisions 1e2 * Tol ...")
+        elseif (abs(Sum) < 1e3 * epsilon) && (Iteration > 100) && (E_new < E_old)
+            println("\nRRPA iteration has finished ... Solution converged with lesser precisions 1000.0 * Tol ...")
             println("\tHThe solution with lower total energy was picked ...")
             break
         end
