@@ -308,7 +308,7 @@ function HF_RRPA_transition_densities(Params::Parameters;JP::String,nu_list::Vec
                     nSum += nRho
                 end
             end
-            Amp = r^2 / Float64(2*J + 1) / (4.0 * pi)
+            Amp = r^2 / Float64(2*J + 1)
             pRho_nu[nu_ind,i] = Amp * pSum
             nRho_nu[nu_ind,i] = Amp * nSum
         end

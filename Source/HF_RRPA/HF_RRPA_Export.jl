@@ -894,7 +894,7 @@ function HF_RRPA_export_transitions(Params::Parameters,Orb::Vector{Orb1B},N_nu::
             end
         end
             # Full vortical mode ...
-        open(Output_File * "/RRPA/Transitions/E1/RPRA_E1_V.dat", "w") do Write_File
+        open(Output_File * "/RRPA/Transitions/E1/RRPA_E1_V.dat", "w") do Write_File
             J, P = 1, 2
             @printf(Write_File, "%-20s %-20s %-20s %-20s\n", "E", "B_ph", "B_is", "B_iv")
             @inbounds for nu in 1:N_nu[J+1,P]
@@ -902,7 +902,7 @@ function HF_RRPA_export_transitions(Params::Parameters,Orb::Vector{Orb1B},N_nu::
             end
         end
             # Convective vortical mode ...
-        open(Output_File * "/RRPA/Transitions/E1/RPRA_E1_V_conv.dat", "w") do Write_File
+        open(Output_File * "/RRPA/Transitions/E1/RRPA_E1_V_conv.dat", "w") do Write_File
             J, P = 1, 2
             @printf(Write_File, "%-20s %-20s %-20s %-20s\n", "E", "B_ph", "B_is", "B_iv")
             @inbounds for nu in 1:N_nu[J+1,P]
