@@ -290,6 +290,9 @@ function HF_RRPA_rB(Params::Parameters,N_nu::Matrix{Int64},rM::ReducedMultipole,
     rB_E1TC = Vector{Vector{Float64}}(undef,3)
     rB_E1TS = Vector{Vector{Float64}}(undef,3)
     rB_E1C = Vector{Vector{Float64}}(undef,3)
+    rB_E1CC = Vector{Vector{Float64}}(undef,3)
+    rB_E1CS = Vector{Vector{Float64}}(undef,3)
+    rB_E1c = Vector{Vector{Float64}}(undef,3)
     rB_E1_NLO_LWA = Vector{Vector{Float64}}(undef,3)
 
     # Initialize the sub-components of the reduced transition intensities B ...
@@ -303,6 +306,9 @@ function HF_RRPA_rB(Params::Parameters,N_nu::Matrix{Int64},rM::ReducedMultipole,
         rB_E1TC[i] = Vector{Float64}(undef,N_ph)
         rB_E1TS[i] = Vector{Float64}(undef,N_ph)
         rB_E1C[i] = Vector{Float64}(undef,N_ph)
+        rB_E1CC[i] = Vector{Float64}(undef,N_ph)
+        rB_E1CS[i] = Vector{Float64}(undef,N_ph)
+        rB_E1c[i] = Vector{Float64}(undef,N_ph)
         rB_E1_NLO_LWA[i] = Vector{Float64}(undef,N_ph)
     end
 
@@ -323,7 +329,11 @@ function HF_RRPA_rB(Params::Parameters,N_nu::Matrix{Int64},rM::ReducedMultipole,
         rB_E1TC[1][nu] = abs(rM.E1_TC.p[nu])^2
         rB_E1TS[1][nu] = abs(0.5 * g_p * rM.E1_TS.p[nu] + 0.5 * g_n * rM.E1_TS.n[nu])^2
 
-        rB_E1C[1][nu] = abs(rM.E1_C.p[nu])^2
+        rB_E1C[1][nu] = abs(rM.E1_TC.p[nu] + 0.5 * g_p * rM.E1_TS.p[nu] + 0.5 * g_n * rM.E1_TS.n[nu] - (rM.E1_VC.p[nu] + 0.5 * g_p * rM.E1_VS.p[nu] + 0.5 * g_n * rM.E1_VS.n[nu]))^2
+        rB_E1CC[1][nu] = abs(rM.E1_TC.p[nu] - rM.E1_VC.p[nu])^2
+        rB_E1CS[1][nu] = abs(0.5 * g_p * rM.E1_TS.p[nu] + 0.5 * g_n * rM.E1_TS.n[nu] - (0.5 * g_p * rM.E1_VS.p[nu] + 0.5 * g_n * rM.E1_VS.n[nu]))^2
+
+        rB_E1c[1][nu] = abs(rM.E1_C.p[nu])^2
 
         rB_E1_NLO_LWA[1][nu] = abs(rM.E1.p[nu] + E / hc * (rM.E1_TC.p[nu] + 0.5 * g_p * rM.E1_TS.p[nu] + 0.5 * g_n * rM.E1_TS.n[nu]))^2
 
@@ -337,7 +347,11 @@ function HF_RRPA_rB(Params::Parameters,N_nu::Matrix{Int64},rM::ReducedMultipole,
         rB_E1TC[2][nu] = abs(0.5 * (rM.E1_TC.p[nu] + rM.E1_sTC.p[nu] + rM.E1_TC.n[nu] + rM.E1_sTC.n[nu]))^2
         rB_E1TS[2][nu] = abs(0.125 * (g_p + g_n) * (rM.E1_TS.p[nu] + rM.E1_sTS.p[nu] + rM.E1_TS.n[nu] + rM.E1_sTS.n[nu]))^2
 
-        rB_E1C[2][nu] = 0.25 * abs(rM.E1_C.p[nu] + rM.E1_sC.p[nu] + rM.E1_C.n[nu] + rM.E1_sC.n[nu])^2
+        rB_E1C[2][nu] = abs(0.5 * (rM.E1_TC.p[nu] + rM.E1_sTC.p[nu] + rM.E1_TC.n[nu] + rM.E1_sTC.n[nu]) + 0.125 * (g_p + g_n) * (rM.E1_TS.p[nu] + rM.E1_sTS.p[nu] + rM.E1_TS.n[nu] + rM.E1_sTS.n[nu]) - (0.5 * (rM.E1_VC.p[nu] + rM.E1_VC.n[nu]) + 0.125 * (g_p + g_n) * (rM.E1_VS.p[nu] + rM.E1_VS.n[nu])))^2
+        rB_E1CC[2][nu] = abs(0.5 * (rM.E1_TC.p[nu] + rM.E1_sTC.p[nu] + rM.E1_TC.n[nu] + rM.E1_sTC.n[nu]) - (0.5 * (rM.E1_VC.p[nu] + rM.E1_VC.n[nu])))^2
+        rB_E1CS[2][nu] = abs(0.125 * (g_p + g_n) * (rM.E1_TS.p[nu] + rM.E1_sTS.p[nu] + rM.E1_TS.n[nu] + rM.E1_sTS.n[nu]) - (0.125 * (g_p + g_n) * (rM.E1_VS.p[nu] + rM.E1_VS.n[nu])))^2
+
+        rB_E1c[2][nu] = 0.25 * abs(rM.E1_C.p[nu] + rM.E1_sC.p[nu] + rM.E1_C.n[nu] + rM.E1_sC.n[nu])^2
 
         rB_E1_NLO_LWA[2][nu] = 0.25 * abs(rM.E1.p[nu] + rM.E1.n[nu] +  E / hc * ((rM.E1_TC.p[nu] + rM.E1_sTC.p[nu] + rM.E1_TC.n[nu] + rM.E1_sTC.n[nu]) + 0.25 * (g_p + g_n) * (rM.E1_TS.p[nu] + rM.E1_sTS.p[nu] + rM.E1_TS.n[nu] + rM.E1_sTS.n[nu])))^2
 
@@ -351,10 +365,13 @@ function HF_RRPA_rB(Params::Parameters,N_nu::Matrix{Int64},rM::ReducedMultipole,
         rB_E1TC[3][nu] = abs(0.5 * (rM.E1_TC.p[nu] - rM.E1_TC.n[nu]))^2
         rB_E1TS[3][nu] = abs(0.125 * (g_p - g_n) * (rM.E1_TS.p[nu] + rM.E1_TS.n[nu]))^2
 
-        rB_E1C[3][nu] = 0.25 * abs(rM.E1_C.p[nu] - rM.E1_C.n[nu])^2
+        rB_E1C[3][nu] = abs(0.5 * (rM.E1_TC.p[nu] - rM.E1_TC.n[nu]) + 0.125 * (g_p - g_n) * (rM.E1_TS.p[nu] + rM.E1_TS.n[nu]) - (0.5 * (rM.E1_VC.p[nu] - rM.E1_VC.n[nu]) + 0.125 * (g_p - g_n) * (rM.E1_VS.p[nu] + rM.E1_VS.n[nu])))^2
+        rB_E1CC[3][nu] = abs(0.5 * (rM.E1_TC.p[nu] - rM.E1_TC.n[nu]) - (0.5 * (rM.E1_VC.p[nu] - rM.E1_VC.n[nu])))^2
+        rB_E1CS[3][nu] = abs(0.125 * (g_p - g_n) * (rM.E1_TS.p[nu] + rM.E1_TS.n[nu]) - (0.125 * (g_p - g_n) * (rM.E1_VS.p[nu] + rM.E1_VS.n[nu])))^2
+
+        rB_E1c[3][nu] = 0.25 * abs(rM.E1_C.p[nu] - rM.E1_C.n[nu])^2
 
         rB_E1_NLO_LWA[3][nu] = abs(e_p * rM.E1.p[nu] - e_n * rM.E1.n[nu] +  0.5 * E / hc * ((rM.E1_TC.p[nu] - rM.E1_TC.n[nu]) + 0.125 * (g_p - g_n) * (rM.E1_TS.p[nu] + rM.E1_TS.n[nu])))^2
-
     end
 
     # Case of E2 ...
@@ -409,15 +426,19 @@ function HF_RRPA_rB(Params::Parameters,N_nu::Matrix{Int64},rM::ReducedMultipole,
     rB_E1TC = Transition(rB_E1TC[1],rB_E1TC[2],rB_E1TC[3])
     rB_E1TS = Transition(rB_E1TS[1],rB_E1TS[2],rB_E1TS[3])
     rB_E1C = Transition(rB_E1C[1],rB_E1C[2],rB_E1C[3])
+    rB_E1CC = Transition(rB_E1CC[1],rB_E1CC[2],rB_E1CC[3])
+    rB_E1CS = Transition(rB_E1CS[1],rB_E1CS[2],rB_E1CS[3])
+    rB_E1c = Transition(rB_E1c[1],rB_E1c[2],rB_E1c[3])
     rB_E1_NLO_LWA = Transition(rB_E1_NLO_LWA[1],rB_E1_NLO_LWA[2],rB_E1_NLO_LWA[3])
 
-    rB = ReducedTransition(rB_E0,rB_E1,rB_E2,rB_E3,rB_E1V,rB_E1VC,rB_E1VS,rB_E1T,rB_E1TC,rB_E1TS,rB_E1C,rB_E1_NLO_LWA)
+    rB = ReducedTransition(rB_E0,rB_E1,rB_E2,rB_E3,rB_E1V,rB_E1VC,rB_E1VS,rB_E1T,rB_E1TC,rB_E1TS,rB_E1C,rB_E1CC,rB_E1CS,rB_E1c,rB_E1_NLO_LWA)
 
     println("\tReduced transition intensities rB evaluated ...")
 
     return rB
 end
 
+#=
 function HF_RRPA_transition_densities_export(Params::Parameters,Orb::Vector{Orb1B},N_nu::Matrix{Int64},Orb_Phonon::Matrix{Vector{Int64}},Phonon::Vector{PhState},Particle::pnSVector,Hole::pnSVector,X_RPA::Matrix{Matrix{ComplexF64}},Y_RPA::Matrix{Matrix{ComplexF64}},TrOp::Tr1B)
     # Read parameters ...
     A = Params.Calc.A
@@ -527,3 +548,4 @@ function HF_RRPA_transition_densities_export(Params::Parameters,Orb::Vector{Orb1
 
     return
 end
+=#

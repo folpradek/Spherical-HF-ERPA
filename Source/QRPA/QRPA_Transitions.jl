@@ -241,6 +241,9 @@ function QRPA_rB(Params::Parameters,Orb_2qp::qpOrb2B,rM::ReducedMultipole,E_QRPA
     rB_E1_TC = Vector{Vector{Float64}}(undef,3)
     rB_E1_TS = Vector{Vector{Float64}}(undef,3)
     rB_E1_C = Vector{Vector{Float64}}(undef,3)
+    rB_E1_CC = Vector{Vector{Float64}}(undef,3)
+    rB_E1_CS = Vector{Vector{Float64}}(undef,3)
+    rB_E1_c = Vector{Vector{Float64}}(undef,3)
     rB_E1_NLO_LWA = Vector{Vector{Float64}}(undef,3)
 
     @inbounds for i in 1:3
@@ -252,6 +255,9 @@ function QRPA_rB(Params::Parameters,Orb_2qp::qpOrb2B,rM::ReducedMultipole,E_QRPA
         rB_E1_TC[i] = Vector{Float64}(undef,N_qp)
         rB_E1_TS[i] = Vector{Float64}(undef,N_qp)
         rB_E1_C[i] = Vector{Float64}(undef,N_qp)
+        rB_E1_CC[i] = Vector{Float64}(undef,N_qp)
+        rB_E1_CS[i] = Vector{Float64}(undef,N_qp)
+        rB_E1_c[i] = Vector{Float64}(undef,N_qp)
         rB_E1_NLO_LWA[i] = Vector{Float64}(undef,N_qp)
     end
 
@@ -272,7 +278,11 @@ function QRPA_rB(Params::Parameters,Orb_2qp::qpOrb2B,rM::ReducedMultipole,E_QRPA
         rB_E1_TC[1][nu] = abs(rM.E1_TC.p[nu])^2
         rB_E1_TS[1][nu] = abs(0.5 * g_p * rM.E1_TS.p[nu] + 0.5 * g_n * rM.E1_TS.n[nu])^2
 
-        rB_E1_C[1][nu] = abs(rM.E1_C.p[nu])^2
+        rB_E1_C[1][nu] = abs(rM.E1_TC.p[nu] + 0.5 * g_p * rM.E1_TS.p[nu] + 0.5 * g_n * rM.E1_TS.n[nu] - (rM.E1_VC.p[nu] + 0.5 * g_p * rM.E1_VS.p[nu] + 0.5 * g_n * rM.E1_VS.n[nu]))^2
+        rB_E1_CC[1][nu] = abs(rM.E1_TC.p[nu] - (rM.E1_VC.p[nu]))^2
+        rB_E1_CS[1][nu] = abs(0.5 * g_p * rM.E1_TS.p[nu] + 0.5 * g_n * rM.E1_TS.n[nu] - (0.5 * g_p * rM.E1_VS.p[nu] + 0.5 * g_n * rM.E1_VS.n[nu]))^2
+
+        rB_E1_c[1][nu] = abs(rM.E1_C.p[nu])^2
 
         rB_E1_NLO_LWA[1][nu] = abs(rM.E1.p[nu] + E / hc * (rM.E1_TC.p[nu] + 0.5 * g_p * rM.E1_TS.p[nu] + 0.5 * g_n * rM.E1_TS.n[nu]))^2
 
@@ -286,7 +296,11 @@ function QRPA_rB(Params::Parameters,Orb_2qp::qpOrb2B,rM::ReducedMultipole,E_QRPA
         rB_E1_TC[2][nu] = abs(0.5 * (rM.E1_TC.p[nu] + rM.E1_sTC.p[nu] + rM.E1_TC.n[nu] + rM.E1_sTC.n[nu]))^2
         rB_E1_TS[2][nu] = abs(0.125 * (g_p + g_n) * (rM.E1_TS.p[nu] + rM.E1_sTS.p[nu] + rM.E1_TS.n[nu] + rM.E1_sTS.n[nu]))^2
 
-        rB_E1_C[2][nu] = 0.25 * abs(rM.E1_C.p[nu] + rM.E1_sC.p[nu] + rM.E1_C.n[nu] + rM.E1_sC.n[nu])^2
+        rB_E1_C[2][nu] = abs(0.5 * (rM.E1_TC.p[nu] + rM.E1_sTC.p[nu] + rM.E1_TC.n[nu] + rM.E1_sTC.n[nu]) + 0.125 * (g_p + g_n) * (rM.E1_TS.p[nu] + rM.E1_sTS.p[nu] + rM.E1_TS.n[nu] + rM.E1_sTS.n[nu]) - (0.5 * (rM.E1_VC.p[nu] + rM.E1_VC.n[nu]) + 0.125 * (g_p + g_n) * (rM.E1_VS.p[nu] + rM.E1_VS.n[nu])))^2
+        rB_E1_CC[2][nu] = abs(0.5 * (rM.E1_TC.p[nu] + rM.E1_sTC.p[nu] + rM.E1_TC.n[nu] + rM.E1_sTC.n[nu]) - (0.5 * (rM.E1_VC.p[nu] + rM.E1_VC.n[nu])))^2
+        rB_E1_CS[2][nu] = abs(0.125 * (g_p + g_n) * (rM.E1_TS.p[nu] + rM.E1_sTS.p[nu] + rM.E1_TS.n[nu] + rM.E1_sTS.n[nu]) - (0.125 * (g_p + g_n) * (rM.E1_VS.p[nu] + rM.E1_VS.n[nu])))^2
+
+        rB_E1_c[2][nu] = 0.25 * abs(rM.E1_C.p[nu] + rM.E1_sC.p[nu] + rM.E1_C.n[nu] + rM.E1_sC.n[nu])^2
 
         rB_E1_NLO_LWA[2][nu] = 0.25 * abs(rM.E1.p[nu] + rM.E1.n[nu] +  E / hc * ((rM.E1_TC.p[nu] + rM.E1_sTC.p[nu] + rM.E1_TC.n[nu] + rM.E1_sTC.n[nu]) + 0.25 * (g_p + g_n) * (rM.E1_TS.p[nu] + rM.E1_sTS.p[nu] + rM.E1_TS.n[nu] + rM.E1_sTS.n[nu])))^2
 
@@ -300,7 +314,11 @@ function QRPA_rB(Params::Parameters,Orb_2qp::qpOrb2B,rM::ReducedMultipole,E_QRPA
         rB_E1_TC[3][nu] = abs(0.5 * (rM.E1_TC.p[nu] - rM.E1_TC.n[nu]))^2
         rB_E1_TS[3][nu] = abs(0.125 * (g_p - g_n) * (rM.E1_TS.p[nu] + rM.E1_TS.n[nu]))^2
 
-        rB_E1_C[3][nu] = 0.25 * abs(rM.E1_C.p[nu] - rM.E1_C.n[nu])^2
+        rB_E1_C[3][nu] = abs(0.5 * (rM.E1_TC.p[nu] - rM.E1_TC.n[nu]) + 0.125 * (g_p - g_n) * (rM.E1_TS.p[nu] + rM.E1_TS.n[nu]) - (0.5 * (rM.E1_VC.p[nu] - rM.E1_VC.n[nu]) + 0.125 * (g_p - g_n) * (rM.E1_VS.p[nu] + rM.E1_VS.n[nu])))^2
+        rB_E1_CC[3][nu] = abs(0.5 * (rM.E1_TC.p[nu] - rM.E1_TC.n[nu]) - (0.5 * (rM.E1_VC.p[nu] - rM.E1_VC.n[nu])))^2
+        rB_E1_CS[3][nu] = abs(0.125 * (g_p - g_n) * (rM.E1_TS.p[nu] + rM.E1_TS.n[nu]) - (0.125 * (g_p - g_n) * (rM.E1_VS.p[nu] + rM.E1_VS.n[nu])))^2
+
+        rB_E1_c[3][nu] = 0.25 * abs(rM.E1_C.p[nu] - rM.E1_C.n[nu])^2
 
         rB_E1_NLO_LWA[3][nu] = abs(e_p * rM.E1.p[nu] - e_n * rM.E1.n[nu] +  0.5 * E / hc * ((rM.E1_TC.p[nu] - rM.E1_TC.n[nu]) + 0.125 * (g_p - g_n) * (rM.E1_TS.p[nu] + rM.E1_TS.n[nu])))^2
     end
@@ -344,16 +362,19 @@ function QRPA_rB(Params::Parameters,Orb_2qp::qpOrb2B,rM::ReducedMultipole,E_QRPA
     rB_E1 = Transition(rB_E1[1],rB_E1[2],rB_E1[3])
     rB_E2 = Transition(rB_E2[1],rB_E2[2],rB_E2[3])
     rB_E3 = Transition(rB_E3[1],rB_E3[2],rB_E3[3])
-    rB_E1_V = Transition(rB_E1_V[1],rB_E1_V[2],rB_E1_V[3])
-    rB_E1_VC = Transition(rB_E1_VC[1],rB_E1_VC[2],rB_E1_VC[3])
-    rB_E1_VS = Transition(rB_E1_VS[1],rB_E1_VS[2],rB_E1_VS[3])
-    rB_E1_T = Transition(rB_E1_T[1],rB_E1_T[2],rB_E1_T[3])
-    rB_E1_TC = Transition(rB_E1_TC[1],rB_E1_TC[2],rB_E1_TC[3])
-    rB_E1_TS = Transition(rB_E1_TS[1],rB_E1_TS[2],rB_E1_TS[3])
-    rB_E1_C = Transition(rB_E1_C[1],rB_E1_C[2],rB_E1_C[3])
+    rB_E1V = Transition(rB_E1_V[1],rB_E1_V[2],rB_E1_V[3])
+    rB_E1VC = Transition(rB_E1_VC[1],rB_E1_VC[2],rB_E1_VC[3])
+    rB_E1VS = Transition(rB_E1_VS[1],rB_E1_VS[2],rB_E1_VS[3])
+    rB_E1T = Transition(rB_E1_T[1],rB_E1_T[2],rB_E1_T[3])
+    rB_E1TC = Transition(rB_E1_TC[1],rB_E1_TC[2],rB_E1_TC[3])
+    rB_E1TS = Transition(rB_E1_TS[1],rB_E1_TS[2],rB_E1_TS[3])
+    rB_E1C = Transition(rB_E1_C[1],rB_E1_C[2],rB_E1_C[3])
+    rB_E1CC = Transition(rB_E1_CC[1],rB_E1_CC[2],rB_E1_CC[3])
+    rB_E1CS = Transition(rB_E1_CS[1],rB_E1_CS[2],rB_E1_CS[3])
+    rB_E1c = Transition(rB_E1_c[1],rB_E1_c[2],rB_E1_c[3])
     rB_E1_NLO_LWA = Transition(rB_E1_NLO_LWA[1],rB_E1_NLO_LWA[2],rB_E1_NLO_LWA[3])
 
-    rB = ReducedTransition(rB_E0,rB_E1,rB_E2,rB_E3,rB_E1_V,rB_E1_VC,rB_E1_VS,rB_E1_T,rB_E1_TC,rB_E1_TS,rB_E1_C,rB_E1_NLO_LWA)
+    rB = ReducedTransition(rB_E0,rB_E1,rB_E2,rB_E3,rB_E1V,rB_E1VC,rB_E1VS,rB_E1T,rB_E1TC,rB_E1TS,rB_E1C,rB_E1CC,rB_E1CS,rB_E1c,rB_E1_NLO_LWA)
 
     println("\tQRPA reduced transition intensities rB evaluated ...")
 

@@ -329,7 +329,6 @@ function HF_RRPA_transition_densities(Params::Parameters;JP::String,nu_list::Vec
                 @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f %-20.8f\n", r, pRho, nRho, isRho, ivRho)
             end
         end
-
     end
 
     display("Export of individual phonon radial transition densities successfuly completed ...")
@@ -1499,6 +1498,155 @@ function HF_RRPA_transition_currents(Params::Parameters;JP::String,nu_list::Vect
     end
 
     display("Export of averaged phonon level transition current maps successfuly completed ...")
+
+    return
+end
+
+function HF_RRPA_transitions_recalculate(Params::Parameters)
+    # Check if the RRPA transition directory exists, if not create it ...
+    if !(isdir("IO/" * Params.Calc.Path * "/RRPA/Transitions"))
+        mkdir("IO/" * Params.Calc.Path * "/RRPA/Transitions")
+        mkdir("IO/" * Params.Calc.Path * "/RRPA/Transitions/E0")
+        mkdir("IO/" * Params.Calc.Path * "/RRPA/Transitions/E1")
+        mkdir("IO/" * Params.Calc.Path * "/RRPA/Transitions/E2")
+        mkdir("IO/" * Params.Calc.Path * "/RRPA/Transitions/E3")
+    end
+
+    # Initialize the angular momentum algebra ...
+    wigner_init_float(75, "Jmax", 9)
+
+    # Make single-particle orbitals ...
+    Orb = orbitals_make(Params)
+
+    # Prepare Particle & Hole orbitals ...
+    N_Particle, Particle, N_Hole, Hole = orbitals_ph_make(Params,Orb)
+
+    # Prepare 1p-1h phonon states ...
+    N_Phonon, Phonon = orbitals_one_phonon_make(N_Particle,Particle,N_Hole,Hole)
+
+    # Count & pre-index all phonon states in JP subspaces ...
+    N_nu, Orb_Phonon = HF_RPA_phonon_count(Params,N_Phonon,Phonon)
+
+    # Import transformation matrix mapping LHO & reference RRPA basis ...
+    @time C = O1b_import(Params,Orb,"IO/" * Params.Calc.Path * "/Bin/C_RRPA.bin")
+
+    # Import RRPA OBDM ...
+    @time Rho = O1b_import(Params,Orb,"IO/" * Params.Calc.Path * "/Bin/Rho_RRPA.bin")
+
+    # Import RRPA solutions ...
+    @time X_RRPA, Y_RRPA, E_RRPA = HF_RRPA_import_binary(Params,N_nu)
+
+    # Evaluate the RRPA charge radius chR ...
+    chR2 = OBDM_chR2(Params,Orb,C,Rho)
+
+    # Precalculate the reduced matrix elements of Electrogmanetic 1-body transition operators ...
+        # Iniztialize the 1-body Electromagnetic transition operators ...
+    TrOp = Tr1b_initialize(Params,Orb,chR2)
+         # Transform the 1-body transition operators to the reference basis ...
+    TrOp = Tr1b_transformation(Params,Orb,C,TrOp)
+
+    # Calculate the reduced transition matrix elements M_nu for each phonon level ...
+    rM = HF_RRPA_rM(Params,N_nu,Orb_Phonon,Phonon,Particle,Hole,Rho,TrOp,X_RRPA,Y_RRPA)
+
+    # Evaluate the reduced transition intensities B_nu for each phonon level ...
+    rB = HF_RRPA_rB(Params,N_nu,rM,E_RRPA)
+
+    # Export of RRPA electromagnetic transitions ...
+    HF_RRPA_export_transitions(Params,Orb,N_nu,C,Rho,E_RRPA,rB)
+
+    return
+end
+
+function HF_RRPA_phonon_collectivity(Params::Parameters)
+    # Check if the RRPA collectivity directory exists, if not create it ...
+    if !(isdir("IO/" * Params.Calc.Path * "/RRPA/Collectivity"))
+        mkdir("IO/" * Params.Calc.Path * "/RRPA/Collectivity")
+    end
+
+    # Read calculation parameters ...
+    N_max = Params.Calc.Nmax
+    N_2max = 2*N_max
+    J_max = N_2max + 1
+
+    # Make the list of values of J & P ...
+    JP_list = JP_initialize(J_max)
+
+    # Make single-particle orbitals ...
+    Orb = orbitals_make(Params)
+
+    # Prepare Particle & Hole orbitals ...
+    N_Particle, Particle, N_Hole, Hole = orbitals_ph_make(Params,Orb)
+
+    # Prepare 1p-1h phonon states ...
+    N_Phonon, Phonon = orbitals_one_phonon_make(N_Particle,Particle,N_Hole,Hole)
+
+    # Count & pre-index all phonon states in JP subspaces ...
+    N_nu, Orb_Phonon = HF_RPA_phonon_count(Params,N_Phonon,Phonon)
+
+    # Import transformation matrix mapping LHO & reference RRPA basis ...
+    @time C = O1b_import(Params,Orb,"IO/" * Params.Calc.Path * "/Bin/C_RRPA.bin")
+
+    # Import RRPA OBDM ...
+    @time Rho = O1b_import(Params,Orb,"IO/" * Params.Calc.Path * "/Bin/Rho_RRPA.bin")
+
+    # Import RRPA solutions ...
+    @time X_RRPA, Y_RRPA, E_RRPA = HF_RRPA_import_binary(Params,N_nu)
+
+    # Initialize fields for many-body collectivity of RRPA phonons ...
+    n_phonon = Matrix{Vector{Float64}}(undef,J_max+1,2)
+    S_phonon = Matrix{Vector{Float64}}(undef,J_max+1,2)
+
+    # Evaluate the many-body collectivity of RRPA phonons ...
+    @inbounds Threads.@threads for JP in JP_list
+        J, P = JP[1], JP[2]
+        N_ph = N_nu[J+1,P]
+        n_JP = zeros(Float64,N_ph)
+        S_JP = zeros(Float64,N_ph)
+
+        X_JP, Y_JP = X_RRPA[J+1,P], Y_RRPA[J+1,P]
+
+        @inbounds for nu in 1:N_ph
+            nSum, SSum = 0.0, 0.0
+
+            @inbounds for ph in 1:N_ph
+                w = abs2(X_JP[ph,nu]) - abs2(Y_JP[ph,nu])
+
+                nSum += w^2
+                
+                if w > 1e-15
+                    SSum -= w * log(w)
+                else
+                    SSum += 0.0
+                end
+            end
+
+            n_JP[nu] = 1.0 / sqrt(nSum)
+            S_JP[nu] = SSum
+        end
+
+        n_phonon[J+1,P] = n_JP
+        S_phonon[J+1,P] = S_JP
+    end
+
+    # Export the measures of many-body collectivity of RRPA phonons ...
+    @inbounds Threads.@threads for JP in JP_list
+        J, P = JP[1], JP[2]
+        N_ph = N_nu[J+1,P]
+        E_JP = E_RRPA[J+1,P]
+        n_JP = n_phonon[J+1,P]
+        S_JP = S_phonon[J+1,P]
+
+        sP = (P == 2) ? "-" : "+"
+        
+        Output_File = "IO/" * Params.Calc.Path * "/RRPA/Collectivity/RRPA_Phonon_Collectivity_J$(J)_P$(sP).dat"
+        open(Output_File, "w") do Write_File
+            @printf(Write_File, "%-10s %-12s %-12s %-12s\n", "nu", "E_nu", "n_nu", "S_nu")
+            @inbounds for nu in 1:N_ph
+                E_nu, n_nu, S_nu = E_JP[nu], n_JP[nu], S_JP[nu]
+                @printf(Write_File, "%-10d %-12.8f %-12.8f %-12.8f\n", nu, E_nu, n_nu, S_nu)
+            end
+        end
+    end
 
     return
 end

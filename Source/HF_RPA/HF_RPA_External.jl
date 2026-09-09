@@ -1961,3 +1961,59 @@ function HF_RPA_transition_currents(Params::Parameters;JP::String,nu_list::Vecto
 
     return
 end
+
+function HF_RPA_transitions_recalculate(Params::Parameters)
+    # Check if RPA transition directories exist, if not create them ...
+    if !(isdir("IO/" * Params.Calc.Path * "/RPA/Transitions"))
+        mkdir("IO/" * Params.Calc.Path * "/RPA/Transitions")
+        mkdir("IO/" * Params.Calc.Path * "/RPA/Transitions/E0")
+        mkdir("IO/" * Params.Calc.Path * "/RPA/Transitions/E1")
+        mkdir("IO/" * Params.Calc.Path * "/RPA/Transitions/E2")
+        mkdir("IO/" * Params.Calc.Path * "/RPA/Transitions/E3")
+    end
+
+   # Initialize the angular momentum algebra ...
+    wigner_init_float(75, "Jmax", 9)
+
+    # Make single-particle orbitals ...
+    Orb = orbitals_make(Params)
+
+    # Prepare Particle & Hole orbitals ...
+    N_Particle, Particle, N_Hole, Hole = orbitals_ph_make(Params,Orb)
+
+    # Prepare 1p-1h phonon states ...
+    N_Phonon, Phonon = orbitals_one_phonon_make(N_Particle,Particle,N_Hole,Hole)
+
+    # Count & pre-index all phonon states in JP subspaces ...
+    N_nu, Orb_Phonon = HF_RPA_phonon_count(Params,N_Phonon,Phonon)
+
+    # Import LHO -> reference OBDM transformation matrices ...
+    @time C = O1b_import(Params,Orb,"IO/" * Params.Calc.Path * "/Bin/C_HF.bin")
+
+    # Import TDA & RPA solutions ...
+    @time X_TDA, E_TDA, X_RPA, Y_RPA, E_RPA = HF_RPA_import_binary(Params,N_nu)
+
+    # Calculate RPA One-Body Density Matrix (OBDM) ...
+    @time Rho_RPA = HF_RPA_OBDM(Params,Orb,Orb_Phonon,Phonon,Particle,Hole,N_nu,Y_RPA)
+
+    # Evaluate the RPA charge radius chR ...
+    chR2 = OBDM_chR2(Params,Orb,C,Rho_RPA)
+
+    # Precalculate the reduced matrix elements of Electrogmanetic 1-body transition operators ...
+        # Iniztialize the 1-body Electromagnetic transition operators ...
+    TrOp = Tr1b_initialize(Params,Orb,chR2)
+         # Transform the 1-body transition operators to the reference basis ...
+    TrOp = Tr1b_transformation(Params,Orb,C,TrOp)
+
+    # Calculate the reduced transition matrix elements M_nu for each phonon level ...
+    rM_TDA, rM_RPA = HF_RPA_rM(Params,N_nu,Orb_Phonon,Phonon,Particle,Hole,X_TDA,X_RPA,Y_RPA,TrOp)
+
+    # Evaluate the reduced transition intensities B_nu for each phonon level ...
+    rB_TDA = HF_RPA_rB(Params,N_nu,rM_TDA,E_TDA)
+    rB_RPA = HF_RPA_rB(Params,N_nu,rM_RPA,real.(E_RPA))
+
+    # Export of RRPA electromagnetic transitions ...
+    HF_RPA_transitions_export(Params,Orb,N_nu,C,Rho_RPA,E_TDA,E_RPA,rB_TDA,rB_RPA)
+
+    return
+end

@@ -3,15 +3,15 @@ function HF_MBPT(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,V_NN::O2B)
     N_Particle, Particle, N_Hole, Hole = orbitals_ph_make(Params,Orb)
 
     # Evaluate the HF-MBPT(2) ground-state energy correction ...
-    HF_MBPT_energy(Params,Orb,Orb_NN,N_Particle,Particle,N_Hole,Hole,V_NN)
+    @time HF_MBPT_energy_correction(Params,Orb,Orb_NN,N_Particle,Particle,N_Hole,Hole,V_NN)
 
     # Evaluate the HF-MBPT(3) ground-state OBDM correction & radial densities ...
-    HF_MBPT_density(Params,Orb,Orb_NN,N_Particle,Particle,N_Hole,Hole,V_NN)
+    @time HF_MBPT_OBDM_correction(Params,Orb,Orb_NN,N_Particle,Particle,N_Hole,Hole,V_NN)
 
     return
 end
 
-function HF_MBPT_energy(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,N_Particle::pnInteger,Particle::pnSVector,N_Hole::pnInteger,Hole::pnSVector,V_NN::O2B)
+function HF_MBPT_energy_correction(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,N_Particle::pnInteger,Particle::pnSVector,N_Hole::pnInteger,Hole::pnSVector,V_NN::O2B)
     # Read parameters ...
     IO = Params.Calc.Path
 
@@ -150,7 +150,7 @@ function HF_MBPT_energy(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,N_Pa
     return
 end
 
-function HF_MBPT_density(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,N_Particle::pnInteger,Particle::pnSVector,N_Hole::pnInteger,Hole::pnSVector,V_NN::O2B)
+function HF_MBPT_OBDM(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,N_Particle::pnInteger,Particle::pnSVector,N_Hole::pnInteger,Hole::pnSVector,V_NN::O2B)
     # Read calculation params ...
     N_max = Params.Calc.Nmax
     a_max = div((N_max + 1)*(N_max + 2),2)
@@ -158,9 +158,6 @@ function HF_MBPT_density(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,N_P
     # Initialize density matrices ...
     dpRho = zeros(Float64,a_max,a_max)
     dnRho = zeros(Float64,a_max,a_max)
-
-    # Start MBPT(3) LO density operator corrections ...
-    println("\nEvaluating density LO corrections ...")
 
     # pRho 1p-1h pp
     @inbounds Threads.@threads for p in 1:N_Particle.p
@@ -784,6 +781,19 @@ function HF_MBPT_density(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,N_P
         end
     end
 
+    return dpRho, dnRho
+end
+
+function HF_MBPT_OBDM_correction(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,N_Particle::pnInteger,Particle::pnSVector,N_Hole::pnInteger,Hole::pnSVector,V_NN::O2B)
+    # Read calculation params ...
+    N_max = Params.Calc.Nmax
+    a_max = div((N_max + 1)*(N_max + 2),2)
+
+    # Start MBPT(3) LO density operator corrections ...
+    println("\nEvaluating density LO corrections ...")
+
+    dpRho, dnRho = HF_MBPT_OBDM(Params,Orb,Orb_NN,N_Particle,Particle,N_Hole,Hole,V_NN)
+
     # Read the transformation matrix C ... LHO -> HF ...
     C = O1b_import(Params,Orb,"IO/" * Params.Calc.Path * "/Bin/C_HF.bin")
 
@@ -902,4 +912,170 @@ function HF_MBPT_occupation(Params::Parameters,Rho_HF::O1B,Rho_NAT::O1B)
     end
 
     return
+end
+
+function HF_MBPT_OBDM_NOB(Params::Parameters,Orb::Vector{Orb1B},Orb_NN::Orb2B,V_NN::O2B)
+    # Read calculation params ...
+    N_max = Params.Calc.Nmax
+    a_max = div((N_max + 1)*(N_max + 2),2)
+
+    # Start MBPT(3) Natural Orbitals basis calculation ...
+    println("\nPreparing & calculating the HF-MBPT(3) Natural Orbitals basis (NAT) ...")
+
+    # Make Particle-Hole orbitals ...
+    N_Particle, Particle, N_Hole, Hole = orbitals_ph_make(Params,Orb)
+
+    # Evaluate the MBPT(3) OBDM corrections ...
+    dpRho, dnRho = HF_MBPT_OBDM(Params,Orb,Orb_NN,N_Particle,Particle,N_Hole,Hole,V_NN)
+
+    # Read the transformation matrix C ... LHO -> HF ...
+    C_HF = O1b_import(Params,Orb,"IO/" * Params.Calc.Path * "/Bin/C_HF.bin")
+
+    # Allocate the HF OBDM Rho ... in the LHO basis ...
+    Rho_HF = HF_density_operator(a_max,C_HF,Orb)
+
+    # Transform Rho_HF to the HF basis ...
+    Rho_HF = O1B(C_HF.p' * Rho_HF.p * C_HF.p, C_HF.n' * Rho_HF.n * C_HF.n)
+
+    # Include HF-MBPT(3) corrections to Rho ...
+    pRho, nRho = Rho_HF.p .+ dpRho, Rho_HF.n .+ dnRho
+
+    # Symmetrize, clean & regularize Rho ...
+        # Symmetrize density matrices ...
+    pRho .= 0.5 .* (pRho .+ pRho')
+    nRho .= 0.5 .* (nRho .+ nRho')
+        # Eliminate any possible numerical noise spoiling block-diagonal structure ...
+    @inbounds for a in 1:a_max
+        @inbounds for b in 1:a_max
+            if (Orb[a].j != Orb[b].j) || (Orb[a].l != Orb[b].l)
+                pRho[a,b] = 0.0
+                nRho[a,b] = 0.0
+            end
+        end
+    end
+        # Add a tiny deterministic diagonal splitting to lift degeneracies ...
+    @inbounds for a in 1:a_max
+        pRho[a,a] += 1e-10 * Float64(a)
+        nRho[a,a] += 1e-10 * Float64(a)
+    end
+
+    # Diagonalize Rho ...
+    pn, pD = eigen(Symmetric(pRho))
+    nn, nD = eigen(Symmetric(nRho))
+
+    pn, pD = HF_RRPA_OBDM_reorder(a_max,pn,pD)
+    nn, nD = HF_RRPA_OBDM_reorder(a_max,nn,nD)
+
+    # Reorder D & allocate new density matrix Rho ... in the HF-NAT basis ...
+    #Rho_NAT, C_HF_NAT = HF_MBPT_reorder(Params,pnVector(pn,nn),O1B(pD,nD))
+
+    Rho_NAT = O1B(diagm(pn), diagm(nn))
+    C_HF_NAT = O1B(pD,nD)
+
+    # Calculate new transformation matrix C_NAT ... LHO -> HF-NAT ... Rho already in this basis ...
+    C_NAT = O1B(C_HF.p * C_HF_NAT.p, C_HF.n * C_HF_NAT.n)
+
+    println("\tFinished the calculation of HF-MBPT(3) Natural Orbitals basis (NAT) ...")
+
+    return C_NAT, Rho_NAT
+end
+
+function HF_MBPT_TBDM(Params::Parameters,C::O1B,h_N::O1B,V_NN::O2B,Orb::Vector{Orb1B},Orb_NN::Orb2B)
+    # Read parameters ...
+    N_2max = Params.Calc.N2max
+    J_max = N_2max + 1
+
+    # Iteraction list for J & P ...
+    JP = JP_initialize(J_max)
+
+    # Initialize 2-body operator O ...
+    Sigma_NN = O2b_initialize(Params,Orb;Make_Orb_NN=false)
+
+    # Allocate the components of PT(2) 2-body correlation function matrix Sigma_NN ...
+    println("\nAllocating the components of MBPT(2) 2-body corelation function matrix Sigma_NN (2p-2h) ...")
+    @time @inbounds for i in JP
+        J, P = i[1], i[2]
+        if P == 1
+            println("\tCalculating   ...   J = " * string(J) * "/" * string(N_2max+1) * "\tP = +")
+        else
+            println("\tCalculating   ...   J = " * string(J) * "/" * string(N_2max+1) * "\tP = -")
+        end
+
+        N_T0, N_T1 = Orb_NN.N[1,P,J+1], Orb_NN.N[2,P,J+1]
+
+        @inbounds Threads.@threads for Bra in 1:max(N_T0, N_T1)
+            @inbounds for Ket in 1:Bra
+
+                # Case of pn interaction ... T = 0
+                if Bra <= N_T0
+                    Ind = Bra + (Ket - 1) * N_T0 - div(Ket * (Ket - 1),2)
+                    a, b = Orb_NN.Ind[1,P,J+1][Bra][1], Orb_NN.Ind[1,P,J+1][Bra][2]
+                    c, d = Orb_NN.Ind[1,P,J+1][Ket][1], Orb_NN.Ind[1,P,J+1][Ket][2]
+                    #j_a, j_b, j_c, j_d = Orb[a].j, Orb[b].j, Orb[c].j, Orb[d].j
+                    #l_a, l_b, l_c, l_d = Orb[a].l, Orb[b].l, Orb[c].l, Orb[d].l
+
+                    # Case of Rho_pn ...
+                    if (Orb[a].pO == 1 && Orb[b].nO == 1) && (Orb[c].pO == 0 && Orb[d].nO == 0)
+                        pE_a, nE_b, pE_c ,nE_d = h_N.p[a,a], h_N.n[b,b], h_N.p[c,c], h_N.n[d,d]
+                        ME = O2b_pn(a,b,c,d,J,P,V_NN,Orb_NN) / (pE_a + nE_b - pE_c - nE_d) * 0.5
+                        @views Sigma_NN.pn[P,J+1][Ind] = ME
+                    elseif (Orb[a].pO == 0 && Orb[b].nO == 0) && (Orb[c].pO == 1 && Orb[d].nO == 1)
+                        pE_a, nE_b, pE_c ,nE_d = h_N.p[a,a], h_N.n[b,b], h_N.p[c,c], h_N.n[d,d]
+                        ME = O2b_pn(a,b,c,d,J,P,V_NN,Orb_NN) / (pE_c + nE_d - pE_a - nE_b) * 0.5
+                        @views Sigma_NN.pn[P,J+1][Ind] = ME
+                    end
+
+                end
+
+                # Case of pp & nn interaction ... T = 1
+                if Bra <= N_T1
+                    Ind = Bra + (Ket - 1) * N_T1 - div(Ket * (Ket - 1),2)
+                    a, b = Orb_NN.Ind[2,P,J+1][Bra][1], Orb_NN.Ind[2,P,J+1][Bra][2]
+                    c, d = Orb_NN.Ind[2,P,J+1][Ket][1], Orb_NN.Ind[2,P,J+1][Ket][2]
+                    j_a, j_b, j_c, j_d = Orb[a].j, Orb[b].j, Orb[c].j, Orb[d].j
+                    #l_a, l_b, l_c, l_d = Orb[a].l, Orb[b].l, Orb[c].l, Orb[d].l
+
+                    # Case of Rho_pp ...
+                     if (Orb[a].pO == 1 && Orb[b].pO == 1) && (Orb[c].pO == 0 && Orb[d].pO == 0)
+                        pE_a, pE_b, pE_c ,pE_d = h_N.p[a,a], h_N.p[b,b], h_N.p[c,c], h_N.p[d,d]
+                        ME = O2b_pp(a,b,c,d,J,P,V_NN,Orb,Orb_NN) / (pE_a + pE_b - pE_c - pE_d) * 0.5
+                        #ME = (O2b_pp(a,b,c,d,J,P,V_NN,Orb,Orb_NN) - phase(-J + div(j_c + j_d,2)) * O2b_pp(a,b,d,c,J,P,V_NN,Orb,Orb_NN)) / (pE_a + pE_b - pE_c - pE_d) / sqrt((1 + kronecker_delta(a,b)) * (1 + kronecker_delta(c,d)))
+                        @views Sigma_NN.pp[P,J+1][Ind] = ME
+                    elseif (Orb[a].pO == 0 && Orb[b].pO == 0) && (Orb[c].pO == 1 && Orb[d].pO == 1)
+                        pE_a, pE_b, pE_c ,pE_d = h_N.p[a,a], h_N.p[b,b], h_N.p[c,c], h_N.p[d,d]
+                        ME = O2b_pp(a,b,c,d,J,P,V_NN,Orb,Orb_NN) / (pE_c + pE_d - pE_a - pE_b) * 0.5
+                        #ME = (O2b_pp(a,b,c,d,J,P,V_NN,Orb,Orb_NN) - phase(-J + div(j_c + j_d,2)) * O2b_pp(a,b,d,c,J,P,V_NN,Orb,Orb_NN)) / (pE_c + pE_d - pE_a - pE_b) / sqrt((1 + kronecker_delta(a,b)) * (1 + kronecker_delta(c,d)))
+                        @views Sigma_NN.pp[P,J+1][Ind] = ME
+                    end
+
+                    # Case of Sigma_NN ...
+                    if (Orb[a].nO == 1 && Orb[b].nO == 1) && (Orb[c].nO == 0 && Orb[d].nO == 0)
+                        nE_a, nE_b, nE_c ,nE_d = h_N.n[a,a], h_N.n[b,b], h_N.n[c,c], h_N.n[d,d]
+                        ME = O2b_nn(a,b,c,d,J,P,V_NN,Orb,Orb_NN) / (nE_a + nE_b - nE_c - nE_d) * 0.5
+                        #ME = (O2b_nn(a,b,c,d,J,P,V_NN,Orb,Orb_NN) - phase(-J + div(j_c + j_d,2)) * O2b_nn(a,b,d,c,J,P,V_NN,Orb,Orb_NN)) / (nE_a + nE_b - nE_c - nE_d) / sqrt((1 + kronecker_delta(a,b)) * (1 + kronecker_delta(c,d)))
+                        @views Sigma_NN.nn[P,J+1][Ind] = ME
+                    elseif (Orb[a].nO == 0 && Orb[b].nO == 0) && (Orb[c].nO == 1 && Orb[d].nO == 1)
+                        nE_a, nE_b, nE_c ,nE_d = h_N.n[a,a], h_N.n[b,b], h_N.n[c,c], h_N.n[d,d]
+                        ME = O2b_nn(a,b,c,d,J,P,V_NN,Orb,Orb_NN) / (nE_c + nE_d - nE_a - nE_b) * 0.5
+                        #ME = (O2b_nn(a,b,c,d,J,P,V_NN,Orb,Orb_NN) - phase(-J + div(j_c + j_d,2)) * O2b_nn(a,b,d,c,J,P,V_NN,Orb,Orb_NN)) / (nE_c + nE_d - nE_a - nE_b) / sqrt((1 + kronecker_delta(a,b)) * (1 + kronecker_delta(c,d)))
+                        @views Sigma_NN.nn[P,J+1][Ind] = ME
+                    end
+
+                end
+
+            end
+        end
+
+    end
+
+    # Perform transformation of the 2-body correlation function into the target basis ...
+    @time Sigma_NN_NOB = O2b_transformation(Params,Orb,Orb_NN,Sigma_NN,C)
+
+    # Deallocate & perform garbage collection ...
+    Sigma_NN = nothing
+    GC.gc()
+
+    println("\tCompleted the allocation & basis transformation of the MBPT(2) 2-body corelation function ...")
+
+    return Sigma_NN_NOB
 end

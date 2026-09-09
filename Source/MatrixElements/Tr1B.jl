@@ -5,7 +5,7 @@ function Tr1b_initialize(Params::Parameters,Orb::Vector{Orb1B},chR2::Float64)
     TrE0, TrE1, TrE2, TrE3 = Tr1b_EX_initialize(Params,Orb)
 
     # Make 1-body electric vortical transition operators ...
-    TrE1_VC, TrE1_VS, TrE1_TC, TrE1_TS, TrE1_sTC, TrE1_sTS, TrE1_C, TrE1_sC = Tr1b_E1_vortical_initialize(Params,Orb,chR2)
+    TrE1_VC, TrE1_VS, TrE1_TC, TrE1_TS, TrE1_sTC, TrE1_sTS, TrE1_C, TrE1_sC = Tr1b_E1_NLO_initialize(Params,Orb,chR2)
 
     # Make standard 1-body magnetic transition operators ...
     TrM1, TrM2, TrM3 = Tr1b_MX_initialize(Params,Orb)
@@ -110,7 +110,7 @@ function Tr1b_EX_initialize(Params::Parameters,Orb::Vector{Orb1B})
     return TrE0, TrE1, TrE2, TrE3
 end
 
-function Tr1b_E1_vortical_initialize(Params::Parameters,Orb::Vector{Orb1B},chR2::Float64)
+function Tr1b_E1_NLO_initialize(Params::Parameters,Orb::Vector{Orb1B},chR2::Float64)
     # Read parameters
     hw = Params.Calc.hw
     N_max = Params.Calc.Nmax
@@ -133,7 +133,6 @@ function Tr1b_E1_vortical_initialize(Params::Parameters,Orb::Vector{Orb1B},chR2:
     pE1_sC, nE1_sC = zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max)
 
     # Define local functions for evaluation of the reduced matrix elements ...
-
     @inline function rME_YL(l_a::Int64,j_a::Int64,l_b::Int64,j_b::Int64,L::Int64)
         if rem(l_a + l_b + L,2) != 0
             return 0.0
@@ -186,7 +185,6 @@ function Tr1b_E1_vortical_initialize(Params::Parameters,Orb::Vector{Orb1B},chR2:
             rME -= ME
         end
 
-
         if abs(L - l_a) <= (l_b - 1) && (l_b - 1) <= (L + l_a)
             ME = Amp_Ket * fCG(2*l_a,2*L,2*l_b-2,0,0,0) * f6j(2*L,2,2*J,2*l_b,2*l_a,2*l_b-2) * sqrt(Float64(l_b) / Float64(2*l_b + 1)) *
                 (rME_rN_dr(n_a,l_a,n_b,l_b,N,hw) + Float64(l_b + 1) * rME_rN(n_a,l_a,n_b,l_b,N-1,hw))
@@ -211,7 +209,7 @@ function Tr1b_E1_vortical_initialize(Params::Parameters,Orb::Vector{Orb1B},chR2:
         end
 
         Amp = phase(l_a + l_b + J + div(j_b + 3,2)) * sqrt(Float64((j_a + 1) * (j_b + 1) * (2*l_a + 1) * (2*l_b + 1)) / (8.0 * pi * Float64(J * (J + 1)))) *
-              Float64((l_a - l_b) * (l_a + l_b + 1) - div((j_a - j_b) * (j_a + j_b + 1),4)) * fCG(2*l_a,2*l_b,2*J,0,0,0) * f6j(2*l_a,j_a,1,j_b,2*l_b,2*J)
+              Float64((l_a - l_b) * (l_a + l_b + 1) - div((j_a - j_b) * (j_a + j_b + 2),4)) * fCG(2*l_a,2*l_b,2*J,0,0,0) * f6j(2*l_a,j_a,1,j_b,2*l_b,2*J)
 
         if abs(Amp) < 1e-12
             return 0.0
@@ -283,21 +281,21 @@ function Tr1b_E1_vortical_initialize(Params::Parameters,Orb::Vector{Orb1B},chR2:
                 rr3_Y1_ab = rME_rN_YL(a,b,3,1,hw,Orb)
 
                 # Proton components ...
-                pVCME = hc_pmc2 / 5.0 * sqrt(3.0 / 2.0) * rG_dot_r2_Y12_ab
+                pVCME = hc_pmc2 * sqrt(3.0 / 2.0) / 5.0 * rG_dot_r2_Y12_ab
 
-                pVSME = hc_pmc2 / 5.0 * sqrt(3.0 / 2.0) * rG_cross_S_dot_r2_Y12_ab
+                pVSME = hc_pmc2 * sqrt(3.0 / 2.0) / 5.0 * rG_cross_S_dot_r2_Y12_ab
 
-                pTCME = hc_pmc2 * (sqrt(3.0 / 2.0) / 10.0 * rG_dot_r2_Y12_ab + 0.5 / sqrt(3.0) * rG_dot_r2_Y10_ab)
+                pTCME = hc_pmc2 * (sqrt(3.0 / 2.0) / 15.0 * rG_dot_r2_Y12_ab + sqrt(3.0) / 6.0 * rG_dot_r2_Y10_ab)
 
-                pTSME = hc_pmc2 * (sqrt(3.0 / 2.0) / 10.0 * rG_cross_S_dot_r2_Y12_ab + 0.5 / sqrt(3.0) * rG_cross_S_dot_r2_Y10_ab)
+                pTSME = hc_pmc2 * (sqrt(3.0 / 2.0) / 15.0 * rG_cross_S_dot_r2_Y12_ab + sqrt(3.0) / 6.0 * rG_cross_S_dot_r2_Y10_ab)
 
-                psTCME = -hc_pmc2 * 0.5 / sqrt(3.0) * chR2 * rG_dot_Y10_ab
+                psTCME = -hc_pmc2 * sqrt(3.0) / 6.0 * chR2 * rG_dot_Y10_ab
 
-                psTSME = -hc_pmc2 * 0.5 / sqrt(3.0) * chR2 * rG_cross_S_dot_Y10_ab
+                psTSME = -hc_pmc2 * sqrt(3.0) / 6.0 * chR2 * rG_cross_S_dot_Y10_ab
                 
                 pCME = 1.0 / 10.0 * rr3_Y1_ab
 
-                psCME = -1.0 / 10.0 * chR2 *  rr1_Y1_ab
+                psCME = -1.0 / 6.0 * chR2 *  rr1_Y1_ab
 
                 pVCSum += pVCME
                 pVSSum += pVSME
@@ -309,21 +307,21 @@ function Tr1b_E1_vortical_initialize(Params::Parameters,Orb::Vector{Orb1B},chR2:
                 psCSum += psCME
 
                 # Neutron components ...
-                nVCME = hc_nmc2 / 5.0 * sqrt(3.0 / 2.0) * rG_dot_r2_Y12_ab
+                nVCME = hc_nmc2 * sqrt(3.0 / 2.0) / 5.0 * rG_dot_r2_Y12_ab
 
-                nVSME = hc_nmc2 / 5.0 * sqrt(3.0 / 2.0) * rG_cross_S_dot_r2_Y12_ab
+                nVSME = hc_nmc2 * sqrt(3.0 / 2.0) / 5.0 * rG_cross_S_dot_r2_Y12_ab
 
-                nTCME = hc_nmc2 * (sqrt(3.0 / 2.0) / 10.0 * rG_dot_r2_Y12_ab + 0.5 / sqrt(3.0) * rG_dot_r2_Y10_ab)
+                nTCME = hc_nmc2 * (sqrt(3.0 / 2.0) / 15.0 * rG_dot_r2_Y12_ab + sqrt(3.0) / 6.0 * rG_dot_r2_Y10_ab)
 
-                nTSME = hc_nmc2 * (sqrt(3.0 / 2.0) / 10.0 * rG_cross_S_dot_r2_Y12_ab + 0.5 / sqrt(3.0) * rG_cross_S_dot_r2_Y10_ab)
+                nTSME = hc_nmc2 * (sqrt(3.0 / 2.0) / 15.0 * rG_cross_S_dot_r2_Y12_ab + sqrt(3.0) / 6.0 * rG_cross_S_dot_r2_Y10_ab)
 
-                nsTCME = -hc_nmc2 * 0.5 / sqrt(3.0) * chR2 * rG_dot_Y10_ab
+                nsTCME = -hc_nmc2 * sqrt(3.0) / 6.0 * chR2 * rG_dot_Y10_ab
 
-                nsTSME = -hc_nmc2 * 0.5 / sqrt(3.0) * chR2 * rG_cross_S_dot_Y10_ab
+                nsTSME = -hc_nmc2 * sqrt(3.0) / 6.0 * chR2 * rG_cross_S_dot_Y10_ab
 
                 nCME = 1.0 / 10.0 * rr3_Y1_ab
 
-                nsCME = -1.0 / 10.0 * chR2 *  rr1_Y1_ab
+                nsCME = -1.0 / 6.0 * chR2 *  rr1_Y1_ab
 
                 nVCSum += nVCME
                 nVSSum += nVSME
@@ -352,7 +350,6 @@ function Tr1b_E1_vortical_initialize(Params::Parameters,Orb::Vector{Orb1B},chR2:
             nE1_sTS[a,b] = nsTSSum
             nE1_C[a,b] = nCSum
             nE1_sC[a,b] = nsCSum
-
         end
     end
     
@@ -365,26 +362,6 @@ function Tr1b_E1_vortical_initialize(Params::Parameters,Orb::Vector{Orb1B},chR2:
     TrE1_sTS = O1B(pE1_sTS,nE1_sTS)
     TrE1_C = O1B(pE1_C,nE1_C)
     TrE1_sC = O1B(pE1_sC,nE1_sC)
-
-    # Test print
-    #=
-        display(TrE1_VC.p)
-        display(TrE1_VS.p)
-
-        #display(TrE1_TC.p)
-        #display(TrE1_sTC.p)
-
-        #display(TrE1_TS.p)
-        #display(TrE1_sTS.p)
-
-        #display(TrE1_C.n)
-        #display(TrE1_sC.n)
-
-        throw("Stop here ...")
-    =#
-
-    #pE1_sTC, nE1_sTC = zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max)
-    #pE1_sTS, nE1_sTS = zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max)
 
     println("\tE1 vortical 1-body transition operators succesfully constructed in the LHO basis ...")
 

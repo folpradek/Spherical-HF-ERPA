@@ -1,141 +1,3 @@
-function QRPA_diagonalize_full(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::qpOrb2B,A::Matrix{Matrix{Float64}},B::Matrix{Matrix{Float64}},qpN::qpO1B,qpTrOp::qpTr1B)
-    # Read parameters ...
-    N_max = Params.Calc.Nmax
-    J_max = 2*N_max + 1
-    Orthogon = Params.Calc.QRPA.Ortho
-
-    # Initialize QRPA stability condition ...
-    Stability = true
-
-    # Make the list of values of J & P for iteration ...
-    JP_list = JP_initialize(J_max)
-
-    # Initialite the storage for QTDA solutions ...
-    E_QRPA = Matrix{Vector{Complex}}(undef,2,J_max+1)
-    X_QRPA = Matrix{Matrix{Complex}}(undef,2,J_max+1)
-    Y_QRPA = Matrix{Matrix{Complex}}(undef,2,J_max+1)
-
-    # Perform the diagonalization of the QRPA system ...
-    println("\nDiagonalizing the QRPA system ...")
-    @inbounds for JP in JP_list
-        J, P = JP[1], JP[2]
-        N_qp = Orb_2qp.N[P,J+1]
-
-        if P == 1
-            println("\t\tDiagonalizing the block:\tJ = $J, P = +")
-        else
-            println("\t\tDiagonalizing the block:\tJ = $J, P = -")
-        end
-
-        A_JP = A[P,J+1]
-        B_JP = B[P,J+1]
-
-        S = [A_JP B_JP; -B_JP -A_JP]
-
-        # Build the 2N_qp x 2N_qp QRPA matrix
-        # Diagonalize S; eigenvalues are in E_all, eigenvectors (columns) in V_all
-        decomp = eigen!(S, sortby = e -> real(e))
-        E_all = Complex.(decomp.values)
-        V_all = Complex.(decomp.vectors)
-
-        # Select physical solutions: Re(E) > 0, or Re(E) ≈ 0 and Im(E) > 0
-        tol = 1e-10
-        phys_indices = Int[]
-        @inbounds for idx in 1:(2*N_qp)
-            er = real(E_all[idx])
-            if (er > tol)
-                push!(phys_indices, idx)
-            end
-        end
-
-        if length(phys_indices) != N_qp
-            @inbounds for idx in 1:(2*N_qp)
-                er = real(E_all[idx])
-                ei = imag(E_all[idx])
-                if (abs(er) <= tol && ei > tol)
-                    push!(phys_indices, idx)
-                end
-            end
-        end
-
-        if length(phys_indices) != N_qp
-            println("\t\tWARNING: expected $N_qp physical QRPA solutions, found $(length(phys_indices))")
-            Stability = false
-        end
-
-        # Prepare storage for this (J, P) block
-        E_QRPA_JP = Vector{Complex}(undef,N_qp)
-        X_QRPA_JP = Matrix{Complex}(undef,N_qp,N_qp)
-        Y_QRPA_JP = Matrix{Complex}(undef,N_qp,N_qp)
-
-        fill!(E_QRPA_JP, 0.0 + 0.0im)
-        fill!(X_QRPA_JP, 0.0 + 0.0im)
-        fill!(Y_QRPA_JP, 0.0 + 0.0im)
-
-        # Sort physical states by increasing real part of energy
-        sorted_phys = sort(phys_indices, by = idx -> real(E_all[idx]))
-
-        n_select = min(N_qp, length(sorted_phys))
-
-        # Extract X, Y from eigenvectors of S and normalize
-        @inbounds for nu in 1:n_select
-            idx = sorted_phys[nu]
-            E_nu = E_all[idx]
-            E_QRPA_JP[nu] = E_nu
-
-            v = @view V_all[:, idx]
-            X_col = @view v[1:N_qp]
-            Y_col = @view v[(N_qp+1):(2*N_qp)]
-
-            # Copy into storage
-            X_QRPA_JP[:,nu] .= X_col
-            Y_QRPA_JP[:,nu] .= Y_col
-
-            # Renormalization of X and Y amplitudes (QRPA norm)
-            X_norm = 0.0
-            Y_norm = 0.0
-            @inbounds for qp in 1:N_qp
-                X_norm += abs2(X_QRPA_JP[qp,nu])
-                Y_norm += abs2(Y_QRPA_JP[qp,nu])
-            end
-
-            if (X_norm - Y_norm) > 1e-8
-                QRPA_norm = ComplexF64(1.0 / sqrt(abs(X_norm - Y_norm)))
-                @inbounds for qp in 1:N_qp
-                    X_QRPA_JP[qp,nu] *= QRPA_norm
-                    Y_QRPA_JP[qp,nu] *= QRPA_norm
-                end
-            elseif (X_norm - Y_norm) < -1e-8
-                QRPA_norm = (0.0 - 1.0im) * ComplexF64(1.0 / sqrt(abs(X_norm - Y_norm)))
-                @inbounds for qp in 1:N_qp
-                    X_QRPA_JP[qp,nu] *= QRPA_norm
-                    Y_QRPA_JP[qp,nu] *= QRPA_norm
-                end
-            else
-                QRPA_norm = 0.0
-                @inbounds for qp in 1:N_qp
-                    QRPA_norm += abs2(X_QRPA_JP[qp,nu]) + abs2(Y_QRPA_JP[qp,nu])
-                end
-                QRPA_norm = ComplexF64(1.0 / sqrt(abs(QRPA_norm)))
-                @inbounds for qp in 1:N_qp
-                    X_QRPA_JP[qp,nu] *= QRPA_norm
-                    Y_QRPA_JP[qp,nu] *= QRPA_norm
-                end
-            end
-        end
-        
-        # Retrieve the QRPA solutions ...
-        E_QRPA[P,J+1] = E_QRPA_JP
-        X_QRPA[P,J+1] = X_QRPA_JP
-        Y_QRPA[P,J+1] = Y_QRPA_JP
-
-    end
-
-    println("\tThe system of QRPA equations has been succesfully solved ...")
-
-    return E_QRPA, X_QRPA, Y_QRPA, Stability
-end
-
 function QRPA_diagonalize(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::qpOrb2B,A::Matrix{Matrix{Float64}},B::Matrix{Matrix{Float64}},qpN::qpO1B,qpTrOp::qpTr1B)
     # Read parameters ...
     N_max = Params.Calc.Nmax
@@ -151,7 +13,7 @@ function QRPA_diagonalize(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::qpOrb2B
     # Determine the largest 2qp space dimension ...
     N_qp_max = maximum(Orb_2qp.N)
 
-    # Initialite the storage for QTDA solutions ...
+    # Initialite the storage for QRPA solutions ...
     E_QRPA = Matrix{Vector{ComplexF64}}(undef,2,J_max+1)
     X_QRPA = Matrix{Matrix{ComplexF64}}(undef,2,J_max+1)
     Y_QRPA = Matrix{Matrix{ComplexF64}}(undef,2,J_max+1)
@@ -237,9 +99,6 @@ function QRPA_diagonalize(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::qpOrb2B
                 @. xcol = sE * rcol + iE * npcol
                 @. ycol = sE * rcol - iE * npcol
             end
-
- 
-
 
         elseif Orthogon == true && J == 0 && P == 1
 

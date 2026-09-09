@@ -943,12 +943,37 @@ function HF_RRPA_export_transitions(Params::Parameters,Orb::Vector{Orb1B},N_nu::
             end
         end
 
-            # Isoscalar electric dipole compression mode ...
+            # Full compression mode ...
         open(Output_File * "/RRPA/Transitions/E1/RRPA_E1_C.dat", "w") do Write_File
             J, P = 1, 2
             @printf(Write_File, "%-20s %-20s %-20s %-20s\n", "E", "B_ph", "B_is", "B_iv")
             @inbounds for nu in 1:N_nu[J+1,P]
                 @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f\n", real(E_RPA[J+1,P][nu]), rB_RPA.E1_C.ph[nu], rB_RPA.E1_C.is[nu], rB_RPA.E1_C.iv[nu])
+            end
+        end
+            # Convective compression mode ...
+        open(Output_File * "/RRPA/Transitions/E1/RRPA_E1_C_conv.dat", "w") do Write_File
+            J, P = 1, 2
+            @printf(Write_File, "%-20s %-20s %-20s %-20s\n", "E", "B_ph", "B_is", "B_iv")
+            @inbounds for nu in 1:N_nu[J+1,P]
+                @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f\n", real(E_RPA[J+1,P][nu]), rB_RPA.E1_CC.ph[nu], rB_RPA.E1_CC.is[nu], rB_RPA.E1_CC.iv[nu])
+            end
+        end
+            # Spin compression mode ...
+        open(Output_File * "/RRPA/Transitions/E1/RRPA_E1_C_spin.dat", "w") do Write_File
+            J, P = 1, 2
+            @printf(Write_File, "%-20s %-20s %-20s %-20s\n", "E", "B_ph", "B_is", "B_iv")
+            @inbounds for nu in 1:N_nu[J+1,P]
+                @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f\n", real(E_RPA[J+1,P][nu]), rB_RPA.E1_CS.ph[nu], rB_RPA.E1_CS.is[nu], rB_RPA.E1_CS.iv[nu])
+            end
+        end
+
+            # Continuity equation electric dipole compression mode ...
+        open(Output_File * "/RRPA/Transitions/E1/RRPA_E1_c.dat", "w") do Write_File
+            J, P = 1, 2
+            @printf(Write_File, "%-20s %-20s %-20s %-20s\n", "E", "B_ph", "B_is", "B_iv")
+            @inbounds for nu in 1:N_nu[J+1,P]
+                @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f\n", real(E_RPA[J+1,P][nu]), rB_RPA.E1_c.ph[nu], rB_RPA.E1_c.is[nu], rB_RPA.E1_c.iv[nu])
             end
         end
 

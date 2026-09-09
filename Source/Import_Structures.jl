@@ -324,6 +324,9 @@
         E1_TC::Transition
         E1_TS::Transition
         E1_C::Transition
+        E1_CC::Transition
+        E1_CS::Transition
+        E1_c::Transition
         E1_NLO_LWA::Transition
     end
 

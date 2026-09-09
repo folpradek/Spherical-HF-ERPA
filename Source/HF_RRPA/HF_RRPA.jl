@@ -1,6 +1,6 @@
 function HF_RRPA(Params::Parameters)
     # Initialize Wigner symbols ...
-    wigner_init_float(Params.Int.N2max + 2, "Jmax", 6)
+    wigner_init_float(75,"Jmax",9)
 
     # Calculation parameters
     println("Starting Renormalized-RPA calculations with residual NO2B NN+NNN interaction")

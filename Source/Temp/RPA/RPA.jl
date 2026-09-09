@@ -1,9 +1,9 @@
-function HF_RPA(Params::Parameters)
+function RPA(Params::Parameters)
     # Initialize Wigner symbols ...
-    wigner_init_float(75,"Jmax",9)
+    wigner_init_float(75, "Jmax", 9)
 
     # Calculation parameters
-    println("Starting RPA (TDA) calculations with residual NO2B NN+NNN interaction")
+    println("Starting RPA calculations with residual NO2B NN+NNN interaction & given reference ground state ...")
     println("\nCalculation data:")
     println("A = " * string(Params.Calc.A) * " , Z = " * string(Params.Calc.Z) * " , hw = " * string(Params.Calc.hw) *
             " MeV , N_max = " * string(Params.Calc.Nmax) * " , J-scheme LHO basis size = " * string(div((Params.Calc.Nmax+1)*(Params.Calc.Nmax+2),2)) *
@@ -19,7 +19,7 @@ function HF_RPA(Params::Parameters)
     # Make new directories for results ...
     println(Params.Calc.Path)
     if !(isdir("IO/" * Params.Calc.Path))
-        println("\nError! ... No precomputed HF solution is available in given Input_File path ... run HF solver first ...")
+        println("\nError! ... No precomputed reference solution is available in given Input_File path ... e.g. run HF solver first ...")
         return
     end
     if (isdir("IO/" * Params.Calc.Path * "/RPA"))
@@ -43,9 +43,10 @@ function HF_RPA(Params::Parameters)
         mkdir("IO/" * Params.Calc.Path * "/RPA/Amplitudes")
     end
     
-    println("\nStarting RPA & TDA calculation ...")
-    # Start RPA & TDA calculation ...
-    @time HF_RPA_solver(Params)
+    println("\nStarting RPA calculation ...")
+    
+    # Start RPA calculation ...
+    @time RPA_solver(Params)
     
     println("\nAll calculations have finished ...\n")
 

@@ -141,31 +141,31 @@ function HF_RRPA_OBDM_iteration(Params::Parameters,N_nu::Matrix{Int64},N_Particl
         Iteration += 1
 
         # Check for degenerate solutions ... Tend to appear ...
-        if rem(Iteration,2) == 0 && Iteration > 50
-            if abs(delta - delta_even) < epsilon
+        if rem(Iteration,2) == 0 && Iteration > 100
+            if abs(delta - delta_even) < 10.0 * epsilon
                 println("\nOBDM iteration finished - cycled degenerate solution found ...")
                 break
             end
             delta_even = delta
-        elseif rem(Iteration,2) == 1 && Iteration > 50
-            if abs(delta - delta_odd) < epsilon
+        elseif rem(Iteration,2) == 1 && Iteration > 100
+            if abs(delta - delta_odd) < 10.0 * epsilon
                 println("\nOBDM iteration finished - cycled degenerate solution found ...")
                 break
             end
             delta_odd = delta
         end
 
-        if Iteration > 150 && delta < 10.0 * epsilon
+        if Iteration > 150 && delta < 100.0 * epsilon
             println("\nOBDM iteration finished with lower precisions 10 x epsilon ...")
             break
         end
 
-        if Iteration > 200 && delta < 100.0 * epsilon
+        if Iteration > 200 && delta < 1000.0 * epsilon
             println("\nOBDM iteration finished with lower precisions 100 x epsilon ...")
             break
         end
 
-        if Iteration > 250 && delta < 1000.0 * epsilon
+        if Iteration > 250 && delta < 10000.0 * epsilon
             println("\nOBDM iteration finished with lower precisions 1000 x epsilon ...")
             break
         end

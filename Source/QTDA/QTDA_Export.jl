@@ -646,12 +646,36 @@ function QTDA_transitions_export(Params::Parameters,Orb::Vector{Orb1B},Orb_2qp::
                 @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f\n", E_QTDA[P,J+1][nu], rB_QTDA.E1_TS.ph[nu], rB_QTDA.E1_TS.is[nu], rB_QTDA.E1_TS.iv[nu])
             end
         end
-            # Isoscalar electric dipole compression mode ...
+            # Full compression mode ...
         open(Output_File * "/QTDA/Transitions/E1/QTDA_E1_C.dat", "w") do Write_File
             J, P = 1, 2
             @printf(Write_File, "%-20s %-20s %-20s %-20s\n", "E", "B_ph", "B_is", "B_iv")
             @inbounds for nu in 1:Orb_2qp.N[P,J+1]
                 @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f\n", E_QTDA[P,J+1][nu], rB_QTDA.E1_C.ph[nu], rB_QTDA.E1_C.is[nu], rB_QTDA.E1_C.iv[nu])
+            end
+        end
+            # Convective compression mode ...
+        open(Output_File * "/QTDA/Transitions/E1/QTDA_E1_C_conv.dat", "w") do Write_File
+            J, P = 1, 2
+            @printf(Write_File, "%-20s %-20s %-20s %-20s\n", "E", "B_ph", "B_is", "B_iv")
+            @inbounds for nu in 1:Orb_2qp.N[P,J+1]
+                @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f\n", E_QTDA[P,J+1][nu], rB_QTDA.E1_CC.ph[nu], rB_QTDA.E1_CC.is[nu], rB_QTDA.E1_CC.iv[nu])
+            end
+        end
+            # Spin compression mode ...
+        open(Output_File * "/QTDA/Transitions/E1/QTDA_E1_C_spin.dat", "w") do Write_File
+            J, P = 1, 2
+            @printf(Write_File, "%-20s %-20s %-20s %-20s\n", "E", "B_ph", "B_is", "B_iv")
+            @inbounds for nu in 1:Orb_2qp.N[P,J+1]
+                @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f\n", E_QTDA[P,J+1][nu], rB_QTDA.E1_CS.ph[nu], rB_QTDA.E1_CS.is[nu], rB_QTDA.E1_CS.iv[nu])
+            end
+        end
+            # Continuity equation electric dipole compression mode ...
+        open(Output_File * "/QTDA/Transitions/E1/QTDA_E1_c.dat", "w") do Write_File
+            J, P = 1, 2
+            @printf(Write_File, "%-20s %-20s %-20s %-20s\n", "E", "B_ph", "B_is", "B_iv")
+            @inbounds for nu in 1:Orb_2qp.N[P,J+1]
+                @printf(Write_File, "%-20.8f %-20.8f %-20.8f %-20.8f\n", E_QTDA[P,J+1][nu], rB_QTDA.E1_c.ph[nu], rB_QTDA.E1_c.is[nu], rB_QTDA.E1_c.iv[nu])
             end
         end
             # NLO LWA electric dipole mode ...

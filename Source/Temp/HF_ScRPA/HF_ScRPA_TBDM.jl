@@ -99,7 +99,7 @@ function h1b_correlations(Params::Parameters,h_N::O1B,Rho_NN::O2B,V_NNN::Array{V
 
     h_p_LHO, h_n_LHO = zeros(Float64,a_max,a_max), zeros(Float64,a_max,a_max)
 
-    function h1b_correlation_indiced(Params::Parameters)
+    function h1b_correlation_indices(Params::Parameters)
         # Read parameters ...
         N_max = Params.Calc.Nmax
         a_max = div((N_max + 1)*(N_max + 2),2)
@@ -116,7 +116,7 @@ function h1b_correlations(Params::Parameters,h_N::O1B,Rho_NN::O2B,V_NNN::Array{V
         return ab_list
     end
 
-    ab_list = h1b_correlation_indiced(Params)
+    ab_list = h1b_correlation_indices(Params)
 
     println("\nCalculating correlated 1-body Hamiltonian h1b_correlations ...")
     @inbounds for cf_i in 1:cf_count
@@ -603,6 +603,8 @@ function HF_RPA_TBDM_1p1h(p::Int64,l_p::Int64,j_p::Int64,q::Int64,l_q::Int64,j_q
             end
         end
     end
+
+    Sigma *= 0.0
 
     return Sigma
 end

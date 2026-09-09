@@ -1,6 +1,6 @@
 function QRPA(Params::Parameters)
     # Initialize Wigner symbols ...
-    wigner_init_float(Params.Int.N2max + 2, "Jmax", 6)
+    wigner_init_float(75,"Jmax",9)
 
     # Calculation parameters ...
     println("Starting spherical QRPA calculation with residual NO2B NN+NNN interaction based on available reference quasiparticle mean-field calculation")
@@ -19,7 +19,7 @@ function QRPA(Params::Parameters)
     # Make new directories for results ...
     println(Params.Calc.Path)
     if !(isdir("IO/" * Params.Calc.Path))
-        println("\nError! ... No precomputed reference quasiparrticle mean-field (HFB, BCS) solution is available in given Input_File path ... run HFB/BCS solver first ...")
+        println("\nError! ... No precomputed reference quasiparticle mean-field (HFB, BCS) solution is available in given Input_File path ... run HFB/BCS solver first ...")
         return
     end
     if (isdir("IO/" * Params.Calc.Path * "/QRPA"))

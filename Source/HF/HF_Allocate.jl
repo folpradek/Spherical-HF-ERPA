@@ -130,11 +130,7 @@ function HF_allocate_indices(Params::Parameters,Orb::Vector{Orb1B})
 
     # Count how many de pairs are there ...
     @inbounds for d in 1:a_max
-        l_d = Orb[d].l
-        j_d = Orb[d].j
         @inbounds for e in 1:a_max
-            l_e = Orb[e].l
-            j_e = Orb[e].j
             de_count += 1
         end
     end
@@ -160,11 +156,7 @@ function HF_allocate_indices(Params::Parameters,Orb::Vector{Orb1B})
 
     # Allocate the array de ...
     @inbounds for d in 1:a_max
-        l_d = Orb[d].l
-        j_d = Orb[d].j
         @inbounds for e in 1:a_max
-            l_e = Orb[e].l
-            j_e = Orb[e].j
             de_count += 1
             de[1,de_count] = d
             de[2,de_count] = e
